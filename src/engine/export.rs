@@ -153,6 +153,8 @@ impl Engine {
         let Some(idx) = self.find_module(id) else {
             bail!("this scene names an unknown chamber: {id:?}");
         };
+        // A running sweep would overwrite the scene's values on the next frame.
+        self.sweeps.clear();
         self.set_active(idx);
         if let Some(p) = v.get("params") {
             self.modules[idx].params().load_json(p);
@@ -314,6 +316,21 @@ mod tests {
             scene,
             "the restored scene reads back identically"
         );
+    }
+
+    #[test]
+    fn opening_a_scene_stops_sweeps_so_its_values_survive() {
+        let Some(mut e) = engine() else { return };
+        let fluxion = find(&e, "newton.fluxions");
+        e.set_active(fluxion);
+        e.modules[fluxion].params().set_f("ecc", 0.1);
+        let scene = e.scene_json();
+        e.toggle_sweep(fluxion, "ecc");
+        e.tick(0.5);
+        e.apply_scene(&scene).unwrap();
+        assert!(e.sweeps.is_empty());
+        e.tick(0.5);
+        assert_eq!(e.modules[fluxion].params_ref().f("ecc"), 0.1);
     }
 
     #[test]

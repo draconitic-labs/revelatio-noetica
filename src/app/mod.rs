@@ -859,7 +859,11 @@ impl AtlasApp {
                     .collect()
             })
             .unwrap_or_default();
-        serde_json::json!({ "views": views, "params": scene["all_params"] })
+        serde_json::json!({
+            "views": views,
+            "params": scene["all_params"],
+            "placed": scene["placed"],
+        })
     }
 
     /// Which saved view matches the screen now, ignoring camera and time.
@@ -1158,5 +1162,34 @@ impl eframe::App for AtlasApp {
 
     fn on_exit(&mut self) {
         self.save_now();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn scene(placed: Value, t: f64) -> Value {
+        json!({
+            "t": t,
+            "panes": [{ "module": "em.fields", "view": "lines", "camera": { "half_h": t } }],
+            "all_params": { "em.fields": { "lines": true } },
+            "placed": { "em.fields": placed },
+        })
+    }
+
+    #[test]
+    fn rearranged_charges_are_a_different_saved_view() {
+        let here = AtlasApp::scene_fingerprint(&scene(json!([[0.0, 0.0]]), 1.0));
+        let there = AtlasApp::scene_fingerprint(&scene(json!([[2.0, 1.0]]), 1.0));
+        assert_ne!(here, there, "saving the second must not delete the first");
+    }
+
+    #[test]
+    fn time_and_camera_do_not_make_a_different_saved_view() {
+        let early = AtlasApp::scene_fingerprint(&scene(json!([[0.0, 0.0]]), 1.0));
+        let late = AtlasApp::scene_fingerprint(&scene(json!([[0.0, 0.0]]), 9.0));
+        assert_eq!(early, late);
     }
 }
