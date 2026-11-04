@@ -4,6 +4,7 @@
 use anyhow::{anyhow, Result};
 
 pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
+const DISPLAY_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 pub const SAMPLES: u32 = 4;
 
@@ -96,6 +97,11 @@ pub struct ViewTarget {
     pub msaa_view: wgpu::TextureView,
     pub resolve: wgpu::Texture,
     pub resolve_view: wgpu::TextureView,
+    /// The same pixels read back without sRGB decoding, which is what egui
+    /// expects of a texture. Showing `resolve_view` would decode them to linear
+    /// and egui would then treat those as sRGB: the canvas would look darker than
+    /// the colours computed, and darker than its own exports.
+    pub display_view: wgpu::TextureView,
     pub depth_view: wgpu::TextureView,
     pub ubuf: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
@@ -130,7 +136,7 @@ impl ViewTarget {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
+            view_formats: &[DISPLAY_FORMAT],
         });
         let depth = gpu.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("view-depth"),
@@ -161,6 +167,10 @@ impl ViewTarget {
             height,
             msaa_view: msaa.create_view(&Default::default()),
             resolve_view: resolve.create_view(&Default::default()),
+            display_view: resolve.create_view(&wgpu::TextureViewDescriptor {
+                format: Some(DISPLAY_FORMAT),
+                ..Default::default()
+            }),
             resolve,
             depth_view: depth.create_view(&Default::default()),
             ubuf,

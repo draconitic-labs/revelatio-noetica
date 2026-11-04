@@ -143,5 +143,6 @@ fn grid_glow(w: vec2<f32>, thickness: f32) -> f32 {
     let g = abs(fract(w + 0.5) - 0.5);
     let fw = fwidth(w) + vec2<f32>(1e-5);
     let d = min(g.x / fw.x, g.y / fw.y);
-    return exp(-d * d / (thickness * thickness));
+    // Held low: on true black a grid should locate things, not compete with them.
+    return 0.5 * exp(-d * d / (thickness * thickness));
 }

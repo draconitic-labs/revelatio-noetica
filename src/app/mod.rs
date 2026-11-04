@@ -375,7 +375,8 @@ impl AtlasApp {
     /// chamber's next view, then the first chamber this one leads to.
     fn next_step(&mut self) {
         if self.trail.is_some() {
-            self.trail_step(1);
+            // Away from the path, Next first returns to the step that was left.
+            self.trail_step(if self.on_trail_step() { 1 } else { 0 });
             return;
         }
         let f = self.engine.focused();
@@ -991,7 +992,7 @@ impl AtlasApp {
         }
         let tex = renderer.register_native_texture(
             &engine.gpu.device,
-            &target.resolve_view,
+            &target.display_view,
             wgpu::FilterMode::Linear,
         );
         map.insert(view, ViewSlot { target, tex });
