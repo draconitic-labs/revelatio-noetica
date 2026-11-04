@@ -236,10 +236,10 @@ impl ConceptModule for SchwarzschildCourt {
             tagline: "Geodesics and lensing at the horizon",
             branch: Branch::Gravitation,
             description: "Around a mass, straight lines bend because spacetime does. Light rays integrate the exact null geodesic equation per pixel: the photon ring at b = 3\u{221A}3 M, the doubled disk images, the black shadow. Massive orbits precess \u{2014} the failure of the ellipse that announced general relativity at Mercury.",
-            epigraph: Some((
-                "Matter tells spacetime how to curve; spacetime tells matter how to move.",
-                "John Archibald Wheeler",
-            )),
+            epigraph: Some(Epigraph::quoted(
+"Spacetime tells matter how to move; matter tells spacetime how to curve.",
+"John Archibald Wheeler, Geons, Black Holes, and Quantum Foam",
+)),
         }
     }
 

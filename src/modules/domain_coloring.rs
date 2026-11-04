@@ -309,10 +309,10 @@ impl ConceptModule for DomainColoring {
             tagline: "Domain coloring of complex functions",
             branch: Branch::ComplexAnalysis,
             description: "A complex function assigns to every point of the plane another point of the plane. Color makes the assignment visible: hue is the phase of f(z), shading carries its modulus. Zeros appear as dark stars where every hue meets; poles as white ones.",
-            epigraph: Some((
-                "The shortest path between two truths in the real domain passes through the complex domain.",
-                "Jacques Hadamard",
-            )),
+            epigraph: Some(Epigraph::quoted(
+"It has been written that the shortest and best way between two truths of the real domain often passes through the imaginary one.",
+"Jacques Hadamard, 1945, after Paul Painlev\u{00E9}",
+)),
         }
     }
 

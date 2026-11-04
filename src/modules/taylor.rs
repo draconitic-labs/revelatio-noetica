@@ -197,10 +197,10 @@ impl ConceptModule for ApproximationAtelier {
             tagline: "Polynomials impersonating the transcendental",
             branch: Branch::Analysis,
             description: "Calculus runs on a single act of faith: up close, everything smooth is a line, and with more derivatives, a polynomial. Watch Taylor sums reach out from the origin \u{2014} and hit the invisible wall of the convergence radius where the function's complex singularities stand guard. Newton's root-finder, iterated, shatters the plane into fractal basins.",
-            epigraph: Some((
-                "Divide each difficulty into as many parts as is feasible and necessary to resolve it.",
-                "Ren\u{00E9} Descartes",
-            )),
+            epigraph: Some(Epigraph::quoted(
+"To divide each of the difficulties under examination into as many parts as possible, and as might be necessary for its adequate solution.",
+"Ren\u{00E9} Descartes, Discourse on the Method, tr. Veitch",
+)),
         }
     }
 

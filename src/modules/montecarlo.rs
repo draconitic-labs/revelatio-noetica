@@ -145,10 +145,10 @@ impl ConceptModule for MonteCarloCasino {
             tagline: "Computing with dice",
             branch: Branch::StatMech,
             description: "Ulam, recovering from illness and playing solitaire, wondered: why compute the odds when you can just deal the cards many times? Every dart here is a random trial; the estimate converges as 1/\u{221A}N regardless of dimension \u{2014} which is why the method that measures a circle badly measures a thousand-dimensional integral better than anything else we have.",
-            epigraph: Some((
-                "The first thoughts and attempts I made were suggested by a question which occurred to me while playing solitaires.",
-                "Stanis\u{0142}aw Ulam",
-            )),
+            epigraph: Some(Epigraph::quoted(
+"The first thoughts and attempts I made to practice [the Monte Carlo method] were suggested by a question which occurred to me in 1946 as I was convalescing from an illness and playing solitaires.",
+"Stanis\u{0142}aw Ulam, quoted by Roger Eckhardt, 1987",
+)),
         }
     }
 

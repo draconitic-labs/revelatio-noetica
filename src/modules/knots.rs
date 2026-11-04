@@ -200,11 +200,11 @@ impl ConceptModule for KnotReliquary {
             name: "The Knot Reliquary",
             tagline: "Invariants under every deformation",
             branch: Branch::Topology,
-            description: "A knot is a circle embedded in space, considered up to any deformation that never tears or passes strands through each other. Nothing you see wiggling here changes what the knot is \u{2014} that is the point. What survives are invariants: crossing number, linking number, the polynomomial shadows.",
-            epigraph: Some((
-                "A chain is no stronger than its weakest link \u{2014} but a link is precisely as strong as its linking number.",
-                "\u{2014} attributed to no one, truthfully",
-            )),
+            description: "A knot is a circle embedded in space, considered up to any deformation that never tears or passes strands through each other. Nothing you see wiggling here changes what the knot is \u{2014} that is the point. What survives are invariants: crossing number, linking number, the polynomial shadows.",
+            epigraph: Some(Epigraph::unquoted(
+"A chain is no stronger than its weakest link \u{2014} but a link is precisely as strong as its linking number.",
+"Attributed to no one, truthfully",
+)),
         }
     }
 

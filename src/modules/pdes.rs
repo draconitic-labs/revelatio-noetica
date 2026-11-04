@@ -317,10 +317,10 @@ impl ConceptModule for PdeHall {
             tagline: "Laws that speak at every point at once",
             branch: Branch::DiffEq,
             description: "An ODE governs a quantity; a PDE governs a field \u{2014} infinitely many coupled unknowns, one at every point of space. Here the great archetypes run live: heat forgetting its past, Laplace's instant diplomacy of boundaries, a smooth wave breaking into a Burgers shock, a string resolving into its eigenmodes, and two chemicals inventing biology-shaped patterns.",
-            epigraph: Some((
-                "The profound study of nature is the most fertile source of mathematical discoveries.",
-                "Joseph Fourier, Th\u{00E9}orie analytique de la chaleur",
-            )),
+            epigraph: Some(Epigraph::quoted(
+"Profound study of nature is the most fertile source of mathematical discoveries.",
+"Joseph Fourier, The Analytical Theory of Heat, tr. Freeman",
+)),
         }
     }
 

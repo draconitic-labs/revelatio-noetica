@@ -102,10 +102,10 @@ impl ConceptModule for ArithmeticRotunda {
             tagline: "The integers, seen from far away",
             branch: Branch::NumberTheory,
             description: "Individually the integers are trivial; collectively they conspire. Primes fall into diagonal constellations no one predicted; multiplication tables wound on a circle draw cardioids; and the partial sums of \u{03B6}(\u{00BD}+it) trace a drunken spiral along the critical line, where the zeros that guard the primes' secret are found.",
-            epigraph: Some((
-                "Mathematics is the queen of the sciences, and number theory is the queen of mathematics.",
-                "Carl Friedrich Gauss",
-            )),
+            epigraph: Some(Epigraph::unquoted(
+"Mathematics is the queen of the sciences, and arithmetic the queen of mathematics.",
+"Gauss's own words, as reported by Sartorius von Waltershausen, 1856, translated",
+)),
         }
     }
 

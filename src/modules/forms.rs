@@ -130,7 +130,10 @@ impl ConceptModule for FormsOratory {
             tagline: "\u{222B}_M d\u{03C9} = \u{222B}_\u{2202}M \u{03C9}",
             branch: Branch::DifferentialForms,
             description: "One identity contains the fundamental theorem of calculus, Green, Gauss, and the classical Stokes: integrate a form's derivative over a region, or the form itself over the region's boundary \u{2014} the answer is the same. Watch interior circulations annihilate pairwise until only the rim survives.",
-            epigraph: Some(("The boundary of a boundary is zero.", "\u{2202}\u{2202} = 0")),
+            epigraph: Some(Epigraph::unquoted(
+"The boundary of a boundary is zero.",
+"\u{2202}\u{2202} = 0",
+)),
         }
     }
 

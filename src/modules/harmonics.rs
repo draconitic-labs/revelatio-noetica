@@ -122,10 +122,7 @@ impl ConceptModule for SphericalChoir {
             tagline: "The eigenmodes of the sphere",
             branch: Branch::Waves,
             description: "Ask what shapes a sphere can vibrate in and you are asking for the eigenfunctions of its Laplacian: the spherical harmonics Y\u{2113}\u{2098}. They are the multipoles of electromagnetism, the angular anatomy of atomic orbitals, the basis in which the cosmic microwave background is scored \u{2014} one family of functions, singing everywhere.",
-            epigraph: Some((
-                "The laws of nature are but the mathematical thoughts of God.",
-                "attributed to Euclid \u{2014} apocryphal, and forgivable",
-            )),
+            epigraph: None,
         }
     }
 

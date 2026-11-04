@@ -192,10 +192,10 @@ impl ConceptModule for ChaosObservatory {
             tagline: "Where chaos keeps its shape",
             branch: Branch::Dynamics,
             description: "Deterministic equations, three variables, no randomness anywhere \u{2014} yet prediction fails, and what survives is a shape: the attractor, a fractal object every trajectory visits forever without repeating. Twenty-six thousand particles ride the flow; individually lost, collectively they ARE the butterfly.",
-            epigraph: Some((
-                "Chaos: When the present determines the future, but the approximate present does not approximately determine the future.",
-                "Edward Lorenz",
-            )),
+            epigraph: Some(Epigraph::unquoted(
+"Chaos: when the present determines the future, but the approximate present does not approximately determine the future.",
+"A summary commonly attributed to Edward Lorenz; no primary source found",
+)),
         }
     }
 

@@ -121,10 +121,10 @@ impl ConceptModule for RelativityTheatre {
             tagline: "On the electrodynamics of moving bodies",
             branch: Branch::Relativity,
             description: "Einstein's 1905 insight was not about clocks failing but about geometry: space and time mix under boosts the way x and y mix under rotations \u{2014} except the invariant is c\u{00B2}t\u{00B2}\u{2212}x\u{00B2}, and the diagonals, the light cone, never move. Simultaneity tilts; lengths contract; the Coulomb field of a running charge flattens into a pancake.",
-            epigraph: Some((
-                "Henceforth space by itself, and time by itself, are doomed to fade away into mere shadows.",
-                "Hermann Minkowski, 1908",
-            )),
+            epigraph: Some(Epigraph::quoted(
+"Henceforth, space by itself, and time by itself, are doomed to fade away into mere shadows, and only a kind of union of the two will preserve an independent reality.",
+"Hermann Minkowski, 1908",
+)),
         }
     }
 

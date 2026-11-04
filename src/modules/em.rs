@@ -172,10 +172,7 @@ impl ConceptModule for FieldForge {
             tagline: "Charge, field, and the birth of light",
             branch: Branch::Electromagnetism,
             description: "Faraday's great invention was not a device but a picture: the field line. Here charges are things you can hold and drag while their lines re-weave themselves; and when a charge is shaken \u{2014} the Hertzian dipole \u{2014} the lines pinch off and leave as ripples of light.",
-            epigraph: Some((
-                "The most fascinating subject at the time I was a student was Maxwell's theory.",
-                "Albert Einstein",
-            )),
+            epigraph: None,
         }
     }
 
@@ -534,6 +531,9 @@ mod tests {
         let pdot = k * phi.cos();
         let pddot = -k * k * phi.sin();
         let near = p / r.powi(3) + pdot / (r * r);
+        (2.0 * th.cos() * near, th.sin() * (near + pddot / r))
+    }
+
     #[test]
     fn charges_stay_in_the_frame_long_after_they_would_have_drifted_out() {
         let mut f = FieldForge::new();
@@ -605,9 +605,6 @@ mod tests {
                 p.y
             );
         }
-    }
-
-        (2.0 * th.cos() * near, th.sin() * (near + pddot / r))
     }
 
     #[test]

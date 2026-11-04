@@ -195,10 +195,7 @@ impl ConceptModule for SchrodingerHall {
             tagline: "\u{03C8}: amplitude, phase, and chance",
             branch: Branch::Quantum,
             description: "A quantum state is not a particle smeared out \u{2014} it is a complex amplitude whose squared magnitude is the only thing experiment ever sees. Here exact eigenstates of the harmonic well are superposed: phase turns at rate E\u{2099}, interference makes the density slosh, and measurement \u{2014} the rain below \u{2014} samples what the amplitude permits.",
-            epigraph: Some((
-                "\u{03A8} is a wave of probability amplitude \u{2014} and no one has seen it directly.",
-                "after Max Born, 1926",
-            )),
+            epigraph: None,
         }
     }
 

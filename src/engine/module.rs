@@ -9,6 +9,35 @@ use super::params::Params;
 use super::timeline::Timeline;
 use crate::theme::Branch;
 
+/// A line shown with a chamber's background. Quotation marks are a promise: only
+/// `quoted` lines, whose wording was checked against a source, get them.
+#[derive(Clone, Copy)]
+pub struct Epigraph {
+    pub text: &'static str,
+    pub source: &'static str,
+    pub verbatim: bool,
+}
+
+impl Epigraph {
+    /// Wording checked against the named source.
+    pub const fn quoted(text: &'static str, source: &'static str) -> Self {
+        Self {
+            text,
+            source,
+            verbatim: true,
+        }
+    }
+
+    /// A paraphrase, a house line, or anything not checked word for word.
+    pub const fn unquoted(text: &'static str, source: &'static str) -> Self {
+        Self {
+            text,
+            source,
+            verbatim: false,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct ModuleInfo {
     pub id: &'static str,
@@ -16,8 +45,7 @@ pub struct ModuleInfo {
     pub tagline: &'static str,
     pub branch: Branch,
     pub description: &'static str,
-    /// Optional epigraph: (quotation, attribution).
-    pub epigraph: Option<(&'static str, &'static str)>,
+    pub epigraph: Option<Epigraph>,
 }
 
 #[derive(Clone)]

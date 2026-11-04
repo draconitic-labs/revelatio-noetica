@@ -180,10 +180,10 @@ impl ConceptModule for FourierAtelier {
             tagline: "Every waveform, woven from circles",
             branch: Branch::Analysis,
             description: "Fourier's claim scandalized his examiners: any periodic signal \u{2014} even a hard-edged square \u{2014} is a sum of smooth sinusoids. Watch the sum assemble as a chain of rotating circles, each turning at an integer multiple of the fundamental, each contributing its amplitude to the woven curve.",
-            epigraph: Some((
-                "Profound study of nature is the most fertile source of mathematical discoveries.",
-                "Joseph Fourier",
-            )),
+            epigraph: Some(Epigraph::quoted(
+"Profound study of nature is the most fertile source of mathematical discoveries.",
+"Joseph Fourier, The Analytical Theory of Heat, tr. Freeman",
+)),
         }
     }
 

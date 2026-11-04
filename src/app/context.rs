@@ -426,14 +426,19 @@ impl AtlasApp {
         reading(ui, tagline, MOON);
         ui.add_space(4.0);
         reading(ui, description, MOON);
-        if let Some((quote, who)) = epigraph {
+        if let Some(line) = epigraph {
+            let text = if line.verbatim {
+                format!("\u{201C}{}\u{201D}", line.text)
+            } else {
+                line.text.to_string()
+            };
             ui.add_space(8.0);
             ui.label(
-                RichText::new(format!("\u{201C}{quote}\u{201D}"))
+                RichText::new(text)
                     .font(theme::heading_font(18.0))
                     .color(LIGHT),
             );
-            ui.label(RichText::new(who).size(12.0).color(DUSK));
+            ui.label(RichText::new(line.source).size(12.0).color(DUSK));
         }
     }
 

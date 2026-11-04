@@ -135,10 +135,10 @@ impl ConceptModule for OdeWorkshop {
             tagline: "One equation, every future",
             branch: Branch::DiffEq,
             description: "A differential equation does not give you the answer; it gives you the rule the answer must obey at every instant. The slope field shows all futures at once, existence and uniqueness threading exactly one curve through each point. And when we integrate numerically, honesty demands we watch the error: Euler's polygon drifts where Runge\u{2013}Kutta holds.",
-            epigraph: Some((
-                "It is useful to solve differential equations.",
-                "Isaac Newton (as Arnold liked to translate the second anagram)",
-            )),
+            epigraph: Some(Epigraph::unquoted(
+"Solving differential equations is useful.",
+"V. I. Arnold's modern reading of Newton's anagram, in paraphrase",
+)),
         }
     }
 

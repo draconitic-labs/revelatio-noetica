@@ -228,10 +228,10 @@ impl ConceptModule for DynamicsHall {
             tagline: "Every possible history, drawn at once",
             branch: Branch::Dynamics,
             description: "Phase space turns mechanics into geometry: each point is a complete state, each curve a possible life of the system. The pendulum's portrait is ruled by its separatrix \u{2014} the burning frontier between swinging and tumbling \u{2014} and every undamped orbit is a level set of the Hamiltonian. Two pendulums coupled, and prediction itself unravels.",
-            epigraph: Some((
-                "It may happen that small differences in the initial conditions produce very great ones in the final phenomena.",
-                "Henri Poincar\u{00E9}, 1908",
-            )),
+            epigraph: Some(Epigraph::quoted(
+"It may happen that slight differences in the initial conditions produce very great differences in the final phenomena; a slight error in the former would make an enormous error in the latter.",
+"Henri Poincar\u{00E9}, Science and Method, 1908, tr. Halsted",
+)),
         }
     }
 

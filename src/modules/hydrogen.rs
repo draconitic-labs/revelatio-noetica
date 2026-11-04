@@ -320,10 +320,10 @@ impl ConceptModule for HydrogenSanctum {
             tagline: "One proton, one amplitude, all of chemistry",
             branch: Branch::Quantum,
             description: "The hydrogen atom solved exactly: \u{03C8}\u{2099}\u{2113}\u{2098} = R\u{2099}\u{2113}(r)\u{00B7}Y\u{2113}\u{2098}(\u{03B8},\u{03C6}). What is rendered is the amplitude itself \u{2014} its density as luminous fog, its phase as hue turning m times around the axis, its nodes as dark chambers. The electron is not a planet; it is the statistics of this cloud.",
-            epigraph: Some((
-                "An atom is not a solar system. It is a resonance.",
-                "\u{2014} the moral of 1926",
-            )),
+            epigraph: Some(Epigraph::unquoted(
+"An atom is not a solar system. It is a resonance.",
+"The moral of 1926, not a quotation",
+)),
         }
     }
 
