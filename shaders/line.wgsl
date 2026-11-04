@@ -48,8 +48,10 @@ fn vs_main(@builtin(vertex_index) vi: u32, li: LineIn) -> LineOut {
     let core = max(w * 0.5, 0.10);
     let half_w = core + 1.6;
 
-    // Extend endpoints along the line for round-ish caps.
-    let s = mix(s0, s1, t) + d * (t * 2.0 - 1.0) * half_w * 0.5 + nrm * side * half_w;
+    // Extend endpoints just enough to close the joint on a bend. A long overlap
+    // would double the light at every joint of an additive polyline and bead it.
+    let cap = core * 0.5 * (1.0 - clamp(li.style.x, 0.0, 1.0));
+    let s = mix(s0, s1, t) + d * (t * 2.0 - 1.0) * cap + nrm * side * half_w;
     let ndc_xy = s / U.res.xy * 2.0 - 1.0;
     let z = mix(n0.z, n1.z, t);
 
