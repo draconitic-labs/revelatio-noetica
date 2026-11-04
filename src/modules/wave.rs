@@ -5,7 +5,7 @@ use glam::Vec3;
 use crate::engine::camera::Camera;
 use crate::engine::draw::{LineLayer, Renderers, Scene};
 use crate::engine::gpu::GpuContext;
-use crate::engine::mesh::{GpuMesh, MeshData, MeshVertex};
+use crate::engine::mesh::{GpuMesh, MeshData};
 use crate::engine::module::*;
 use crate::engine::params::Params;
 use crate::modules::util::with_alpha;
@@ -557,7 +557,7 @@ impl ConceptModule for WaveTable {
         use crate::engine::module::PointerEvent as PE;
         let w = match ev {
             PE::Down(w) | PE::Drag(w) => w,
-            PE::Up(_) => return,
+            PE::Up => return,
         };
         if w.x.abs() > 3.9 || w.y.abs() > 3.9 {
             return;

@@ -831,7 +831,7 @@ impl AtlasApp {
                     self.engine.modules[active].pointer(mode, PE::Drag(w));
                 }
                 if resp.drag_stopped_by(egui::PointerButton::Primary) {
-                    self.engine.modules[active].pointer(mode, PE::Up(w));
+                    self.engine.modules[active].pointer(mode, PE::Up);
                 }
             }
         }

@@ -45,7 +45,7 @@ fn eigenstates() -> Vec<[f64; N_STATES]> {
         let mut h = [0.0; N_STATES];
         let mut h0 = 1.0;
         let mut h1 = 2.0 * x;
-        for n in 0..N_STATES {
+        for (n, h_n) in h.iter_mut().enumerate() {
             let hn = if n == 0 {
                 h0
             } else if n == 1 {
@@ -61,7 +61,7 @@ fn eigenstates() -> Vec<[f64; N_STATES]> {
             for k in 1..=n {
                 norm *= 2.0 * k as f64;
             }
-            h[n] = g * hn / norm.sqrt();
+            *h_n = g * hn / norm.sqrt();
         }
         out.push(h);
     }
@@ -74,11 +74,11 @@ fn coeffs(preset: usize) -> [f64; N_STATES] {
         0 => {
             let alpha: f64 = 1.8;
             let mut fact = 1.0;
-            for n in 0..N_STATES {
+            for (n, c_n) in cs.iter_mut().enumerate() {
                 if n > 0 {
                     fact *= n as f64;
                 }
-                cs[n] = (-alpha * alpha / 2.0).exp() * alpha.powi(n as i32) / fact.sqrt();
+                *c_n = (-alpha * alpha / 2.0).exp() * alpha.powi(n as i32) / fact.sqrt();
             }
         }
         1 => {
@@ -150,13 +150,13 @@ impl SchrodingerHall {
         let cs = coeffs(self.params.c("state"));
         for i in 0..=NX {
             let mut acc = C::ZERO;
-            for n in 0..N_STATES {
-                if cs[n].abs() < 1e-12 {
+            for (n, &c_n) in cs.iter().enumerate() {
+                if c_n.abs() < 1e-12 {
                     continue;
                 }
                 let e = n as f64 + 0.5;
                 let ph = c(0.0, -e * t).exp();
-                acc = acc + ph * (cs[n] * self.basis[i][n]);
+                acc = acc + ph * (c_n * self.basis[i][n]);
             }
             self.psi[i] = acc;
         }

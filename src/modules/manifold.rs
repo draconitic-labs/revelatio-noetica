@@ -264,7 +264,7 @@ impl ConceptModule for ManifoldAtlas {
                     })
                     .collect();
                 scene.polyline(LineLayer::World, &rim, 1.8, with_alpha(SILVER, 0.7));
-                let drift = (t * 0.08) as f64;
+                let drift = t * 0.08;
                 for g in 0..30 {
                     // Boundary endpoints of the geodesic (unit disk coords).
                     let t1 = drift + g as f64 * 0.6;

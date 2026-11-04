@@ -37,11 +37,11 @@ fn coeff(wave: usize, n: usize) -> f64 {
             }
         }
         // Sawtooth: 2/n, alternating sign.
-        1 => 2.0 / nf * if n % 2 == 0 { -1.0 } else { 1.0 },
+        1 => 2.0 / nf * if n.is_multiple_of(2) { -1.0 } else { 1.0 },
         // Triangle: 8/(pi^2 n^2), odd n, alternating.
         2 => {
             if n % 2 == 1 {
-                let s = if (n / 2) % 2 == 0 { 1.0 } else { -1.0 };
+                let s = if (n / 2).is_multiple_of(2) { 1.0 } else { -1.0 };
                 8.0 / (std::f64::consts::PI.powi(2) * nf * nf) * s
             } else {
                 0.0
@@ -247,7 +247,7 @@ impl ConceptModule for FourierAtelier {
                         continue;
                     }
                     let r = b.abs() as f32;
-                    let ang = (n as f64 * th) as f64 * b.signum();
+                    let ang = (n as f64 * th) * b.signum();
                     if self.params.b("circles") {
                         let ring: Vec<Vec3> = (0..=48)
                             .map(|i| {
@@ -302,13 +302,12 @@ impl ConceptModule for FourierAtelier {
                 // Stacked harmonics, offset vertically; sum at top.
                 let x0 = 0.0f32;
                 let width = 6.2f32;
-                let mut row = 0;
                 let shown: Vec<usize> = (1..=n_max)
                     .filter(|&n| coeff(wave, n).abs() > 1e-9)
                     .take(9)
                     .collect();
                 let rows = shown.len().max(1);
-                for &n in &shown {
+                for (row, &n) in shown.iter().enumerate() {
                     let b = coeff(wave, n);
                     let y_off = -2.9 + 4.4 * (rows - 1 - row) as f32 / rows.max(2) as f32;
                     let hue = phase_color(row as f32 * 0.9);
@@ -324,7 +323,6 @@ impl ConceptModule for FourierAtelier {
                         })
                         .collect();
                     scene.polyline(LineLayer::World, &pts, 1.4, with_alpha(hue, 0.55));
-                    row += 1;
                 }
                 // The sum, raised and bright.
                 let pts: Vec<Vec3> = (0..=440)

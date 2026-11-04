@@ -24,7 +24,7 @@ fn knot_pt(k: usize, comp: usize, s: f32, breathe: f32) -> Vec3 {
     let t = s * std::f32::consts::TAU;
     let b = 1.0 + 0.10 * breathe;
     match k {
-        0 | 1 | 2 => {
+        0..=2 => {
             let (p, q) = match k {
                 0 => (2.0f32, 3.0f32),
                 1 => (2.0, 5.0),
@@ -302,7 +302,7 @@ impl ConceptModule for KnotReliquary {
                                     .map(|j| knot_pt(k, comp2, j as f32 / n as f32, breathe))
                                     .collect()
                             };
-                            for j in 0..n {
+                            for (j, &b) in pts2.iter().enumerate().take(n) {
                                 if comp == comp2 && (i as i32 - j as i32).abs() < 22 {
                                     continue;
                                 }
@@ -310,7 +310,6 @@ impl ConceptModule for KnotReliquary {
                                     continue;
                                 }
                                 let a = pts[i];
-                                let b = pts2[j];
                                 let d2 = (a.x - b.x).powi(2) + (a.y - b.y).powi(2);
                                 if d2 < 0.012 && a.z < b.z - 0.05 {
                                     gap[i] = true;
@@ -338,7 +337,7 @@ impl ConceptModule for KnotReliquary {
 
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
         let k = self.params.c("knot");
-        let mut out = vec![title(format!("{}", KNOT_NAMES[k]))];
+        let mut out = vec![title(KNOT_NAMES[k].to_string())];
         match k {
             0 => {
                 out.push(formula(

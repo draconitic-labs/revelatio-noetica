@@ -198,7 +198,7 @@ impl ViewTarget {
 
     /// Read back the resolved image as tightly-packed RGBA8 rows.
     pub fn read_pixels(&self, gpu: &GpuContext) -> Result<Vec<u8>> {
-        let bpr = (self.width * 4 + 255) / 256 * 256;
+        let bpr = (self.width * 4).div_ceil(256) * 256;
         let buf = gpu.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("readback"),
             size: (bpr * self.height) as u64,

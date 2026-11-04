@@ -526,7 +526,7 @@ impl ConceptModule for RelativityTheatre {
                 painter.text(
                     p + egui::vec2(0.0, -16.0),
                     egui::Align2::CENTER_BOTTOM,
-                    format!("ticks \u{00D7} 1.000"),
+                    "ticks \u{00D7} 1.000".to_string(),
                     crate::theme::math_font(11.0),
                     gold,
                 );

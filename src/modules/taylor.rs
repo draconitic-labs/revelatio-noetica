@@ -36,10 +36,10 @@ fn coeff(k: usize, n: usize) -> f64 {
     match k {
         0 => {
             // sin: 0,1,0,-1/3!,...
-            if n % 2 == 0 {
+            if n.is_multiple_of(2) {
                 0.0
             } else {
-                let sign = if (n / 2) % 2 == 0 { 1.0 } else { -1.0 };
+                let sign = if (n / 2).is_multiple_of(2) { 1.0 } else { -1.0 };
                 sign / fact(n)
             }
         }
@@ -57,7 +57,7 @@ fn coeff(k: usize, n: usize) -> f64 {
             if n % 2 == 1 {
                 0.0
             } else {
-                if (n / 2) % 2 == 0 {
+                if (n / 2).is_multiple_of(2) {
                     1.0
                 } else {
                     -1.0

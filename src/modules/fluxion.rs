@@ -601,7 +601,7 @@ impl ConceptModule for FluxionChamber {
                     let age = ((phase - ring as f64 * 0.33).fract() + 1.0) % 1.0;
                     let sp =
                         ((phase - ring as f64 * 0.33).floor() + ring as f64 * 0.33) / rate / 12.0;
-                    if sp < 0.0 || sp > 1.0 {
+                    if !(0.0..=1.0).contains(&sp) {
                         continue;
                     }
                     let fp = fluent(k, sp.clamp(0.0, 1.0));

@@ -216,7 +216,7 @@ impl ConceptModule for FieldForge {
                     self.charges[i].0 = w.clamp(Vec2::splat(-3.4), Vec2::splat(3.4));
                 }
             }
-            PointerEvent::Up(_) => self.drag_idx = None,
+            PointerEvent::Up => self.drag_idx = None,
         }
     }
 

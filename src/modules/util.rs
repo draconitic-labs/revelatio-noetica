@@ -1,7 +1,5 @@
 //! Small numeric helpers shared by modules: complex arithmetic, colors, ODE steps.
 
-use glam::Vec3;
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct C {
     pub re: f64,
@@ -15,7 +13,6 @@ pub const fn c(re: f64, im: f64) -> C {
 impl C {
     pub const ZERO: C = c(0.0, 0.0);
     pub const ONE: C = c(1.0, 0.0);
-    pub const I: C = c(0.0, 1.0);
 
     pub fn abs(self) -> f64 {
         self.re.hypot(self.im)
@@ -32,9 +29,6 @@ impl C {
     }
     pub fn ln(self) -> C {
         c(self.abs().max(1e-300).ln(), self.arg())
-    }
-    pub fn powc(self, w: C) -> C {
-        (self.ln() * w).exp()
     }
     pub fn powi(self, n: i32) -> C {
         let mut r = C::ONE;
@@ -53,12 +47,6 @@ impl C {
         c(
             self.re.sin() * self.im.cosh(),
             self.re.cos() * self.im.sinh(),
-        )
-    }
-    pub fn cos(self) -> C {
-        c(
-            self.re.cos() * self.im.cosh(),
-            -self.re.sin() * self.im.sinh(),
         )
     }
     pub fn from_polar(r: f64, th: f64) -> C {
@@ -107,13 +95,13 @@ impl std::ops::Div for C {
 /// Perceptual phase wheel matching the WGSL `phase_color` (returns linear RGB).
 pub fn phase_color(theta: f32) -> [f32; 4] {
     let (l, a, b) = (0.74f32, 0.135 * theta.cos(), 0.135 * theta.sin());
-    let l_ = l + 0.3963377774 * a + 0.2158037573 * b;
-    let m_ = l - 0.1055613458 * a - 0.0638541728 * b;
-    let s_ = l - 0.0894841775 * a - 1.2914855480 * b;
+    let l_ = l + 0.396_337_78 * a + 0.215_803_76 * b;
+    let m_ = l - 0.105_561_346 * a - 0.063_854_17 * b;
+    let s_ = l - 0.089_484_18 * a - 1.291_485_5 * b;
     let (l3, m3, s3) = (l_ * l_ * l_, m_ * m_ * m_, s_ * s_ * s_);
-    let r = 4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3;
-    let g = -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3;
-    let bl = -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3;
+    let r = 4.076_741_7 * l3 - 3.307_711_6 * m3 + 0.230_969_94 * s3;
+    let g = -1.268_438 * l3 + 2.609_757_4 * m3 - 0.341_319_38 * s3;
+    let bl = -0.0041960863 * l3 - 0.703_418_6 * m3 + 1.707_614_7 * s3;
     [
         r.clamp(0.0, 1.0),
         g.clamp(0.0, 1.0),
@@ -129,15 +117,6 @@ pub fn with_alpha(mut col: [f32; 4], a: f32) -> [f32; 4] {
 
 pub fn scale_rgb(col: [f32; 4], s: f32) -> [f32; 4] {
     [col[0] * s, col[1] * s, col[2] * s, col[3]]
-}
-
-/// egui Color32 -> premultiplied-friendly linear vec4 for scene geometry.
-pub fn col(c32: egui::Color32) -> [f32; 4] {
-    crate::theme::to_linear(c32)
-}
-
-pub fn v3(x: f64, y: f64, z: f64) -> Vec3 {
-    Vec3::new(x as f32, y as f32, z as f32)
 }
 
 /// One RK4 step of dy/dt = f(t, y) for small fixed-size state vectors.

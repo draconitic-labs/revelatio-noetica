@@ -282,7 +282,7 @@ impl ConceptModule for ChaosObservatory {
         for i in 0..3 {
             let p = Vec3::new(self.tb[i][0] as f32 * 1.3, self.tb[i][1] as f32 * 1.3, 0.0);
             let tr = &mut self.tb_trails[i];
-            if tr.last().map_or(true, |q| (*q - p).length() > 0.01) {
+            if tr.last().is_none_or(|q| (*q - p).length() > 0.01) {
                 tr.push(p);
                 if tr.len() > 700 {
                     tr.remove(0);
@@ -340,8 +340,7 @@ impl ConceptModule for ChaosObservatory {
                     [0.40, 0.75, 0.95, 1.0],
                     [0.95, 0.45, 0.60, 1.0],
                 ];
-                for i in 0..3 {
-                    let tr = &self.tb_trails[i];
+                for (i, tr) in self.tb_trails.iter().enumerate().take(3) {
                     for k in 1..tr.len() {
                         let age = k as f32 / tr.len() as f32;
                         scene.line(

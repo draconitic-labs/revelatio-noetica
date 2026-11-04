@@ -73,7 +73,6 @@ pub struct PdeHall {
     tex_view: Option<wgpu::TextureView>,
     sim_t: f64,
     last_t: f64,
-    last_mode_2d: usize,
 }
 
 impl PdeHall {
@@ -119,7 +118,6 @@ impl PdeHall {
             tex_view: None,
             sim_t: 0.0,
             last_t: 0.0,
-            last_mode_2d: 0,
         }
     }
 

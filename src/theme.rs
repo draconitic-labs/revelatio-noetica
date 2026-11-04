@@ -19,10 +19,9 @@ pub const GOLD_DIM: Color32 = Color32::from_rgb(104, 80, 34);
 pub const GOLD_BRIGHT: Color32 = Color32::from_rgb(228, 188, 112);
 
 // The GPU canvases stay black glass; their annotations use these.
-pub const OVERLAY_BRIGHT: Color32 = Color32::from_rgb(236, 240, 250);
+
 pub const OVERLAY_DIM: Color32 = Color32::from_rgb(148, 156, 176);
 pub const OVERLAY_GOLD: Color32 = Color32::from_rgb(230, 190, 110);
-pub const CANVAS_FRAME: Color32 = Color32::from_rgba_premultiplied(26, 29, 40, 220);
 
 /// Darken a branch accent for legibility on the pewter chrome.
 pub fn ink(c: Color32) -> Color32 {
@@ -490,26 +489,4 @@ pub fn paint_ribbons(painter: &egui::Painter, rect: egui::Rect, tint: Color32, t
         }
         painter.add(egui::Shape::line(pts, Stroke::new(1.0, color)));
     }
-}
-
-/// Color32 -> linear-space [f32;4] for GPU clear colors / uniforms.
-pub fn to_linear(c: Color32) -> [f32; 4] {
-    let f = |u: u8| {
-        let s = u as f32 / 255.0;
-        if s <= 0.04045 {
-            s / 12.92
-        } else {
-            ((s + 0.055) / 1.055).powf(2.4)
-        }
-    };
-    [f(c.r()), f(c.g()), f(c.b()), c.a() as f32 / 255.0]
-}
-
-pub fn to_vec4(c: Color32) -> [f32; 4] {
-    [
-        c.r() as f32 / 255.0,
-        c.g() as f32 / 255.0,
-        c.b() as f32 / 255.0,
-        c.a() as f32 / 255.0,
-    ]
 }

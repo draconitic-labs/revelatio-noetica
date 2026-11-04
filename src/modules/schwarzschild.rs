@@ -193,7 +193,7 @@ impl ConceptModule for SchwarzschildCourt {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::orbit("lensing", "Gravitational Lensing", "Per-pixel null geodesics, thin disk, photon ring", 16.0, 0.10, 1.5708),
+            RenderMode::orbit("lensing", "Gravitational Lensing", "Per-pixel null geodesics, thin disk, photon ring", 16.0, 0.10, std::f32::consts::FRAC_PI_2),
             RenderMode::plane("orbit", "Precessing Geodesic", "The rosette Mercury drew first", 17.0),
             RenderMode::plane("veff", "Effective Potential", "V(r) = \u{221A}((1\u{2212}2M/r)(1+L\u{00B2}/r\u{00B2})); turning points bound the orbit", 1.55)
                 .look_at(2.85, 0.55, 0.0),
@@ -266,7 +266,7 @@ impl ConceptModule for SchwarzschildCourt {
         }
         let (r, phi) = (self.state[0], self.state[2]);
         let p = Vec3::new((r * phi.cos()) as f32, (r * phi.sin()) as f32, 0.0);
-        if self.trail.last().map_or(true, |q| (*q - p).length() > 0.03) {
+        if self.trail.last().is_none_or(|q| (*q - p).length() > 0.03) {
             self.trail.push(p);
             if self.trail.len() > 5000 {
                 self.trail.remove(0);

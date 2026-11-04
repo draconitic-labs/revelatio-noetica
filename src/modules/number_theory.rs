@@ -285,7 +285,7 @@ impl ConceptModule for ArithmeticRotunda {
                         if n <= 1 {
                             break;
                         }
-                        if n % 2 == 0 {
+                        if n.is_multiple_of(2) {
                             n /= 2;
                             ang -= 0.16;
                         } else {

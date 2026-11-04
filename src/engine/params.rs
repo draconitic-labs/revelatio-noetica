@@ -52,6 +52,7 @@ impl Params {
         self
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn slider(
         &mut self,
         key: &'static str,
@@ -153,11 +154,6 @@ impl Params {
     pub fn set_f(&mut self, key: &str, v: f64) {
         if let Some(&i) = self.index.get(key) {
             self.items[i].value = PValue::F(v);
-        }
-    }
-    pub fn set_c(&mut self, key: &str, v: usize) {
-        if let Some(&i) = self.index.get(key) {
-            self.items[i].value = PValue::C(v);
         }
     }
 

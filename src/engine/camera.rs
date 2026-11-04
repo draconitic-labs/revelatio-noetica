@@ -41,15 +41,15 @@ impl Camera {
         match self.kind {
             CamKind::Plane { half_h } => {
                 let hw = half_h * self.aspect;
-                let proj = Mat4::orthographic_rh(
+
+                Mat4::orthographic_rh(
                     self.target.x - hw,
                     self.target.x + hw,
                     self.target.y - half_h,
                     self.target.y + half_h,
                     -100.0,
                     100.0,
-                );
-                proj
+                )
             }
             CamKind::Orbit { .. } => {
                 let view = Mat4::look_at_rh(self.eye(), self.target, Vec3::Y);

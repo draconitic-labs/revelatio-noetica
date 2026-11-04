@@ -185,7 +185,7 @@ impl ConceptModule for SphericalChoir {
                 prev_v = v;
             }
             for ct in zeros {
-                let th = (ct as f64).acos();
+                let th = ct.acos();
                 let ring: Vec<Vec3> = (0..=96)
                     .map(|i| {
                         let a = i as f64 / 96.0 * std::f64::consts::TAU;
@@ -204,7 +204,7 @@ impl ConceptModule for SphericalChoir {
                 );
             }
             // Nodal meridians: cos(m phi) = 0.
-            for j in 0..(2 * m_ord).max(0) {
+            for j in 0..(2 * m_ord) {
                 let phi = (std::f64::consts::PI / 2.0 + j as f64 * std::f64::consts::PI)
                     / m_ord.max(1) as f64;
                 let mer: Vec<Vec3> = (0..=96)

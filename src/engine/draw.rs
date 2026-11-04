@@ -58,7 +58,6 @@ pub struct Scene {
     pub params: [[f32; 4]; 12],
     pub lines: HashMap<LineLayer, Vec<LineInst>>,
     pub points_world: Vec<PointInst>,
-    pub points_overlay: Vec<PointInst>,
     pub meshes: Vec<GpuMesh>,
 }
 
@@ -71,7 +70,6 @@ impl Scene {
             params: [[0.0; 4]; 12],
             lines: HashMap::new(),
             points_world: Vec::new(),
-            points_overlay: Vec::new(),
             meshes: Vec::new(),
         }
     }
@@ -175,16 +173,6 @@ impl Scene {
         });
     }
 
-    pub fn point_overlay(&mut self, pos: glam::Vec3, size: f32, color: [f32; 4], glow: f32) {
-        self.points_overlay.push(PointInst {
-            pos: pos.to_array(),
-            size,
-            color,
-            glow,
-            _pad: [0.0; 3],
-        });
-    }
-
     pub fn mesh(&mut self, m: &GpuMesh) {
         self.meshes.push(m.clone());
     }
@@ -234,6 +222,7 @@ fn depth_state(test: bool, write: bool) -> wgpu::DepthStencilState {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_pipeline(
     gpu: &GpuContext,
     label: &str,
@@ -322,7 +311,6 @@ pub struct Renderers {
     pub mesh_bgl: wgpu::BindGroupLayout,
     line_pipes: HashMap<LineLayer, wgpu::RenderPipeline>,
     point_world: wgpu::RenderPipeline,
-    point_overlay: wgpu::RenderPipeline,
     mesh_pipe: wgpu::RenderPipeline,
     mesh_pipe_transparent: wgpu::RenderPipeline,
     line_buf: InstBuf,
@@ -429,7 +417,7 @@ impl Renderers {
                 "line-world",
                 &view_layout,
                 &line_mod,
-                &[line_vbl.clone()],
+                std::slice::from_ref(&line_vbl),
                 strip,
                 premul_over(),
                 depth_state(true, false),
@@ -442,7 +430,7 @@ impl Renderers {
                 "line-world-add",
                 &view_layout,
                 &line_mod,
-                &[line_vbl.clone()],
+                std::slice::from_ref(&line_vbl),
                 strip,
                 additive(),
                 depth_state(true, false),
@@ -455,7 +443,7 @@ impl Renderers {
                 "line-ov",
                 &view_layout,
                 &line_mod,
-                &[line_vbl.clone()],
+                std::slice::from_ref(&line_vbl),
                 strip,
                 premul_over(),
                 depth_state(false, false),
@@ -468,7 +456,7 @@ impl Renderers {
                 "line-ov-add",
                 &view_layout,
                 &line_mod,
-                &[line_vbl.clone()],
+                std::slice::from_ref(&line_vbl),
                 strip,
                 additive(),
                 depth_state(false, false),
@@ -480,20 +468,10 @@ impl Renderers {
             "pt-world",
             &view_layout,
             &point_mod,
-            &[point_vbl.clone()],
+            std::slice::from_ref(&point_vbl),
             strip,
             additive(),
             depth_state(true, false),
-        );
-        let point_overlay = make_pipeline(
-            gpu,
-            "pt-ov",
-            &view_layout,
-            &point_mod,
-            &[point_vbl.clone()],
-            strip,
-            additive(),
-            depth_state(false, false),
         );
 
         let tri = wgpu::PrimitiveTopology::TriangleList;
@@ -502,7 +480,7 @@ impl Renderers {
             "mesh",
             &mesh_layout,
             &mesh_mod,
-            &[mesh_vbl.clone()],
+            std::slice::from_ref(&mesh_vbl),
             tri,
             premul_over(),
             depth_state(true, true),
@@ -532,13 +510,12 @@ impl Renderers {
             mesh_bgl,
             line_pipes,
             point_world,
-            point_overlay,
             mesh_pipe,
             mesh_pipe_transparent,
             line_buf: InstBuf::new(gpu, 1 << 20),
             point_buf: InstBuf::new(gpu, 1 << 18),
             fs: HashMap::new(),
-            sampler: sampler,
+            sampler,
         }
     }
 
@@ -682,11 +659,10 @@ fn fs_main(in: FsOut) -> @location(0) vec4<f32> {{
             }
         }
         let pw = scene.points_world.len() as u32;
-        let mut point_data = scene.points_world.clone();
-        point_data.extend_from_slice(&scene.points_overlay);
+        let point_data = &scene.points_world;
 
         self.line_buf.write(gpu, bytemuck::cast_slice(&line_data));
-        self.point_buf.write(gpu, bytemuck::cast_slice(&point_data));
+        self.point_buf.write(gpu, bytemuck::cast_slice(point_data));
 
         let field_bg = scene.field.and_then(|key| {
             let sh = self.fs.get(key)?;
@@ -769,13 +745,6 @@ fn fs_main(in: FsOut) -> @location(0) vec4<f32> {{
                     pass.set_pipeline(&self.line_pipes[&layer]);
                     pass.draw(0..4, start..start + n);
                 }
-            }
-
-            let po = scene.points_overlay.len() as u32;
-            if po > 0 {
-                pass.set_pipeline(&self.point_overlay);
-                pass.set_vertex_buffer(0, self.point_buf.buf.slice(..));
-                pass.draw(0..4, pw..pw + po);
             }
         }
         gpu.queue.submit([encoder.finish()]);

@@ -56,7 +56,7 @@ fn warmup(e: &mut Engine, t: f64) {
 fn run_cli(args: &[String]) -> anyhow::Result<()> {
     match args[0].as_str() {
         "--list" => {
-            let mut e = headless_engine()?;
+            let e = headless_engine()?;
             for i in 0..e.modules.len() {
                 let info = e.modules[i].info();
                 println!("{}  \u{2014}  {} ({})", info.id, info.name, info.tagline);

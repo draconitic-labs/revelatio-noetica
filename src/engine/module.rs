@@ -128,7 +128,7 @@ pub fn note(s: impl Into<String>) -> InsLine {
 pub enum PointerEvent {
     Down(glam::Vec2),
     Drag(glam::Vec2),
-    Up(glam::Vec2),
+    Up,
 }
 
 /// One family of mathematical concepts: symbolic objects, solvers, and
