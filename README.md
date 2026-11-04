@@ -9,7 +9,7 @@ views, and exact mathematics wherever exact mathematics is possible.
 Not a graphing calculator. Not an animation toy. Every view says what it computes
 and how it approximates.
 
-![The Field Forge at 1920×1080](docs/screenshot.png)
+![The Field Forge at 1600×900, running at 238 fps on an RTX 4060](docs/screenshot.png)
 
 ## Build and run on Linux
 
