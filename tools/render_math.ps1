@@ -1,3 +1,5 @@
+# Windows counterpart of tools/render_math.sh. The app uses only the alpha of each
+# PNG, sized for 600 dpi, so the ink colour below does not matter.
 # Renders assets/math/manifest.txt formulas via LaTeX -> dvipng -> transparent
 # PNGs in assets/math/, then generates src/mathimg_gen.rs embedding them.
 $ErrorActionPreference = "Stop"
@@ -35,7 +37,7 @@ Get-Content (Join-Path $outdir "manifest.txt") | ForEach-Object {
     Push-Location $work
     & latex -interaction=nonstopmode "$fname.tex" | Out-Null
     if (Test-Path "$fname.dvi") {
-        & dvipng -q -D 300 -T tight -bg Transparent -o "$fname.png" "$fname.dvi" | Out-Null
+        & dvipng -q -D 600 -T tight -bg Transparent -o "$fname.png" "$fname.dvi" | Out-Null
         if (Test-Path "$fname.png") {
             Copy-Item "$fname.png" (Join-Path $outdir "$fname.png") -Force
             $script:keys += $key

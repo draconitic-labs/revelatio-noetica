@@ -272,8 +272,22 @@ impl AtlasApp {
         } else {
             DUSK
         };
-        // A long single word may use the gap, rather than break mid-word.
-        let text = p.layout(name.to_string(), theme::ui_font(11.5), color, thumb.x + 5.0);
+        // Wrap at the thumbnail's width, widening only as far as the longest word
+        // needs, because a word broken in two reads worse than one using the gap.
+        let longest = name
+            .split(' ')
+            .map(|w| {
+                p.layout_no_wrap(w.to_string(), theme::ui_font(11.5), color)
+                    .size()
+                    .x
+            })
+            .fold(0.0f32, f32::max);
+        let text = p.layout(
+            name.to_string(),
+            theme::ui_font(11.5),
+            color,
+            thumb.x.max(longest + 1.0),
+        );
         p.galley(pos2(cell.left(), image.bottom() + 4.0), text, color);
 
         // The "open beside" mark appears on hover, top right.

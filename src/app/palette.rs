@@ -822,7 +822,7 @@ impl AtlasApp {
         if let Some((done, total)) = self.export.as_ref().map(|j| (j.next, j.total)) {
             egui::Area::new(egui::Id::new("export-progress"))
                 .order(Order::Tooltip)
-                .anchor(Align2::CENTER_BOTTOM, vec2(0.0, -24.0))
+                .anchor(Align2::CENTER_TOP, vec2(0.0, 76.0))
                 .show(ctx, |ui| {
                     egui::Frame::new()
                         .fill(VOID)

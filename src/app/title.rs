@@ -123,13 +123,24 @@ impl AtlasApp {
         }
 
         // Second line: what this view shows, or the path's narration.
-        let say = match self.trail {
+        let say = match self.trail.filter(|_| self.on_trail_step()) {
             Some((t, step)) => TRAILS[t].steps.get(step).map_or("", |s| s.say),
             None => mode.map_or("", |m| m.desc),
         };
         let p = ui.painter();
         let desc = widgets::elided(p, say, theme::ui_font(13.5), MOON, rect.width() - 30.0);
         p.galley(pos2(rect.left() + 16.0, top + 44.0), desc, MOON);
+    }
+
+    /// Whether the view on screen is the one the path's current step shows.
+    pub(super) fn on_trail_step(&self) -> bool {
+        self.trail.is_some_and(|(t, step)| {
+            TRAILS[t]
+                .steps
+                .get(step)
+                .and_then(|s| self.resolve(s.module, Some(s.view)))
+                == Some(self.engine.focused())
+        })
     }
 
     fn trail_row(&mut self, ui: &mut egui::Ui, row: Rect, t: usize, step: usize, accent: Color32) {
@@ -146,22 +157,39 @@ impl AtlasApp {
         {
             self.act(Action::EndTrail);
         }
-        let label = if step + 1 == trail.steps.len() {
-            "Finish"
-        } else {
-            "Next"
-        };
-        if widgets::text_button(&mut child, label, "Next step (N)", false).clicked() {
-            self.act(Action::TrailStep(1));
-        }
-        if step > 0
-            && widgets::text_button(&mut child, "Previous", "Previous step (P)", false).clicked()
+        let on_step = self.on_trail_step();
+        if on_step {
+            let label = if step + 1 == trail.steps.len() {
+                "Finish"
+            } else {
+                "Next"
+            };
+            if widgets::text_button(&mut child, label, "Next step (N)", false).clicked() {
+                self.act(Action::TrailStep(1));
+            }
+            if step > 0
+                && widgets::text_button(&mut child, "Previous", "Previous step (P)", false)
+                    .clicked()
+            {
+                self.act(Action::TrailStep(-1));
+            }
+        } else if widgets::text_button(
+            &mut child,
+            "Back to the path",
+            "Return to the step you left",
+            false,
+        )
+        .clicked()
         {
-            self.act(Action::TrailStep(-1));
+            self.act(Action::TrailStep(0));
         }
         let room = child.min_rect().left() - area.left() - 16.0;
         let p = ui.painter();
-        let text = format!("{}, step {} of {}", trail.name, step + 1, trail.steps.len());
+        let text = if on_step {
+            format!("{}, step {} of {}", trail.name, step + 1, trail.steps.len())
+        } else {
+            format!("Away from the path: {}, step {}", trail.name, step + 1)
+        };
         let galley = widgets::elided(p, &text, theme::ui_font(13.0), accent, room);
         p.galley(
             pos2(area.left(), area.center().y - galley.size().y * 0.5),
