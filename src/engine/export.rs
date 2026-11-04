@@ -116,11 +116,13 @@ impl Engine {
             })
             .collect();
         let mut params = serde_json::Map::new();
+        let mut placed = serde_json::Map::new();
         for m in self.open_modules() {
-            params.insert(
-                self.modules[m].info().id.to_string(),
-                self.modules[m].params_ref().to_json(),
-            );
+            let id = self.modules[m].info().id.to_string();
+            params.insert(id.clone(), self.modules[m].params_ref().to_json());
+            if let Some(state) = self.modules[m].placed() {
+                placed.insert(id, state);
+            }
         }
         json!({
             "app": "revelatio-noetica",
@@ -136,6 +138,7 @@ impl Engine {
             "panes": pane_json,
             "focus": self.focus,
             "all_params": params,
+            "placed": placed,
         })
     }
 
@@ -158,6 +161,14 @@ impl Engine {
             for (key, params) in all {
                 if let Some(m) = self.find_module(key) {
                     self.modules[m].params().load_json(params);
+                }
+            }
+        }
+
+        if let Some(all) = v["placed"].as_object() {
+            for (key, state) in all {
+                if let Some(m) = self.find_module(key) {
+                    self.modules[m].restore_placed(state);
                 }
             }
         }
@@ -246,5 +257,93 @@ impl Engine {
         let v: Value = serde_json::from_str(&text)
             .with_context(|| format!("{} is not a scene file", path.display()))?;
         self.apply_scene(&v)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::gpu::GpuContext;
+    use crate::engine::module::PointerEvent;
+    use crate::modules;
+
+    fn engine() -> Option<Engine> {
+        match GpuContext::headless() {
+            Ok(gpu) => Some(Engine::new(gpu, modules::all())),
+            Err(e) => {
+                eprintln!("skipped: no usable GPU adapter here: {e:#}");
+                None
+            }
+        }
+    }
+
+    fn find(e: &Engine, id: &str) -> usize {
+        e.modules.iter().position(|m| m.info().id == id).unwrap()
+    }
+
+    #[test]
+    fn a_scene_comes_back_whole_in_a_fresh_engine() {
+        let Some(mut a) = engine() else { return };
+        let forge = find(&a, "em.fields");
+        let plane = find(&a, "quantum.schrodinger");
+        a.set_active(forge);
+        a.add_pane(ViewRef {
+            module: plane,
+            mode: 1,
+        });
+        a.focus = 0;
+        a.timeline.span = 30.0;
+        a.timeline.t = 7.5;
+        a.timeline.speed = 2.5;
+        a.timeline.loop_mode = LoopMode::PingPong;
+        a.timeline.playing = false;
+        a.modules[plane].params().set_f("rate", 33.0);
+        a.camera(forge, 0).drag(40.0, -25.0, (800.0, 450.0));
+        a.camera(forge, 0).zoom(120.0);
+        let moved = glam::vec2(0.5, 0.25);
+        a.modules[forge].pointer(0, PointerEvent::Down(moved));
+        a.modules[forge].pointer(0, PointerEvent::Up);
+        let scene = a.scene_json();
+
+        let Some(mut b) = engine() else { return };
+        b.apply_scene(&scene).unwrap();
+        assert_eq!(b.panes, a.panes);
+        assert_eq!(b.focus, a.focus);
+        assert_eq!(
+            b.scene_json(),
+            scene,
+            "the restored scene reads back identically"
+        );
+    }
+
+    #[test]
+    fn version_one_scene_files_still_open() {
+        let Some(mut e) = engine() else { return };
+        let old: Value =
+            serde_json::from_str(include_str!("../../exports/test.scene.json")).unwrap();
+        e.apply_scene(&old).unwrap();
+        let view = e.focused();
+        assert_eq!(e.modules[view.module].info().id, "newton.fluxions");
+        assert_eq!(view.mode, 7);
+        assert_eq!(e.timeline.t, 6.0);
+    }
+
+    #[test]
+    fn hostile_scenes_are_rejected_or_tamed() {
+        let Some(mut e) = engine() else { return };
+        assert!(e.apply_scene(&json!({ "module": "no.such" })).is_err());
+        assert!(e.apply_scene(&json!("not an object")).is_err());
+        let wild = json!({
+            "module": "newton.fluxions",
+            "t": 1e30, "span": -5.0, "speed": 1e9, "loop": 7, "playing": "yes",
+            "modes": [999, -3, "x"], "focus": 99,
+            "panes": [{ "module": "newton.fluxions", "view": "no-such" }, 3],
+            "placed": { "em.fields": "garbage" },
+        });
+        e.apply_scene(&wild).unwrap();
+        assert!(e.timeline.t <= e.timeline.span);
+        assert_eq!(e.timeline.span, 1.0);
+        assert_eq!(e.timeline.speed, 4.0);
+        assert!(e.focus < e.panes.len());
     }
 }

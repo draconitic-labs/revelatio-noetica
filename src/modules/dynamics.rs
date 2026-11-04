@@ -23,14 +23,15 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let k = U.p[0].x;
     let h = 0.5 * w.y * w.y - k * cos(w.x);
     var color = vec3<f32>(0.0);
-    // Level bands of the Hamiltonian.
+    // Level lines of the Hamiltonian, on black: an orbit runs along them.
     let band = fract(h * 0.55);
-    let shade = 0.55 + 0.45 * smoothstep(0.0, 0.25, band) * (1.0 - smoothstep(0.75, 1.0, band));
+    let wide = fwidth(h * 0.55) * 1.5 + 0.01;
+    let edge = 1.0 - smoothstep(0.0, wide, min(band, 1.0 - band));
     let depth = clamp((h + k) / (4.0 * k + 4.0), 0.0, 1.0);
-    color += aurum(depth * 0.55 + 0.06) * 0.32 * shade;
+    color += aurum(depth * 0.45 + 0.35) * 0.30 * edge;
     // The separatrix H = k, burning.
     let d = abs(h - k);
-    color += vec3<f32>(1.0, 0.55, 0.25) * exp(-d * d * 14.0) * 0.30;
+    color += vec3<f32>(1.0, 0.55, 0.25) * exp(-d * d * 60.0) * 0.26;
     color += vec3<f32>(0.20, 0.16, 0.10) * grid_glow(w, 0.7) * 0.12;
     return vec4<f32>(color * (1.0 - 0.25 * dot(ndc, ndc)), 1.0);
 }

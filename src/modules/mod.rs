@@ -67,7 +67,6 @@ mod tests {
     const FILLS_THE_CANVAS: &[(&str, &str)] = &[
         ("complex.domain", "dc"),
         ("vector.fields", "heat"),
-        ("dynamics.phase", "portrait"),
         ("analysis.taylor", "newton"),
     ];
 

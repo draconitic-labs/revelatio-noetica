@@ -440,7 +440,7 @@ impl ConceptModule for VectorField {
     }
 
     fn pointer_hint(&self, mode: usize) -> Option<&'static str> {
-        (mode == 2).then_some("drag to move the probe \u{00B7} scroll still zooms")
+        (mode == 2).then_some("drag to move the probe")
     }
 
     fn pointer(&mut self, _mode: usize, ev: crate::engine::module::PointerEvent) {

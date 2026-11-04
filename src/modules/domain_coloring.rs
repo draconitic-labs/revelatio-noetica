@@ -171,6 +171,8 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
         let smooth_i = it - log2(max(log2(dot(z, z)) * 0.5, 1e-6));
         let tt = clamp(smooth_i / 110.0, 0.0, 1.0);
         color = mix(aurum(pow(tt, 0.5)), phase_color(smooth_i * 0.19 + 2.0), 0.25) * 0.92;
+        // Fast-escaping exterior falls to black; the frontier keeps the fire.
+        color *= pow(tt, 0.8);
     }
     return vec4<f32>(color, 1.0);
 }

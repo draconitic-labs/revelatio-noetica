@@ -359,9 +359,9 @@ impl ConceptModule for EnsembleGallery {
                 "gas",
                 "Gas in a Box",
                 "900 elastic discs; one speed becomes Maxwell\u{2013}Boltzmann",
-                3.6,
+                4.35,
             )
-            .look_at(0.0, -0.3, 0.0),
+            .look_at(0.0, -0.65, 0.0),
             RenderMode::plane(
                 "walk",
                 "The Drunkard's Cloud",

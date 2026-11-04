@@ -517,6 +517,30 @@ impl ConceptModule for RelativityTheatre {
         *target = w.clamp(glam::vec2(-3.4, -3.4), glam::vec2(3.4, 3.4));
     }
 
+    fn placed(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!([
+            self.ev_a.x,
+            self.ev_a.y,
+            self.ev_b.x,
+            self.ev_b.y
+        ]))
+    }
+
+    fn restore_placed(&mut self, v: &serde_json::Value) {
+        let Some(list) = v.as_array() else { return };
+        let n: Vec<f32> = list
+            .iter()
+            .filter_map(serde_json::Value::as_f64)
+            .map(|x| x as f32)
+            .filter(|x| x.is_finite())
+            .collect();
+        if let [ax, ay, bx, by] = n[..] {
+            let (lo, hi) = (glam::vec2(-3.4, -3.4), glam::vec2(3.4, 3.4));
+            self.ev_a = glam::vec2(ax, ay).clamp(lo, hi);
+            self.ev_b = glam::vec2(bx, by).clamp(lo, hi);
+        }
+    }
+
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
         let beta = self.beta();
         let gamma = 1.0 / (1.0 - beta * beta).sqrt();

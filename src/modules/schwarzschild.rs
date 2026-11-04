@@ -205,7 +205,7 @@ impl ConceptModule for SchwarzschildCourt {
             RenderMode::plane("orbit", "Precessing Geodesic", "The rosette Mercury drew first", 17.0),
             RenderMode::plane("veff", "Effective Potential", "V(r) = \u{221A}((1\u{2212}2M/r)(1+L\u{00B2}/r\u{00B2})); turning points bound the orbit", 1.55)
                 .look_at(2.85, 0.55, 0.0),
-            RenderMode::orbit("funnel", "Flamm's Paraboloid", "The spatial slice embedded: the funnel is real geometry", 32.0, 0.55, 0.9).look_at(0.0, 5.0, 0.0),
+            RenderMode::orbit("funnel", "Flamm's Paraboloid", "The spatial slice embedded: the funnel is real geometry", 58.0, 0.42, 0.9).look_at(0.0, 5.0, 0.0),
         ]
     }
 

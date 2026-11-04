@@ -152,6 +152,12 @@ pub trait ConceptModule {
     fn rewind(&mut self) {}
     /// Describe the frame for one representation.
     fn render(&mut self, gpu: &GpuContext, mode: usize, t: f64, cam: &Camera, scene: &mut Scene);
+    /// What the viewer placed by hand, for scenes to bring back.
+    fn placed(&self) -> Option<serde_json::Value> {
+        None
+    }
+    /// Restore `placed`. The value is untrusted: ignore anything malformed.
+    fn restore_placed(&mut self, _v: &serde_json::Value) {}
     /// Symbolic inspector content.
     fn inspector(&self, t: f64) -> Vec<InsLine>;
     /// Honest labelling of the approximation behind a representation.

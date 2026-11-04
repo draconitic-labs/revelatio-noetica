@@ -514,7 +514,11 @@ mod tests {
         let lines = m.inspector(0.0);
         let line = lines.iter().find(|l| l.text.contains('\u{03BA}')).unwrap();
         assert!(line.text.contains("\u{03BA} = 1.00"), "{}", line.text);
-        assert!(line.text.contains("\u{03C3}\u{2082} = 1.000"), "{}", line.text);
+        assert!(
+            line.text.contains("\u{03C3}\u{2082} = 1.000"),
+            "{}",
+            line.text
+        );
     }
 
     #[test]
@@ -541,7 +545,11 @@ mod tests {
         m.pointer(0, PE::Drag(Vec2::new(0.0, 1.0)));
         m.pointer(0, PE::Drag(Vec2::new(-1.0, 2.0)));
         m.pointer(0, PE::Up);
-        assert!(close(m.matrix(), cols(-1.0, 2.0, 0.0, 1.0)), "{:?}", m.matrix());
+        assert!(
+            close(m.matrix(), cols(-1.0, 2.0, 0.0, 1.0)),
+            "{:?}",
+            m.matrix()
+        );
     }
 
     #[test]
@@ -552,7 +560,11 @@ mod tests {
         m.pointer(0, PE::Down(Vec2::new(0.0, 1.0)));
         m.pointer(0, PE::Up);
         // The press landed on column 2 as drawn, so column 1 of A is untouched.
-        assert!(close(m.matrix(), cols(0.0, 1.0, 0.0, 1.0)), "{:?}", m.matrix());
+        assert!(
+            close(m.matrix(), cols(0.0, 1.0, 0.0, 1.0)),
+            "{:?}",
+            m.matrix()
+        );
         assert!(!m.params.b("animate"));
     }
 }

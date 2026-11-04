@@ -89,9 +89,6 @@ pub struct PdeHall {
     tex: Option<wgpu::Texture>,
     tex_view: Option<wgpu::TextureView>,
     sim_t: f64,
-    wants_laplace: bool,
-    wants_fhn: bool,
-    wants_gray_scott: bool,
 }
 
 impl PdeHall {
@@ -136,9 +133,6 @@ impl PdeHall {
             tex: None,
             tex_view: None,
             sim_t: 0.0,
-            wants_laplace: false,
-            wants_fhn: false,
-            wants_gray_scott: false,
         }
     }
 
@@ -385,17 +379,9 @@ impl ConceptModule for PdeHall {
             return;
         }
         self.sim_t += h;
-        // The 2D fields are costly, so each steps only while its view is drawn.
-        // A thumbnail's occasional draw advances it gently, which is enough.
-        if std::mem::take(&mut self.wants_laplace) {
-            self.relax_laplace(26);
-        }
-        if std::mem::take(&mut self.wants_fhn) {
-            self.step_fhn(6);
-        }
-        if std::mem::take(&mut self.wants_gray_scott) {
-            self.step_gray_scott(9);
-        }
+        self.relax_laplace(26);
+        self.step_fhn(6);
+        self.step_gray_scott(9);
         // Heat (explicit, stable: alpha dt/dx^2 < 0.5).
         let alpha = self.params.f("alpha");
         let steps = 6;
@@ -459,7 +445,6 @@ impl ConceptModule for PdeHall {
                 scene.glow_polyline(&pts, 2.2, APRICOT_P, 2.6);
             }
             1 => {
-                self.wants_laplace = true;
                 self.upload(gpu, &self.lap.clone());
                 scene.field = Some("pde.field2d");
                 scene.field_tex = self.tex_view.clone();
@@ -529,7 +514,6 @@ impl ConceptModule for PdeHall {
                 );
             }
             5 => {
-                self.wants_fhn = true;
                 let disp: Vec<f32> = self.fhn_u.iter().map(|&u| (u + 2.0) / 4.0).collect();
                 self.upload(gpu, &disp);
                 scene.field = Some("pde.field2d");
@@ -537,7 +521,6 @@ impl ConceptModule for PdeHall {
                 scene.p(0, 0.0);
             }
             _ => {
-                self.wants_gray_scott = true;
                 self.upload(gpu, &self.gs_v.clone());
                 scene.field = Some("pde.field2d");
                 scene.field_tex = self.tex_view.clone();

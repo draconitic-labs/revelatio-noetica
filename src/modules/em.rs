@@ -444,6 +444,24 @@ impl ConceptModule for FieldForge {
         }
     }
 
+    fn placed(&self) -> Option<serde_json::Value> {
+        let positions: Vec<[f32; 2]> = self.charges.iter().map(|(c, _)| [c.x, c.y]).collect();
+        Some(serde_json::json!(positions))
+    }
+
+    fn restore_placed(&mut self, v: &serde_json::Value) {
+        let Some(list) = v.as_array() else { return };
+        for (charge, saved) in self.charges.iter_mut().zip(list) {
+            let (Some(x), Some(y)) = (saved[0].as_f64(), saved[1].as_f64()) else {
+                continue;
+            };
+            let at = Vec2::new(x as f32, y as f32);
+            if at.is_finite() {
+                charge.0 = at.clamp(Vec2::splat(-3.4), Vec2::splat(3.4));
+            }
+        }
+    }
+
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
         let dip: f32 = self.charges.iter().map(|&(c, q)| c.x * q).sum();
         vec![

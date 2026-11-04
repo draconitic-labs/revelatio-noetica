@@ -652,7 +652,7 @@ ViewGuide {
 ViewGuide {
     module: "dynamics.phase",
     view: "portrait",
-    read: "Horizontal is angle θ, vertical is angular speed ω. Gold bands are energy levels and the orange glow is the separatrix H = g/ℓ. The teal dot is the stable point, coral dots are saddles at θ = ±π, and coloured curves are live orbits.",
+    read: "Horizontal is angle θ, vertical is angular speed ω. Gold lines are energy levels and the orange glow is the separatrix H = g/ℓ. The teal dot is the stable point, coral dots are saddles at θ = ±π, and coloured curves are live orbits.",
     try_this: "Click just above and just below the orange glow at θ = 0: one orbit closes around the origin, the other runs along θ.",
     params: &["k", "damp", "rate"],
 },
