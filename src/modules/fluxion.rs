@@ -157,7 +157,7 @@ const CURVE_EQNS: [&str; 5] = [
     "y = x\u{00B2}/16",
     "y = (x\u{2212}4)\u{00B3}/16 \u{2212} (x\u{2212}4)/2 + 1.2",
     "y = 1.2 + 1.6\u{00B7}e^{\u{2212}x/5} sin 1.6x",
-    "x\u{00B2} + y\u{00B2} = r\u{00B2}   (upper arch)",
+    "(x\u{2212}4)\u{00B2} + y\u{00B2} = r\u{00B2},   r = 2.5   (upper arch)",
 ];
 
 const N_SAMPLES: usize = 320;
@@ -244,6 +244,12 @@ impl FluxionChamber {
     }
 }
 
+/// The fluxions in units per second of timeline: `fluent` differentiates by s,
+/// and s = t/12.
+fn per_second(f: &FluentState) -> (f64, f64) {
+    (f.dx / 12.0, f.dy / 12.0)
+}
+
 /// Gravity in the brachistochrone race, in scene units.
 const RACE_G: f64 = 1.4;
 
@@ -313,7 +319,7 @@ impl ConceptModule for FluxionChamber {
                 .look_at(4.0, 1.4, 0.0),
             RenderMode::plane("moment", "Moment Pulse", "The moment o: an evanescent increment, magnified in the lens", 3.0)
                 .look_at(4.0, 1.4, 0.0),
-            RenderMode::plane("inverse", "Inverse Fluxion", "Quadrature: swept area beneath \u{1E8F} becomes the height of y", 3.4)
+            RenderMode::plane("inverse", "Inverse Fluxion", "Slope below, fluent above: the area under the slope equals the rise of y; both are drawn from their formulas", 3.4)
                 .look_at(4.0, 0.4, 0.0),
             RenderMode::plane("split", "Newton \u{00B7} Leibniz", "One curve, two calculi: velocities of generation against ratios of differentials", 2.6)
                 .look_at(4.0, 1.1, 0.0),
@@ -667,7 +673,7 @@ impl ConceptModule for FluxionChamber {
                     );
                 }
                 // The magnifying lens: characteristic triangle, enlarged.
-                let o = 0.035; // the moment, exaggerated for sight
+                let o = 0.035; // in s, so 0.42 s of time: exaggerated for sight
                 let dx = (f.dx * o) as f32;
                 let dy = (f.dy * o) as f32;
                 let lens = LENS;
@@ -751,7 +757,7 @@ impl ConceptModule for FluxionChamber {
                     1.6,
                     with_alpha(LEIBNIZ_BLUE, 0.75),
                 );
-                // The fluent grows: y(x) = area so far (rescaled).
+                // The fluent, drawn from its formula up to the moving point.
                 let grown: Vec<Vec3> = (0..=160)
                     .map(|i| {
                         let si = s * i as f64 / 160.0;
@@ -1176,6 +1182,7 @@ impl ConceptModule for FluxionChamber {
         let s = self.s.max(1e-4);
         let f = fluent(k, s);
         let slope = f.dy / f.dx.max(1e-9);
+        let (xdot, ydot) = per_second(&f);
         let area = self.area_under(k, s);
         let mut v = vec![
             title("Fluents & Fluxions"),
@@ -1190,11 +1197,11 @@ impl ConceptModule for FluxionChamber {
                 "fluxion.slope",
                 "slope = \u{1E8F}/\u{1E8B}        area A: \u{1E86} = y\u{00B7}\u{1E8B}",
             ),
-            value(format!("s = {:.3}   x = {:.3}   y = {:.3}", s, f.x, f.y)),
+            value(format!("s = t/12 = {:.3}   x = {:.3}   y = {:.3}", s, f.x, f.y)),
             value(format!(
                 "\u{1E8B} = {:.3}   \u{1E8F} = {:.3}   \u{1E8F}/\u{1E8B} = {}",
-                f.dx,
-                f.dy,
+                xdot,
+                ydot,
                 if slope.abs() > 999.0 {
                     "\u{221E}".to_string()
                 } else {
@@ -1212,9 +1219,10 @@ impl ConceptModule for FluxionChamber {
 
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
-            0 | 3 => Some("Area by trapezoid accumulation (400 steps); curve exact analytic."),
-            5 => Some("Orbit from the exact Kepler solution (Newton iteration, 12 steps); force arrow \u{221D} 1/r\u{00B2}."),
-            6 => Some("Surface swept on a 96\u{00D7}64 lattice; profile exact analytic."),
+            0 => Some("Inspector area by trapezoid accumulation (400 steps); curve exact analytic."),
+            3 => Some("Both curves drawn from their formulas, nothing integrated; the inspector's area \u{222B} y dx uses the trapezoid rule (400 steps)."),
+            5 => Some("Orbit from the exact Kepler solution (Newton iteration, 12 steps); force arrow \u{221D} 1/r\u{00B2}, capped close to the Sun."),
+            6 => Some("Surface swept on a 96\u{00D7}64 lattice; profile exact analytic, surface radius held at 0 where y < 0."),
             7 => Some("Presentation mode: geometry exact, vertical scale \u{00D7}2.2, lighting artistic."),
             8 => Some("Bead times exact for straight 160-segment tracks under constant g; beads step from vertex to vertex."),
             _ => None,
@@ -1425,6 +1433,57 @@ mod tests {
             t_cycloid < t_sag && t_sag < t_chute,
             "order: cycloid {t_cycloid}, sag {t_sag}, chute {t_chute}"
         );
+    }
+
+    #[test]
+    fn inspector_fluxions_are_rates_per_second() {
+        let (t, h) = (3.0, 1e-4);
+        for k in 0..CURVE_NAMES.len() {
+            let at = |t: f64| fluent(k, generated_fraction(t));
+            let (xdot, ydot) = per_second(&at(t));
+            let numeric_x = (at(t + h).x - at(t - h).x) / (2.0 * h);
+            let numeric_y = (at(t + h).y - at(t - h).y) / (2.0 * h);
+            assert!((xdot - numeric_x).abs() < 1e-6, "{}", CURVE_NAMES[k]);
+            assert!((ydot - numeric_y).abs() < 1e-6, "{}", CURVE_NAMES[k]);
+        }
+    }
+
+    #[test]
+    fn areas_match_the_exact_quadratures() {
+        use std::f64::consts::PI;
+        let chamber = FluxionChamber::new();
+        let a = 8.0 / (4.0 * PI);
+        for (k, name, exact) in [
+            (0, "two cycloid arches", 2.0 * 3.0 * PI * a * a),
+            (1, "parabola", 8.0f64.powi(3) / 48.0),
+            (4, "semicircle", PI * 2.5 * 2.5 / 2.0),
+        ] {
+            let area = chamber.area_under(k, 1.0);
+            assert!((area - exact).abs() < 0.01, "{name}: {area} vs {exact}");
+        }
+    }
+
+    #[test]
+    fn kepler_wedges_sweep_equal_areas() {
+        use std::f64::consts::PI;
+        let mut chamber = FluxionChamber::new();
+        for e in [0.0, 0.55, 0.85] {
+            chamber.params.set_f("ecc", e);
+            let ellipse = PI * 2.1 * 2.1 * (1.0f64 - e * e).sqrt();
+            for wedge in 0..12 {
+                // Shoelace area from the focus at the origin.
+                let area: f64 = (0..400)
+                    .map(|i| {
+                        let at = |i: f64| (wedge as f64 + i / 400.0) / 12.0;
+                        let (x0, y0) = chamber.kepler(at(i as f64));
+                        let (x1, y1) = chamber.kepler(at(i as f64 + 1.0));
+                        0.5 * (x0 * y1 - x1 * y0)
+                    })
+                    .sum();
+                let share = area / ellipse * 12.0;
+                assert!((share - 1.0).abs() < 1e-3, "e = {e}, wedge {wedge}: {share}");
+            }
+        }
     }
 
     #[test]

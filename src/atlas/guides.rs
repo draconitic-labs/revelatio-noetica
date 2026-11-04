@@ -22,14 +22,14 @@ ViewGuide {
 ViewGuide {
     module: "newton.fluxions",
     view: "fluxion",
-    read: "The point rides the gold curve; the bright pale arrow is its velocity (ẋ, ẏ) per unit s, scaled by 0.12, and the dimmer pale gold and blue arrows are its components. Faint lines complete the parallelogram. Optional: burnt-orange acceleration arrow, faint gold tangent line.",
+    read: "The point rides the gold curve; the bright pale arrow is its velocity (ẋ, ẏ) per second, scaled by 1.44, and the dimmer pale gold and blue arrows are its components. Faint lines complete the parallelogram. Optional: burnt-orange acceleration arrow, faint gold tangent line.",
     try_this: "Turn on \"Second fluxion (acceleration)\" and set \"Fluent curve\" to Parabola: the burnt-orange arrow stays vertical and constant while the blue ẏ arrow lengthens.",
     params: &["curve", "tangent", "accel"],
 },
 ViewGuide {
     module: "newton.fluxions",
     view: "moment",
-    read: "Pale rings spread from where the point was at each pulse. At the point, short pale gold and blue segments are the moments ẋo and ẏo, with o = 0.035. The lens circle shows that triangle enlarged: pale gold ẋo, blue ẏo, gold hypotenuse.",
+    read: "Pale rings spread from where the point was at each pulse. At the point, short pale gold and blue segments are the moments ẋo and ẏo, with o = 0.42 s. The lens circle shows that triangle enlarged: pale gold ẋo, blue ẏo, gold hypotenuse.",
     try_this: "Set \"Fluent curve\" to Cycloid: near each cusp the enlarged triangle turns almost vertical, because ẋ falls to zero faster than ẏ.",
     params: &["curve", "pulse"],
 },

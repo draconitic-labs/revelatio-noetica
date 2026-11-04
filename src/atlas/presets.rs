@@ -56,7 +56,7 @@ Preset {
     module: "newton.fluxions",
     name: "Constant acceleration",
     view: Some("fluxion"),
-    note: "Parabola: ẍ = 0 and ÿ = 8, so the burnt-orange arrow never changes.",
+    note: "Parabola: ẍ = 0 and ÿ is constant, so the burnt-orange arrow never changes.",
     values: &[("curve", V::C(1)), ("accel", V::B(true))],
 },
 Preset {
