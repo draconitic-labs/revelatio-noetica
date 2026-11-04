@@ -78,6 +78,27 @@ pub struct FieldForge {
     cyc: Vec<(Vec2, Vec2, f32, Vec<Vec2>)>,
 }
 
+/// Uniform fields of the cyclotron view: B out of the plane, E along +x.
+const CYC_B: f32 = 1.4;
+const CYC_E: f32 = 0.22;
+/// Half the height of the view, plus a little. Charges drift along -y at E/B
+/// forever, so once a whole orbit has passed below this it is moved to just above.
+const CYC_VIEW: f32 = 3.4;
+
+/// One Boris step of dv/dt = q(E + v x B), unit mass. The magnetic part is an exact
+/// rotation, so B does no work. A plain Euler kick lengthens v at every step and
+/// the charges would slowly heat up.
+fn boris_step(p: Vec2, v: Vec2, q: f32, h: f32) -> (Vec2, Vec2) {
+    let half_kick = Vec2::new(CYC_E, 0.0) * q * (h * 0.5);
+    let minus = v + half_kick;
+    let t = q * CYC_B * h * 0.5;
+    let s = 2.0 * t / (1.0 + t * t);
+    let prime = Vec2::new(minus.x + minus.y * t, minus.y - minus.x * t);
+    let plus = Vec2::new(minus.x + prime.y * s, minus.y - prime.x * s);
+    let v = plus + half_kick;
+    (p + v * h, v)
+}
+
 fn seed_cyc() -> Vec<(Vec2, Vec2, f32, Vec<Vec2>)> {
     (0..10)
         .map(|i| {
@@ -119,6 +140,27 @@ impl FieldForge {
             e += d * (q / (r2 * r2.sqrt()));
         }
         e
+    }
+
+    fn advance_charges(&mut self, h: f32) {
+        for (p, v, q, trail) in &mut self.cyc {
+            for _ in 0..4 {
+                (*p, *v) = boris_step(*p, *v, *q, h / 4.0);
+            }
+            // Measured from the center of the gyration, with the drift taken out of
+            // the velocity, so the charge moves only while its orbit is out of sight.
+            let center_y = p.y - v.x / (*q * CYC_B);
+            let radius = (*v - Vec2::new(0.0, -CYC_E / CYC_B)).length() / CYC_B;
+            let edge = CYC_VIEW + radius;
+            if center_y < -edge {
+                p.y += 2.0 * edge;
+                trail.clear();
+            }
+            trail.push(*p);
+            if trail.len() > 260 {
+                trail.remove(0);
+            }
+        }
     }
 }
 
@@ -228,22 +270,9 @@ impl ConceptModule for FieldForge {
     }
 
     fn update(&mut self, _gpu: &GpuContext, _t: f64, dt: f64) {
-        // Lorentz force: B = 1.4 out of plane, E = 0.22 along +x.
         let h = (dt.abs() as f32).min(0.033);
-        if h <= 0.0 {
-            return;
-        }
-        let (bz, ex) = (1.4f32, 0.22f32);
-        for (p, v, q, trail) in &mut self.cyc {
-            for _ in 0..4 {
-                let f = Vec2::new(ex + v.y * bz, -v.x * bz) * *q;
-                *v += f * (h / 4.0);
-                *p += *v * (h / 4.0);
-            }
-            trail.push(*p);
-            if trail.len() > 260 {
-                trail.remove(0);
-            }
+        if h > 0.0 {
+            self.advance_charges(h);
         }
     }
 
@@ -482,7 +511,7 @@ impl ConceptModule for FieldForge {
             ),
             1 => Some("Exact Hertzian-dipole field-line function; amplitude fade is display only."),
             2 => Some("Closed-form plane wave, in arbitrary units."),
-            3 => Some("Semi-implicit Euler with 4 substeps per frame under uniform E and B."),
+            3 => Some("Boris integrator, 4 substeps per frame, under uniform E and B. A charge that drifts off the bottom re-enters at the top."),
             _ => None,
         }
     }
@@ -505,6 +534,79 @@ mod tests {
         let pdot = k * phi.cos();
         let pddot = -k * k * phi.sin();
         let near = p / r.powi(3) + pdot / (r * r);
+    #[test]
+    fn charges_stay_in_the_frame_long_after_they_would_have_drifted_out() {
+        let mut f = FieldForge::new();
+        // Three minutes at 60 frames a second, far past t = 34 s.
+        for frame in 0..(180 * 60) {
+            f.advance_charges(1.0 / 60.0);
+            if frame % 60 == 0 {
+                for (p, _, _, _) in &f.cyc {
+                    assert!(p.y.abs() < CYC_VIEW + 3.0, "frame {frame}: {p:?}");
+                    assert!(p.x.abs() < 6.0, "frame {frame}: {p:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_integrator_does_not_heat_the_charges() {
+        // In the frame drifting at E/B the field is pure magnetic, so speed there
+        // is constant. Forward Euler took the top speed from 1.77 to 3.9 in 3 min.
+        let drift = Vec2::new(0.0, -CYC_E / CYC_B);
+        for (p0, v0, q, _) in seed_cyc() {
+            let (mut p, mut v) = (p0, v0);
+            let start = (v - drift).length();
+            for _ in 0..(180 * 60 * 4) {
+                (p, v) = boris_step(p, v, q, 1.0 / 240.0);
+            }
+            let end = (v - drift).length();
+            assert!((end - start).abs() < 0.05 * start, "{start} -> {end}");
+        }
+    }
+
+    #[test]
+    fn re_entry_happens_only_with_the_whole_orbit_out_of_sight() {
+        let mut f = FieldForge::new();
+        for _ in 0..(180 * 60) {
+            let before: Vec<Vec2> = f.cyc.iter().map(|c| c.0).collect();
+            f.advance_charges(1.0 / 60.0);
+            for (old, now) in before.iter().zip(&f.cyc) {
+                if (now.0.y - old.y).abs() > 1.0 {
+                    assert!(
+                        old.y < -CYC_VIEW + 0.1,
+                        "jumped from y = {} in plain sight",
+                        old.y
+                    );
+                    assert!(
+                        now.0.y > CYC_VIEW - 0.1,
+                        "landed at y = {} in plain sight",
+                        now.0.y
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn both_signs_drift_at_e_over_b() {
+        for q in [1.0f32, -1.0] {
+            let (mut p, mut v) = (Vec2::ZERO, Vec2::new(0.0, 0.8));
+            let period = std::f32::consts::TAU / CYC_B;
+            let steps = 4000;
+            let turns = 8.0;
+            for _ in 0..steps {
+                (p, v) = boris_step(p, v, q, turns * period / steps as f32);
+            }
+            let expected = -CYC_E / CYC_B * turns * period;
+            assert!(
+                (p.y - expected).abs() < 0.05,
+                "q = {q}: {} vs {expected}",
+                p.y
+            );
+        }
+    }
+
         (2.0 * th.cos() * near, th.sin() * (near + pddot / r))
     }
 

@@ -638,7 +638,7 @@ ViewGuide {
 ViewGuide {
     module: "em.fields",
     view: "cyclotron",
-    read: "Faint blue dots stand for a uniform B out of the page; a uniform E along +x acts but is not drawn. Magenta charges are positive and cyan negative, each with a fading trail and gold velocity arrow. Circling orbits drift under E × B.",
+    read: "Faint blue dots stand for a uniform B out of the page; a uniform E along +x acts but is not drawn. Magenta charges are positive and cyan negative, each with a fading trail and gold velocity arrow. Circling orbits drift under E × B, and a charge that leaves the bottom re-enters at the top.",
     try_this: "Jump the time scrubber back to reseed: magenta and cyan circle in opposite senses, yet both drift downward at E/B ≈ 0.16.",
     params: &[],
 },
