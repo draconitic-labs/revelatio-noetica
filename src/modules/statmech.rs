@@ -340,9 +340,9 @@ impl ConceptModule for EnsembleGallery {
             tagline: "Order out of chance",
             branch: Branch::StatMech,
             description: "Nothing here is choreographed. Spins flip by coin-toss weighted with Boltzmann's factor and organize into continents at the critical temperature; a gas started at one single speed collides its way into Maxwell's curve; drunkards' walks add up to the diffusion equation. Statistics is the physics of not knowing \u{2014} and it works.",
-            epigraph: Some(Epigraph::quoted(
+            epigraph: Some(Epigraph::unquoted(
 "S = k log W",
-"Carved on Boltzmann's grave",
+"The formula reported on Boltzmann's grave; not checked against the stone",
 )),
         }
     }

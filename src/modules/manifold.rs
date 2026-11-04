@@ -192,7 +192,7 @@ impl ConceptModule for ManifoldAtlas {
             description: "A manifold is a space that is flat enough up close: every point owns a tangent plane, and charts cover it like map pages in an atlas. Curvature is what the pages cannot hide \u{2014} carry a vector around a loop without ever turning it, and it comes back rotated by exactly the curvature the loop enclosed.",
             epigraph: Some(Epigraph::quoted(
 "Ubi materia, ibi geometria.",
-"Johannes Kepler, De fundamentis astrologiae certioribus, 1602",
+"Johannes Kepler, De fundamentis astrologiae certioribus, 1602, Thesis XX",
 )),
         }
     }

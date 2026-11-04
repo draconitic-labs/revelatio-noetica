@@ -258,9 +258,9 @@ impl ConceptModule for SchwarzschildCourt {
             tagline: "Geodesics and lensing at the horizon",
             branch: Branch::Gravitation,
             description: "Around a mass, straight lines bend because spacetime does. Light rays integrate the exact null geodesic equation per pixel: the photon ring at b = 3\u{221A}3 M, the doubled disk images, the black shadow. Massive orbits precess \u{2014} the failure of the ellipse that announced general relativity at Mercury.",
-            epigraph: Some(Epigraph::quoted(
+            epigraph: Some(Epigraph::unquoted(
 "Spacetime tells matter how to move; matter tells spacetime how to curve.",
-"John Archibald Wheeler, Geons, Black Holes, and Quantum Foam",
+"Usually credited to John Archibald Wheeler's Geons, Black Holes, and Quantum Foam; wording not checked against the book",
 )),
         }
     }
@@ -566,7 +566,10 @@ mod tests {
         let drift = ((c.energy_now() - c.energy) / c.energy).abs();
         assert!(drift < 1e-5, "{label}: energy drift {drift}");
         // The live marker in Effective Potential is drawn at V(r).
-        assert!(c.veff(r).is_finite(), "{label}: marker at V({r}) is not real");
+        assert!(
+            c.veff(r).is_finite(),
+            "{label}: marker at V({r}) is not real"
+        );
         let frozen = c.state;
         c.advance(0.5);
         assert_eq!(c.state, frozen, "{label}: a captured orbit stays put");

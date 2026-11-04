@@ -160,8 +160,8 @@ impl ConceptModule for RelativityTheatre {
             branch: Branch::Relativity,
             description: "Einstein's 1905 argument is about clocks, rods, and simultaneity. Geometry is Minkowski's 1908 reading of it: space and time mix under boosts the way x and y mix under rotations \u{2014} except the invariant is c\u{00B2}t\u{00B2}\u{2212}x\u{00B2}, and the diagonals, the light cone, never move. Simultaneity tilts; lengths contract; the Coulomb field of a running charge flattens into a pancake.",
             epigraph: Some(Epigraph::quoted(
-"Henceforth, space by itself, and time by itself, are doomed to fade away into mere shadows, and only a kind of union of the two will preserve an independent reality.",
-"Hermann Minkowski, 1908",
+"Henceforth space by itself, and time by itself, are doomed to fade away into mere shadows, and only a kind of union of the two will preserve an independent reality.",
+"Hermann Minkowski, Space and Time, 1908, tr. Perrett and Jeffery",
 )),
         }
     }

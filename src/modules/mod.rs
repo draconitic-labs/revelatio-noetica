@@ -70,6 +70,40 @@ mod tests {
         ("analysis.taylor", "newton"),
     ];
 
+    /// Lines whose words were compared with a digitized source. Giving another line
+    /// quotation marks means doing that comparison and adding it here.
+    const COMPARED_WITH_A_SOURCE: &[&str] = &[
+        "newton.fluxions",     // Harris, Lexicon Technicum II, 1710
+        "complex.domain",      // Hadamard, 1945, p. 123
+        "analysis.fourier",    // Freeman's translation
+        "diffeq.pdes",         // Freeman's translation
+        "analysis.taylor",     // Veitch's translation
+        "relativity.special",  // Perrett and Jeffery
+        "dynamics.phase",      // Halsted's translation
+        "geometry.manifolds",  // Frisch, Opera Omnia I, Thesis XX
+        "statmech.montecarlo", // Eckhardt, 1987
+    ];
+
+    #[test]
+    fn only_lines_compared_with_a_source_get_quotation_marks() {
+        let quoted: Vec<&str> = all()
+            .iter()
+            .filter_map(|m| {
+                let info = m.info();
+                info.epigraph.filter(|e| e.verbatim).map(|_| info.id)
+            })
+            .collect();
+        for id in &quoted {
+            assert!(
+                COMPARED_WITH_A_SOURCE.contains(id),
+                "{id} has quotation marks"
+            );
+        }
+        for id in COMPARED_WITH_A_SOURCE {
+            assert!(quoted.contains(id), "{id} is listed but not quoted");
+        }
+    }
+
     /// Renders every view through the real pipelines. wgpu reports shader or
     /// binding mistakes as panics, so this also proves each view is valid.
     /// Needs a Vulkan or other GPU adapter; lavapipe is enough. Without one it

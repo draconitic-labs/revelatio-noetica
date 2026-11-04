@@ -9,8 +9,10 @@ use super::params::Params;
 use super::timeline::Timeline;
 use crate::theme::Branch;
 
-/// A line shown with a chamber's background. Quotation marks are a promise: only
-/// `quoted` lines, whose wording was checked against a source, get them.
+/// A line shown with a chamber's background. Quotation marks claim one thing: someone
+/// compared these words with a digitized copy of the source named beside them. Those
+/// copies are mostly OCR, nothing re-checks them, and capitals, long s, and line
+/// breaks are modernized, so a line may also start mid-sentence in its source.
 #[derive(Clone, Copy)]
 pub struct Epigraph {
     pub text: &'static str,
@@ -19,7 +21,7 @@ pub struct Epigraph {
 }
 
 impl Epigraph {
-    /// Wording checked against the named source.
+    /// Words compared with a digitized copy of the named source.
     pub const fn quoted(text: &'static str, source: &'static str) -> Self {
         Self {
             text,
@@ -28,7 +30,7 @@ impl Epigraph {
         }
     }
 
-    /// A paraphrase, a house line, or anything not checked word for word.
+    /// A paraphrase, a house line, or anything not compared that way.
     pub const fn unquoted(text: &'static str, source: &'static str) -> Self {
         Self {
             text,

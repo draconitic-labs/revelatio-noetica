@@ -311,7 +311,7 @@ impl ConceptModule for DomainColoring {
             description: "A complex function assigns to every point of the plane another point of the plane. Color makes the assignment visible: hue is the phase of f(z), shading carries its modulus. Zeros appear as dark stars where every hue meets; poles as white ones.",
             epigraph: Some(Epigraph::quoted(
 "It has been written that the shortest and best way between two truths of the real domain often passes through the imaginary one.",
-"Jacques Hadamard, 1945, after Paul Painlev\u{00E9}",
+"Jacques Hadamard, The Psychology of Invention in the Mathematical Field, 1945",
 )),
         }
     }
