@@ -33,7 +33,7 @@ const FN_NOTES: [&str; 9] = [
     "Zeros at k\u{03C0} along the real axis; growth e^{|Im z|} above and below.",
     "Branch cut along the negative real axis; zero at z = 1.",
     "Blaschke factor: automorphism of the disk; |B(z)| = 1 on the unit circle.",
-    "Essential singularity at 0: every value hit infinitely often near it (Picard).",
+    "Essential singularity at 0: every value except 0 is hit infinitely often near it (Picard).",
 ];
 
 // WGSL: shared complex-function evaluator + enhanced domain coloring.
@@ -101,15 +101,14 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let cc = dot(ro, ro) - 1.0;
     let disc = b * b - cc;
     if (disc < 0.0) {
-        // The void: vignette + sparse stars.
+        // Black, with sparse stars that carry no data.
         let hs2 = hash21(floor(ndc * U.res.xy * 0.5));
         let star = step(0.9992, hs2) * (hs2 - 0.999) * 400.0;
-        let vig = 0.012 * (1.0 - 0.6 * length(ndc));
-        return vec4<f32>(vec3<f32>(vig) + vec3<f32>(0.7, 0.8, 1.0) * star * 0.3, 1.0);
+        return vec4<f32>(vec3<f32>(0.7, 0.8, 1.0) * star * 0.3, 1.0);
     }
     let tt = -b - sqrt(disc);
     if (tt < 0.0) {
-        return vec4<f32>(vec3<f32>(0.01), 1.0);
+        return vec4<f32>(vec3<f32>(0.0), 1.0);
     }
     let p = ro + rd * tt;
     // Stereographic projection from the north pole (0,1,0).
@@ -326,7 +325,7 @@ impl ConceptModule for DomainColoring {
             RenderMode::orbit(
                 "landscape",
                 "Analytic Landscape",
-                "Height = ln(1+|f|), color = phase",
+                "Height = ln(1+|f|), capped by a tanh; color = phase",
                 10.0,
                 0.50,
                 1.05,
@@ -616,8 +615,10 @@ impl ConceptModule for DomainColoring {
         ];
         if k == 7 {
             out.push(value(format!(
-                "a(t) = {:.3} + {:.3}i,  |a| = 0.7",
-                self.a.re, self.a.im
+                "a = {:.3} + {:.3}i,  |a| = {:.3}",
+                self.a.re,
+                self.a.im,
+                self.a.abs()
             )));
         }
         out.push(note(
@@ -629,7 +630,7 @@ impl ConceptModule for DomainColoring {
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
             0 | 3 => Some("Exact pointwise evaluation in fp32 per pixel; contours are display shading, not data."),
-            1 => Some("Landscape sampled on a 150\u{00D7}150 grid; height compressed by ln(1+|f|)."),
+            1 => Some("Landscape sampled on a 150\u{00D7}150 grid; height is ln(1+|f|), rescaled and capped below 3.1 by a tanh."),
             2 => Some("Grid images clamped to |w| \u{2264} 6.5 near poles for display."),
             _ => None,
         }

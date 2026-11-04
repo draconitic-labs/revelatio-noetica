@@ -124,7 +124,6 @@ pub struct ApproximationAtelier {
     chaos_p: glam::Vec2,
     rng: u64,
     last_fractal: usize,
-    last_t: f64,
 }
 
 impl ApproximationAtelier {
@@ -155,7 +154,6 @@ impl ApproximationAtelier {
             chaos_p: glam::Vec2::new(0.2, 0.3),
             rng: 0xC0FFEE123456789,
             last_fractal: usize::MAX,
-            last_t: 0.0,
         }
     }
 
@@ -173,6 +171,11 @@ impl ApproximationAtelier {
         } else {
             self.params.i("deg") as usize
         }
+    }
+
+    fn restart_chaos(&mut self) {
+        self.chaos_pts.clear();
+        self.chaos_p = glam::Vec2::new(0.2, 0.3);
     }
 }
 
@@ -221,14 +224,16 @@ impl ConceptModule for ApproximationAtelier {
         rend.register_field(gpu, "taylor.paper", PAPER_T, false);
     }
 
-    fn update(&mut self, _gpu: &GpuContext, t: f64, _dt: f64) {
+    fn rewind(&mut self) {
+        self.restart_chaos();
+    }
+
+    fn update(&mut self, _gpu: &GpuContext, _t: f64, _dt: f64) {
         let kind = self.params.c("fractal");
-        if kind != self.last_fractal || t < self.last_t - 0.5 {
+        if kind != self.last_fractal {
             self.last_fractal = kind;
-            self.chaos_pts.clear();
-            self.chaos_p = glam::Vec2::new(0.2, 0.3);
+            self.restart_chaos();
         }
-        self.last_t = t;
         // Feed the chaos game.
         for _ in 0..600 {
             if self.chaos_pts.len() >= 46000 {
@@ -255,11 +260,7 @@ impl ConceptModule for ApproximationAtelier {
                     glam::Vec2::new(-0.15 * p.x + 0.28 * p.y, 0.26 * p.x + 0.24 * p.y + 0.44)
                 }
             };
-            let q = if kind == 0 {
-                self.chaos_p
-            } else {
-                glam::Vec2::new(self.chaos_p.x * 0.45, self.chaos_p.y * 0.45 - 0.1)
-            };
+            let q = chaos_on_screen(kind, self.chaos_p);
             self.chaos_pts.push(Vec3::new(q.x, q.y, 0.0));
         }
     }
@@ -376,8 +377,9 @@ impl ConceptModule for ApproximationAtelier {
                 for p in &self.chaos_pts {
                     scene.point(*p, 0.75, col, 0.3);
                 }
+                let head = chaos_on_screen(kind, self.chaos_p);
                 scene.point(
-                    Vec3::new(self.chaos_p.x, self.chaos_p.y, 0.02),
+                    Vec3::new(head.x, head.y, 0.02),
                     4.0,
                     [0.95, 0.97, 1.0, 1.0],
                     2.0,
@@ -438,14 +440,17 @@ impl ConceptModule for ApproximationAtelier {
                 // Window-normalized rendering: map [x0-span, x0+span] to view.
                 let n = 360;
                 let curve: Vec<Vec3> = (0..=n)
-                    .map(|i| {
+                    .filter_map(|i| {
                         let x = x0 - span + 2.0 * span * i as f64 / n as f64;
+                        // ln(1 + x) has no real value at x <= -1: leave a gap.
                         let y = f_true(k, x);
-                        Vec3::new(
-                            ((x - x0) / span * 3.0) as f32,
-                            ((y - y0) / span * 3.0) as f32,
-                            0.0,
-                        )
+                        y.is_finite().then(|| {
+                            Vec3::new(
+                                ((x - x0) / span * 3.0) as f32,
+                                ((y - y0) / span * 3.0) as f32,
+                                0.0,
+                            )
+                        })
                     })
                     .collect();
                 scene.glow_polyline(&curve, 2.2, SKY, 2.6);
@@ -490,8 +495,21 @@ impl ConceptModule for ApproximationAtelier {
         match mode {
             0 => Some("Closed-form coefficients; sums clipped at |y| = 6 for display."),
             1 => Some("42 Newton iterations per pixel in fp32."),
-            _ => Some("Central difference for f' (h = 10\u{207B}\u{2076}); zoom is genuine rescaling, not smoothing."),
+            2 => Some("Central difference for f' (h = 10\u{207B}\u{2076}); zoom is genuine rescaling, not smoothing."),
+            3 => Some("Fresnel integrals by a left Riemann sum of 2400 steps along the curve."),
+            4 => Some("Random iterates of the affine maps, up to 46,000 points; the attractor itself is not computed."),
+            5 => Some("Exact integer recursion, up to order 6; a finite order fills the square only approximately."),
+            _ => None,
         }
+    }
+}
+
+/// Where a chaos-game iterate is drawn: the fern is scaled down to fit the view.
+fn chaos_on_screen(kind: usize, p: glam::Vec2) -> glam::Vec2 {
+    if kind == 0 {
+        p
+    } else {
+        glam::Vec2::new(p.x * 0.45, p.y * 0.45 - 0.1)
     }
 }
 

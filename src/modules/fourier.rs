@@ -36,8 +36,8 @@ fn coeff(wave: usize, n: usize) -> f64 {
                 0.0
             }
         }
-        // Sawtooth: 2/n, alternating sign.
-        1 => 2.0 / nf * if n.is_multiple_of(2) { -1.0 } else { 1.0 },
+        // Sawtooth 1 - x/pi on (0, 2 pi): 2/(pi n).
+        1 => 2.0 / (std::f64::consts::PI * nf),
         // Triangle: 8/(pi^2 n^2), odd n, alternating.
         2 => {
             if n % 2 == 1 {
@@ -47,8 +47,9 @@ fn coeff(wave: usize, n: usize) -> f64 {
                 0.0
             }
         }
-        // Narrow pulse train (width pi/4): (4/(n pi)) sin(n pi/8)-ish.
-        _ => 4.0 / (nf * std::f64::consts::PI) * (nf * std::f64::consts::PI / 8.0).sin(),
+        // Pulse of width pi/4 and height 1 on a floor of -1/7: even, mean zero, so
+        // a cosine series with a_n = (16/(7 pi n)) sin(n pi/8). See `phase`.
+        _ => 16.0 / (7.0 * nf * std::f64::consts::PI) * (nf * std::f64::consts::PI / 8.0).sin(),
     }
 }
 
@@ -78,24 +79,44 @@ fn target(wave: usize, x: f64) -> f64 {
             if p < half || p > std::f64::consts::TAU - half {
                 1.0
             } else {
-                -0.14
+                -1.0 / 7.0
             }
         }
     }
 }
 
-fn partial_sum(wave: usize, n_max: usize, x: f64) -> f64 {
-    (1..=n_max)
-        .map(|n| coeff(wave, n) * (n as f64 * x).sin())
-        .sum()
+/// Phase of every term: sines, except the even pulse, whose terms are cosines.
+fn phase(wave: usize) -> f64 {
+    if wave == 3 {
+        std::f64::consts::FRAC_PI_2
+    } else {
+        0.0
+    }
 }
+
+fn term(wave: usize, n: usize, x: f64) -> f64 {
+    coeff(wave, n) * (n as f64 * x + phase(wave)).sin()
+}
+
+fn partial_sum(wave: usize, n_max: usize, x: f64) -> f64 {
+    (1..=n_max).map(|n| term(wave, n, x)).sum()
+}
+
+/// Limit of the first peak of a square wave's partial sums: (2/pi) Si(pi). The
+/// jump is 2, so this is 8.95% of the jump above the wave.
+const GIBBS_PEAK: f64 = 1.178_979_744;
+
+/// Rotating terms in the heart's Fourier series, at k = +-1 to +-4. The curve is
+/// a trigonometric polynomial, so every other coefficient is zero.
+#[cfg(test)]
+const HEART_CIRCLES: usize = 8;
 
 const WAVE_NAMES: [&str; 4] = ["Square", "Sawtooth", "Triangle", "Pulse train"];
 const WAVE_SERIES: [&str; 4] = [
     "f = (4/\u{03C0}) \u{03A3} sin((2k\u{2212}1)x)/(2k\u{2212}1)",
-    "f = 2 \u{03A3} (\u{2212}1)\u{207F}\u{207A}\u{00B9} sin(nx)/n",
+    "f = (2/\u{03C0}) \u{03A3} sin(nx)/n",
     "f = (8/\u{03C0}\u{00B2}) \u{03A3} (\u{2212}1)\u{1D4F} sin((2k+1)x)/(2k+1)\u{00B2}",
-    "f = \u{03A3} (4/n\u{03C0}) sin(n\u{03C0}/8) sin(nx)",
+    "f = \u{03A3} (16/7n\u{03C0}) sin(n\u{03C0}/8) cos(nx)",
 ];
 
 pub struct FourierAtelier {
@@ -205,7 +226,7 @@ impl ConceptModule for FourierAtelier {
             RenderMode::plane(
                 "drawing",
                 "The Drawing Machine",
-                "70 rotating circles chained tip-to-tip, reproducing a closed figure",
+                "Rotating circles chained tip-to-tip redraw a closed figure; this heart takes eight",
                 1.7,
             ),
         ]
@@ -247,7 +268,7 @@ impl ConceptModule for FourierAtelier {
                         continue;
                     }
                     let r = b.abs() as f32;
-                    let ang = (n as f64 * th) * b.signum();
+                    let ang = (n as f64 * th + phase(wave)) * b.signum();
                     if self.params.b("circles") {
                         let ring: Vec<Vec3> = (0..=48)
                             .map(|i| {
@@ -308,13 +329,12 @@ impl ConceptModule for FourierAtelier {
                     .collect();
                 let rows = shown.len().max(1);
                 for (row, &n) in shown.iter().enumerate() {
-                    let b = coeff(wave, n);
                     let y_off = -2.9 + 4.4 * (rows - 1 - row) as f32 / rows.max(2) as f32;
                     let hue = phase_color(row as f32 * 0.9);
                     let pts: Vec<Vec3> = (0..=300)
                         .map(|i| {
                             let x = std::f64::consts::TAU * 2.0 * i as f64 / 300.0;
-                            let y = b * (n as f64 * (x + th)).sin();
+                            let y = term(wave, n, x + th);
                             Vec3::new(
                                 x0 + width * i as f32 / 300.0,
                                 y_off + (y * 0.42) as f32,
@@ -449,7 +469,7 @@ impl ConceptModule for FourierAtelier {
                     }
                     let a = std::f64::consts::TAU * k as f64 * tau + ph;
                     let (nx, ny) = (cx + amp * a.cos(), cy + amp * a.sin());
-                    if self.params.b("circles") && amp > 0.012 && ci > 0 {
+                    if self.params.b("circles") && amp > 0.012 && k != 0 {
                         let ring: Vec<Vec3> = (0..=36)
                             .map(|i| {
                                 let b = i as f64 / 36.0 * std::f64::consts::TAU;
@@ -462,7 +482,7 @@ impl ConceptModule for FourierAtelier {
                             .collect();
                         scene.polyline(LineLayer::World, &ring, 0.9, with_alpha(TEAL, 0.34));
                     }
-                    if ci > 0 {
+                    if k != 0 {
                         scene.line(
                             LineLayer::WorldAdd,
                             Vec3::new(cx as f32, cy as f32, 0.0),
@@ -494,9 +514,9 @@ impl ConceptModule for FourierAtelier {
                     })
                     .collect();
                 scene.polyline(LineLayer::World, &gp, 1.0, GHOST);
-                // The Wilbraham-Gibbs ceiling for the square wave.
+                // The Wilbraham-Gibbs ceiling for the square wave: (2/pi) Si(pi).
                 if wave == 0 {
-                    let g = 1.0894898;
+                    let g = GIBBS_PEAK as f32;
                     scene.line(
                         LineLayer::Overlay,
                         Vec3::new(-0.8, g, 0.0),
@@ -515,9 +535,19 @@ impl ConceptModule for FourierAtelier {
         vec![
             title("Fourier series"),
             formula(WAVE_SERIES[wave]),
-            ftex("fourier.series", "f(x) = \u{03A3}\u{2099} b\u{2099} sin(nx),   b\u{2099} = (1/\u{03C0}) \u{222B} f sin(nx) dx"),
+            if wave == 3 {
+                formula("f(x) = \u{03A3}\u{2099} a\u{2099} cos(nx),   a\u{2099} = (1/\u{03C0}) \u{222B} f cos(nx) dx   (an even waveform)")
+            } else {
+                ftex("fourier.series", "f(x) = \u{03A3}\u{2099} b\u{2099} sin(nx),   b\u{2099} = (1/\u{03C0}) \u{222B} f sin(nx) dx")
+            },
             value(format!("N = {n} harmonics    \u{03C9}t = {:.2}", t * 1.1)),
-            value(format!("b\u{2081} = {:.4}   b\u{2082} = {:.4}   b\u{2083} = {:.4}", coeff(wave, 1), coeff(wave, 2), coeff(wave, 3))),
+            value(format!(
+                "{c}\u{2081} = {:.4}   {c}\u{2082} = {:.4}   {c}\u{2083} = {:.4}",
+                coeff(wave, 1),
+                coeff(wave, 2),
+                coeff(wave, 3),
+                c = if wave == 3 { "a" } else { "b" },
+            )),
             note("At a jump the partial sums overshoot by \u{2248}8.95% of the step \u{2014} the Gibbs phenomenon \u{2014} no matter how many terms are taken."),
         ]
     }
@@ -528,5 +558,67 @@ impl ConceptModule for FourierAtelier {
             3 => Some("N grows with the timeline; the overshoot height converges to the Wilbraham\u{2013}Gibbs constant."),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f64::consts::{PI, TAU};
+
+    /// Fourier coefficient of `target` against the wave's own basis.
+    fn numeric_coefficient(wave: usize, n: usize) -> f64 {
+        let steps = 200_000;
+        let h = TAU / steps as f64;
+        let sum: f64 = (0..steps)
+            .map(|i| {
+                let x = (i as f64 + 0.5) * h;
+                target(wave, x) * (n as f64 * x + phase(wave)).sin()
+            })
+            .sum();
+        sum * h / PI
+    }
+
+    #[test]
+    fn stated_coefficients_are_the_coefficients_of_the_drawn_waveform() {
+        for (wave, name) in WAVE_NAMES.iter().enumerate() {
+            for n in 1..=12 {
+                let (stated, numeric) = (coeff(wave, n), numeric_coefficient(wave, n));
+                assert!(
+                    (stated - numeric).abs() < 1e-4,
+                    "{name} n = {n}: stated {stated}, numeric {numeric}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn partial_sums_converge_to_the_waveform_away_from_jumps() {
+        for (wave, x) in [(0, 1.0), (1, 1.0), (2, 1.0), (3, 0.1), (3, 2.0)] {
+            let (sum, want) = (partial_sum(wave, 4001, x), target(wave, x));
+            assert!(
+                (sum - want).abs() < 2e-3,
+                "{}: {sum} vs {want}",
+                WAVE_NAMES[wave]
+            );
+        }
+    }
+
+    #[test]
+    fn the_gibbs_line_sits_on_the_first_peak() {
+        let n = 2001;
+        let peak = (1..400)
+            .map(|i| partial_sum(0, n, i as f64 * 0.2 * PI / n as f64))
+            .fold(f64::MIN, f64::max);
+        assert!((peak - GIBBS_PEAK).abs() < 1e-3, "peak {peak}");
+        assert!(((GIBBS_PEAK - 1.0) / 2.0 - 0.0895).abs() < 1e-3);
+    }
+
+    #[test]
+    fn the_heart_is_exactly_eight_circles() {
+        let mut f = FourierAtelier::new();
+        f.build_draw_coefs();
+        let circles = f.draw_coefs.iter().filter(|c| c.0 != 0).count();
+        assert_eq!(circles, HEART_CIRCLES, "{:?}", f.draw_coefs);
     }
 }

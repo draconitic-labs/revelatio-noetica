@@ -148,7 +148,7 @@ impl VectorField {
             .seed
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
-        ((self.seed >> 33) as u32 as f32 / u32::MAX as f32) * 2.0 - 1.0
+        ((self.seed >> 32) as u32 as f32 / u32::MAX as f32) * 2.0 - 1.0
     }
 
     fn respawn(&mut self, i: usize) {
@@ -469,7 +469,9 @@ impl ConceptModule for VectorField {
         match mode {
             0 => Some("Tracers: RK2 midpoint advection; arrows exact analytic."),
             1 => Some("div/curl by central differences (h = 0.01) per pixel."),
-            _ => Some("Boundary integrals: 720-point quadrature; area integrals: 40\u{00D7}90 polar grid."),
+            2 => Some("Boundary integrals: 720-point quadrature; area integrals: 40\u{00D7}90 polar grid."),
+            3 => Some("Euler steps of fixed length 0.045 along the unit field, 110 each way from each seed."),
+            _ => None,
         }
     }
 }
