@@ -680,8 +680,8 @@ ViewGuide {
 ViewGuide {
     module: "dynamics.phase",
     view: "wave",
-    read: "Thirty bobs hang from one bar with frequencies (50 + n)/24 cycles per second for n = 0 to 29, hue marking n. Slower pendulums have longer rods. Positions are the exact cosine, and the small dim dots echo each bob's last 0.25 s.",
-    try_this: "Drag the time scrubber to 12: alternate bobs oppose each other in two rows. At 8 every third bob matches, at 6 every fourth.",
+    read: "Thirty bobs hang from one bar with frequencies (24 + n)/12 cycles per second for n = 0 to 29, hue marking n. Slower pendulums have longer rods. Positions are the exact cosine, and the small dim dots echo each bob's last 0.2 s.",
+    try_this: "Drag the time scrubber to 6: alternate bobs oppose each other in two rows. At 4 every third bob matches, at 3 every fourth.",
     params: &[],
 },
 ViewGuide {

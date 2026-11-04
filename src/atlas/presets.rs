@@ -553,7 +553,7 @@ Preset {
     module: "dynamics.phase",
     name: "Deep well, g/ℓ = 3",
     view: Some("portrait"),
-    note: "Separatrix speed 2√3 ≈ 3.46 exceeds every seed speed, so reseeded orbits all librate.",
+    note: "Separatrix speed 2√3 ≈ 3.46 exceeds every seed speed, so restarted orbits all librate.",
     values: &[("k", V::F(3.0)), ("damp", V::F(0.0))],
 },
 Preset {

@@ -38,6 +38,22 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 
 const MAX_ORBITS: usize = 26;
 const N_DP: usize = 150;
+/// Theta wraps at these saddles, which an orbit only ever passes through. The
+/// wells at 0 and plus or minus 2 pi stay interior, so a damped orbit can settle in any of them.
+const THETA_WRAP: f64 = 3.0 * std::f64::consts::PI;
+/// The pendulum wave repeats exactly every 12 s, the default time span.
+const WAVE_CYCLE: f64 = 12.0;
+const WAVE_BOBS: usize = 30;
+
+/// f_i = (24 + i) / T: every bob completes a whole number of swings per cycle.
+fn wave_frequency(i: usize) -> f64 {
+    (24.0 + i as f64) / WAVE_CYCLE
+}
+
+/// Exact small-angle phase of bob `i` at time `t`.
+fn wave_phase(i: usize, t: f64) -> f64 {
+    (std::f64::consts::TAU * wave_frequency(i) * t).cos()
+}
 
 pub struct DynamicsHall {
     params: Params,
@@ -48,7 +64,7 @@ pub struct DynamicsHall {
     dp_trails: Vec<Vec<Vec2>>,
     surface: Option<GpuMesh>,
     last_k: i64,
-    last_t: f64,
+    last_spread: i64,
 }
 
 impl DynamicsHall {
@@ -81,7 +97,7 @@ impl DynamicsHall {
             dp_trails: Vec::new(),
             surface: None,
             last_k: 0,
-            last_t: 0.0,
+            last_spread: 0,
         }
     }
 
@@ -94,7 +110,12 @@ impl DynamicsHall {
         }
     }
 
+    fn spread_key(&self) -> i64 {
+        (self.params.f("spread") * 100.0) as i64
+    }
+
     fn seed_dp(&mut self) {
+        self.last_spread = self.spread_key();
         let d0 = 10f64.powf(self.params.f("spread"));
         self.dp.clear();
         self.dp_trails.clear();
@@ -112,11 +133,60 @@ impl DynamicsHall {
             m.update_vertices(gpu, &data.vertices);
         }
     }
+
+    /// A new starting spread needs a new fan. Gravity does not: the same states
+    /// simply carry on under the new g.
+    fn sync_fan_spread(&mut self) {
+        if self.spread_key() != self.last_spread {
+            self.seed_dp();
+        }
+    }
+
+    /// Advance the pendulum orbits and the double pendulums by `h`.
+    fn step(&mut self, h: f64) {
+        let k = self.params.f("k");
+        let damp = self.params.f("damp");
+        let f = move |_t: f64, y: &[f64; 2]| -> [f64; 2] { [y[1], -k * y[0].sin() - damp * y[1]] };
+        for ((th, w), trail) in &mut self.orbits {
+            let mut y = [*th, *w];
+            for _ in 0..3 {
+                y = rk4(&f, 0.0, &y, h / 3.0);
+            }
+            if y[0].abs() > THETA_WRAP {
+                y[0] -= (2.0 * THETA_WRAP).copysign(y[0]);
+                trail.clear();
+            }
+            *th = y[0];
+            *w = y[1];
+            trail.push(Vec2::new(*th as f32, *w as f32));
+            if trail.len() > 900 {
+                trail.remove(0);
+            }
+        }
+        let g = k;
+        let fdp = move |_t: f64, y: &[f64; 4]| dp_deriv(g, y);
+        for (i, s) in self.dp.iter_mut().enumerate() {
+            let mut y = *s;
+            for _ in 0..4 {
+                y = rk4(&fdp, 0.0, &y, h / 4.0);
+            }
+            *s = y;
+            let tip = Vec2::new(
+                (y[0].sin() + y[2].sin()) as f32,
+                (-y[0].cos() - y[2].cos()) as f32,
+            );
+            let tr = &mut self.dp_trails[i];
+            tr.push(tip);
+            if tr.len() > 40 {
+                tr.remove(0);
+            }
+        }
+    }
 }
 
 fn surface_data(k: f64) -> MeshData {
     MeshData::parametric(120, 120, |u, v| {
-        let th = (u as f64 - 0.5) * 2.0 * std::f64::consts::TAU;
+        let th = (u as f64 - 0.5) * 2.0 * THETA_WRAP;
         let w = (v as f64 - 0.5) * 7.0;
         let h = 0.5 * w * w - k * th.cos();
         let hn = ((h + k) / (4.0 * k + 5.0)).clamp(0.0, 1.0) as f32;
@@ -156,7 +226,7 @@ impl ConceptModule for DynamicsHall {
             name: "The Phase Portrait Hall",
             tagline: "Every possible history, drawn at once",
             branch: Branch::Dynamics,
-            description: "Phase space turns mechanics into geometry: each point is a complete state, each curve a possible life of the system. The pendulum's portrait is ruled by its separatrix \u{2014} the burning frontier between swinging and tumbling \u{2014} and every orbit is a level set of the Hamiltonian. Two pendulums coupled, and prediction itself unravels.",
+            description: "Phase space turns mechanics into geometry: each point is a complete state, each curve a possible life of the system. The pendulum's portrait is ruled by its separatrix \u{2014} the burning frontier between swinging and tumbling \u{2014} and every undamped orbit is a level set of the Hamiltonian. Two pendulums coupled, and prediction itself unravels.",
             epigraph: Some((
                 "It may happen that small differences in the initial conditions produce very great ones in the final phenomena.",
                 "Henri Poincar\u{00E9}, 1908",
@@ -177,7 +247,7 @@ impl ConceptModule for DynamicsHall {
             RenderMode::orbit(
                 "energy",
                 "Energy Landscape",
-                "H(\u{03B8},\u{03C9}); trajectories are its contour lines",
+                "H(\u{03B8},\u{03C9}); undamped trajectories are its contour lines",
                 9.0,
                 0.55,
                 0.9,
@@ -186,14 +256,14 @@ impl ConceptModule for DynamicsHall {
             RenderMode::plane(
                 "fan",
                 "Double-Pendulum Fan",
-                "150 pendulums, 10\u{207B}\u{2074} apart: the butterfly in slow motion",
+                "150 pendulums, neighbours \u{03B4}\u{2080} apart: the butterfly in slow motion",
                 2.7,
             )
             .look_at(0.0, -0.6, 0.0),
             RenderMode::plane(
                 "wave",
                 "The Infinite Pendulum Wave",
-                "Lengths tuned so the pattern cycles through every phase, forever",
+                "Lengths tuned so the whole row realigns every 12 s",
                 1.55,
             )
             .look_at(0.0, 0.75, 0.0),
@@ -234,66 +304,22 @@ impl ConceptModule for DynamicsHall {
         self.seed_dp();
     }
 
-    fn update(&mut self, gpu: &GpuContext, t: f64, dt: f64) {
-        let k = self.params.f("k");
-        let damp = self.params.f("damp");
-        let kq = (k * 1000.0) as i64 ^ ((self.params.f("spread") * 100.0) as i64) << 20;
+    fn update(&mut self, gpu: &GpuContext, _t: f64, dt: f64) {
+        let kq = (self.params.f("k") * 1000.0) as i64;
         if kq != self.last_k {
             self.last_k = kq;
             self.build_surface(gpu);
-            self.seed_dp();
         }
-        if t < self.last_t - 0.5 {
-            self.seed_orbits();
-            self.seed_dp();
+        self.sync_fan_spread();
+        let h = (dt.abs() * self.params.f("rate")).min(0.08);
+        if h > 0.0 {
+            self.step(h);
         }
-        self.last_t = t;
-        let h = (dt * self.params.f("rate")).clamp(0.0, 0.08);
-        if h <= 0.0 {
-            return;
-        }
-        // Pendulum orbits.
-        let f = move |_t: f64, y: &[f64; 2]| -> [f64; 2] { [y[1], -k * y[0].sin() - damp * y[1]] };
-        for ((th, w), trail) in &mut self.orbits {
-            let mut y = [*th, *w];
-            for _ in 0..3 {
-                y = rk4(&f, 0.0, &y, h / 3.0);
-            }
-            // Wrap theta into [-2pi, 2pi] for the portrait window.
-            if y[0] > std::f64::consts::TAU {
-                y[0] -= 2.0 * std::f64::consts::TAU;
-                trail.clear();
-            }
-            if y[0] < -std::f64::consts::TAU {
-                y[0] += 2.0 * std::f64::consts::TAU;
-                trail.clear();
-            }
-            *th = y[0];
-            *w = y[1];
-            trail.push(Vec2::new(*th as f32, *w as f32));
-            if trail.len() > 900 {
-                trail.remove(0);
-            }
-        }
-        // Double pendulums.
-        let g = k;
-        let fdp = move |_t: f64, y: &[f64; 4]| dp_deriv(g, y);
-        for (i, s) in self.dp.iter_mut().enumerate() {
-            let mut y = *s;
-            for _ in 0..4 {
-                y = rk4(&fdp, 0.0, &y, h / 4.0);
-            }
-            *s = y;
-            let tip = Vec2::new(
-                (y[0].sin() + y[2].sin()) as f32,
-                (-y[0].cos() - y[2].cos()) as f32,
-            );
-            let tr = &mut self.dp_trails[i];
-            tr.push(tip);
-            if tr.len() > 40 {
-                tr.remove(0);
-            }
-        }
+    }
+
+    fn rewind(&mut self) {
+        self.seed_orbits();
+        self.seed_dp();
     }
 
     fn render(
@@ -402,12 +428,8 @@ impl ConceptModule for DynamicsHall {
                 }
             }
             4 => {
-                // The pendulum wave: N pendulums whose frequencies are
-                // f_k = (base + k) / T, so at t = 0, T, 2T, ... they realign.
-                // Exact small-angle solution; the cycle truly is infinite.
-                let n_p = 30usize;
-                let t_cycle = 24.0f64;
-                let base = 50.0f64;
+                // The pendulum wave: every bob swings a whole number of times per
+                // WAVE_CYCLE, so the row realigns at t = 0, T, 2T, ...
                 let amp = 0.55f64;
                 let pivot_y = 1.9f32;
                 scene.line(
@@ -417,19 +439,21 @@ impl ConceptModule for DynamicsHall {
                     2.2,
                     [0.45, 0.42, 0.38, 0.8],
                 );
-                for k_i in 0..n_p {
-                    let f = (base + k_i as f64) / t_cycle;
-                    let phase = (std::f64::consts::TAU * f * _t).cos();
-                    let x0 = -3.1 + 6.2 * k_i as f64 / (n_p - 1) as f64;
+                for k_i in 0..WAVE_BOBS {
+                    let f = wave_frequency(k_i);
+                    let x0 = -3.1 + 6.2 * k_i as f64 / (WAVE_BOBS - 1) as f64;
                     // Length rendered to match frequency (l ~ 1/f^2), scaled.
                     let l = (1.0 / (f * f)) * 8.7;
-                    let sway = amp * phase;
-                    let bob = Vec3::new(
-                        (x0 + sway * l * 0.55) as f32,
-                        pivot_y - (l * (1.0 - 0.5 * sway * sway * 0.3)) as f32,
-                        0.0,
-                    );
-                    let hue = phase_color(k_i as f32 / n_p as f32 * std::f32::consts::TAU);
+                    let bob_at = |phase: f64| {
+                        let sway = amp * phase;
+                        Vec3::new(
+                            (x0 + sway * l * 0.55) as f32,
+                            pivot_y - (l * (1.0 - 0.5 * sway * sway * 0.3)) as f32,
+                            0.0,
+                        )
+                    };
+                    let bob = bob_at(wave_phase(k_i, _t));
+                    let hue = phase_color(k_i as f32 / WAVE_BOBS as f32 * std::f32::consts::TAU);
                     scene.line(
                         LineLayer::World,
                         Vec3::new(x0 as f32, pivot_y, 0.0),
@@ -440,14 +464,7 @@ impl ConceptModule for DynamicsHall {
                     scene.point(bob, 4.6, hue, 2.0);
                     // Phosphor echo of each bob's recent arc.
                     for e in 1..=5 {
-                        let te = _t - e as f64 * 0.05;
-                        let ph_e = (std::f64::consts::TAU * f * te).cos();
-                        let sw = amp * ph_e;
-                        let be = Vec3::new(
-                            (x0 + sw * l * 0.55) as f32,
-                            pivot_y - (l * (1.0 - 0.5 * sw * sw * 0.3)) as f32,
-                            0.0,
-                        );
+                        let be = bob_at(wave_phase(k_i, _t - e as f64 * 0.04));
                         scene.point(be, 2.6, with_alpha(hue, 0.18 / e as f32 + 0.02), 0.8);
                     }
                 }
@@ -482,7 +499,7 @@ impl ConceptModule for DynamicsHall {
         }
     }
 
-    fn inspector(&self, t: f64) -> Vec<InsLine> {
+    fn inspector(&self, _t: f64) -> Vec<InsLine> {
         let k = self.params.f("k");
         // Divergence of the double-pendulum fan.
         let (mut lo, mut hi) = (f64::MAX, f64::MIN);
@@ -497,7 +514,7 @@ impl ConceptModule for DynamicsHall {
             ftex("dynamics.pendulum", "H(\u{03B8},\u{03C9}) = \u{00BD}\u{03C9}\u{00B2} \u{2212} (g/\u{2113})cos\u{03B8}"),
             def("separatrix: H = g/\u{2113} \u{2014} infinite-period boundary between swing and tumble"),
             value(format!("g/\u{2113} = {k:.2}    orbits alive: {}", self.orbits.len())),
-            value(format!("fan spread in \u{03B8}\u{2082}: {spread:.2e}  after t = {t:.1}s  (from 10^{:.0})", self.params.f("spread"))),
+            value(format!("fan width in \u{03B8}\u{2082}: {spread:.2e}  (neighbours began 10^{:.1} apart in \u{03B8}\u{2081})", self.params.f("spread"))),
             note("Liouville: the flow preserves phase-space area \u{2014} ensembles shear and fold but never compress. With damping on, they spiral into the attracting well."),
         ]
     }
@@ -505,8 +522,114 @@ impl ConceptModule for DynamicsHall {
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
             0 | 2 => Some("RK4, 3 substeps per frame; energy bands exact analytic."),
+            1 => Some("The first portrait orbit, RK4 with 3 substeps per frame."),
             3 => Some("150 double pendulums, RK4 \u{00D7}4 substeps; divergence is genuine dynamics, not noise."),
+            4 => Some("Exact small-angle cosine for each bob; rod length follows 1/f\u{00B2} up to a display scale, and the arc shape is schematic."),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f64::consts::{PI, TAU};
+
+    fn energy(k: f64, th: f64, w: f64) -> f64 {
+        0.5 * w * w - k * th.cos()
+    }
+
+    fn hall_with_orbit(th: f64, w: f64, damp: f64) -> DynamicsHall {
+        let mut d = DynamicsHall::new();
+        d.params.set_f("damp", damp);
+        d.orbits = vec![((th, w), Vec::new())];
+        d
+    }
+
+    #[test]
+    fn undamped_orbit_keeps_its_energy_even_across_the_wrap() {
+        let mut d = hall_with_orbit(0.0, 3.2, 0.0);
+        let k = d.params.f("k");
+        let start = energy(k, 0.0, 3.2);
+        let mut wrapped = false;
+        for _ in 0..4000 {
+            d.step(0.02);
+            let (th, w) = d.orbits[0].0;
+            assert!(th.abs() <= THETA_WRAP);
+            assert!((energy(k, th, w) - start).abs() < 1e-5);
+            wrapped |= th < -PI;
+        }
+        assert!(wrapped, "a rotating orbit should reach the wrap");
+    }
+
+    #[test]
+    fn damped_orbit_loses_energy_at_every_step() {
+        let mut d = hall_with_orbit(1.0, 1.0, 0.2);
+        let k = d.params.f("k");
+        let mut last = energy(k, 1.0, 1.0);
+        for _ in 0..500 {
+            d.step(0.02);
+            let (th, w) = d.orbits[0].0;
+            let now = energy(k, th, w);
+            assert!(now < last);
+            last = now;
+        }
+    }
+
+    #[test]
+    fn damped_orbit_settles_in_the_well_at_two_pi_without_jumping() {
+        let mut d = hall_with_orbit(TAU - 0.5, 0.0, 0.3);
+        for _ in 0..6000 {
+            d.step(0.02);
+            let (th, _) = d.orbits[0].0;
+            assert!((th - TAU).abs() < 0.6, "orbit jumped to theta = {th}");
+        }
+        let (th, w) = d.orbits[0].0;
+        assert!((th - TAU).abs() < 1e-3 && w.abs() < 1e-3);
+    }
+
+    #[test]
+    fn double_pendulum_conserves_its_energy() {
+        // m = l = 1: T = w1^2 + w2^2/2 + w1 w2 cos(t1 - t2), V = -2g cos t1 - g cos t2.
+        let g = 1.7;
+        let e = |y: &[f64; 4]| {
+            y[1] * y[1] + 0.5 * y[3] * y[3] + y[1] * y[3] * (y[0] - y[2]).cos()
+                - 2.0 * g * y[0].cos()
+                - g * y[2].cos()
+        };
+        let f = move |_t: f64, y: &[f64; 4]| dp_deriv(g, y);
+        let mut y = [2.1, 0.0, 2.6, 0.0];
+        let start = e(&y);
+        for _ in 0..4000 {
+            y = rk4(&f, 0.0, &y, 0.005);
+        }
+        assert!((e(&y) - start).abs() < 1e-6);
+    }
+
+    #[test]
+    fn pendulum_wave_realigns_after_one_cycle_and_splits_at_half() {
+        for i in 0..WAVE_BOBS {
+            assert!((wave_phase(i, 0.0) - 1.0).abs() < 1e-12);
+            assert!((wave_phase(i, WAVE_CYCLE) - 1.0).abs() < 1e-9);
+            let alternating = if i % 2 == 0 { 1.0 } else { -1.0 };
+            assert!((wave_phase(i, WAVE_CYCLE / 2.0) - alternating).abs() < 1e-9);
+        }
+    }
+
+    #[test]
+    fn only_the_spread_restarts_the_fan() {
+        let mut d = DynamicsHall::new();
+        d.seed_dp();
+        for _ in 0..50 {
+            d.step(0.02);
+        }
+        let moved = d.dp[0];
+        assert!(moved[1] != 0.0);
+        d.params.set_f("k", 2.5);
+        d.sync_fan_spread();
+        assert_eq!(d.dp[0], moved, "gravity must not restart the fan");
+        d.params.set_f("spread", -6.0);
+        d.sync_fan_spread();
+        assert_eq!(d.dp[0][1], 0.0, "a new spread is a new fan");
     }
 }
