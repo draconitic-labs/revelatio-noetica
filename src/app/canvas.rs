@@ -268,13 +268,19 @@ impl AtlasApp {
             let mut cam = *self.engine.camera(module, mode);
             cam.aspect = rect.width() / rect.height().max(1.0);
             if let Some(pos) = resp.interact_pointer_pos() {
-                let ndc = glam::vec2(
-                    (pos.x - rect.left()) / rect.width() * 2.0 - 1.0,
-                    1.0 - (pos.y - rect.top()) / rect.height() * 2.0,
-                );
-                let w = cam.unproject_plane(ndc);
+                let world = |pos: egui::Pos2| {
+                    cam.unproject_plane(glam::vec2(
+                        (pos.x - rect.left()) / rect.width() * 2.0 - 1.0,
+                        1.0 - (pos.y - rect.top()) / rect.height() * 2.0,
+                    ))
+                };
+                let w = world(pos);
                 if resp.drag_started_by(egui::PointerButton::Primary) || resp.clicked() {
-                    self.engine.modules[module].pointer(mode, PE::Down(w));
+                    // A drag is only recognized once the pointer has moved, and on a slow
+                    // frame it may already be far away: press where the button went down,
+                    // or a quick drag misses what it was aimed at.
+                    let pressed = ui.input(|i| i.pointer.press_origin()).unwrap_or(pos);
+                    self.engine.modules[module].pointer(mode, PE::Down(world(pressed)));
                 }
                 if resp.dragged_by(egui::PointerButton::Primary) {
                     self.engine.modules[module].pointer(mode, PE::Drag(w));
