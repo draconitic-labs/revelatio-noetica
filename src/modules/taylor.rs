@@ -22,8 +22,8 @@ const FN_NAMES: [&str; 4] = [
     "1/(1+x\u{00B2})",
 ];
 
-/// Where the Microscope actually looks. The slider reaches x = -1.5, but ln(1 + x)
-/// has no real value at or below x = -1, so its center stops short of that.
+/// Where the Microscope looks. The slider reaches x = -1.5, but ln(1 + x) has no real
+/// value at or below x = -1, so its center stops short of that.
 fn microscope_center(k: usize, x: f64) -> f64 {
     if k == 2 {
         x.max(-0.9)
@@ -137,6 +137,15 @@ pub struct ApproximationAtelier {
 }
 
 impl ApproximationAtelier {
+    /// The slider must read the center in use, so it moves when the function needs it.
+    fn keep_microscope_on_the_function(&mut self) {
+        let x = self.params.f("zoomx");
+        let center = microscope_center(self.params.c("fn"), x);
+        if center != x {
+            self.params.set_f("zoomx", center);
+        }
+    }
+
     pub fn new() -> Self {
         let mut p = Params::new();
         p.choice("fn", "Function", "Symbolic", FN_NAMES.to_vec(), 0);
@@ -239,6 +248,7 @@ impl ConceptModule for ApproximationAtelier {
     }
 
     fn update(&mut self, _gpu: &GpuContext, _t: f64, _dt: f64) {
+        self.keep_microscope_on_the_function();
         let kind = self.params.c("fractal");
         if kind != self.last_fractal {
             self.last_fractal = kind;
@@ -536,6 +546,23 @@ fn taylor_pts(k: usize, deg: usize) -> Vec<Vec3> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_microscope_slider_reads_the_center_in_use() {
+        use crate::engine::params::PValue;
+        let mut a = ApproximationAtelier::new();
+        a.params.set_f("zoomx", -1.5);
+        a.keep_microscope_on_the_function();
+        assert_eq!(a.params.f("zoomx"), -1.5, "sin x is defined there");
+        a.params.set("fn", PValue::C(2));
+        a.keep_microscope_on_the_function();
+        let (slider, center) = (
+            a.params.f("zoomx"),
+            microscope_center(2, a.params.f("zoomx")),
+        );
+        assert_eq!(slider, -0.9, "ln(1 + x) stops the slider");
+        assert_eq!(slider, center);
+    }
 
     #[test]
     fn the_microscope_has_a_curve_and_a_slope_anywhere_on_its_slider() {

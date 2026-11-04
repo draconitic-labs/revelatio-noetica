@@ -196,7 +196,7 @@ ViewGuide {
 ViewGuide {
     module: "analysis.taylor",
     view: "linear",
-    read: "Both axes are rescaled about (x₀, f(x₀)) so ±span fills ±3 units, and span breathes from 3 to 0.04 and back over 12 s. Sky blue is f, orange is its tangent at x₀, and the orange point marks x₀.",
+    read: "Both axes are rescaled about (x₀, f(x₀)) so ±span fills ±3 units, and span breathes from 3 to 0.04 and back over 12 s. Sky blue is f, orange is its tangent at x₀, and the orange point marks x₀. For ln(1+x) the slider stops at −0.90, short of the singularity at −1.",
     try_this: "Set \"Microscope center x\" to 1.2, drag the time scrubber to 6 s: at span 0.04 the blue curve nearly lies on the orange tangent.",
     params: &["fn", "zoomx"],
 },
