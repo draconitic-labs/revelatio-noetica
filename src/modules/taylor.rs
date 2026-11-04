@@ -22,6 +22,16 @@ const FN_NAMES: [&str; 4] = [
     "1/(1+x\u{00B2})",
 ];
 
+/// Where the Microscope actually looks. The slider reaches x = -1.5, but ln(1 + x)
+/// has no real value at or below x = -1, so its center stops short of that.
+fn microscope_center(k: usize, x: f64) -> f64 {
+    if k == 2 {
+        x.max(-0.9)
+    } else {
+        x
+    }
+}
+
 fn f_true(k: usize, x: f64) -> f64 {
     match k {
         0 => x.sin(),
@@ -431,7 +441,7 @@ impl ConceptModule for ApproximationAtelier {
             }
             _ => {
                 scene.field = Some("taylor.paper");
-                let x0 = self.params.f("zoomx");
+                let x0 = microscope_center(k, self.params.f("zoomx"));
                 // Breathing zoom driven by the loop.
                 let breathe = 0.5 - 0.5 * ((t / 12.0) * std::f64::consts::TAU).cos();
                 let span = 3.0 * (0.04f64 / 3.0).powf(breathe);
@@ -468,7 +478,7 @@ impl ConceptModule for ApproximationAtelier {
     fn inspector(&self, t: f64) -> Vec<InsLine> {
         let k = self.params.c("fn");
         let deg = self.deg_now(t);
-        let x0 = self.params.f("zoomx");
+        let x0 = microscope_center(k, self.params.f("zoomx"));
         let d = (f_true(k, x0 + 1e-6) - f_true(k, x0 - 1e-6)) / 2e-6;
         let mut v = vec![
             title(format!("f(x) = {}", FN_NAMES[k])),
@@ -521,4 +531,33 @@ fn taylor_pts(k: usize, deg: usize) -> Vec<Vec3> {
             (y.abs() < 6.0).then(|| Vec3::new(x as f32, y as f32, 0.0))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_microscope_has_a_curve_and_a_slope_anywhere_on_its_slider() {
+        for (k, name) in FN_NAMES.iter().enumerate() {
+            for i in 0..=30 {
+                let slider = -1.5 + 0.1 * i as f64;
+                let x0 = microscope_center(k, slider);
+                let (lo, hi) = (f_true(k, x0 - 1e-6), f_true(k, x0 + 1e-6));
+                assert!(f_true(k, x0).is_finite(), "{name} at {slider}");
+                assert!(
+                    ((hi - lo) / 2e-6).is_finite(),
+                    "{} at {slider}",
+                    FN_NAMES[k]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_center_only_moves_when_the_function_has_no_value_there() {
+        assert_eq!(microscope_center(0, -1.5), -1.5);
+        assert_eq!(microscope_center(2, 0.5), 0.5);
+        assert_eq!(microscope_center(2, -1.5), -0.9);
+    }
 }
