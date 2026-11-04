@@ -400,7 +400,7 @@ impl ConceptModule for KnotReliquary {
             }
         }
         out.push(def("Isotopy: deformation without tearing or crossing \u{2014} the breathing changes nothing that matters."));
-        out.push(note("Every over/under gap is computed from real depth. This side-on shadow has more crossings than a trefoil's minimal diagram, the one where swapping a single crossing unties the knot."));
+        out.push(note("Every over/under gap is computed from real depth. A side-on shadow can show extra crossings; in a trefoil's minimal diagram, swapping a single crossing unties the knot."));
         out
     }
 

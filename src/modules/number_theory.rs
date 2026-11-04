@@ -146,7 +146,7 @@ impl ConceptModule for ArithmeticRotunda {
             RenderMode::plane(
                 "collatz",
                 "Collatz Coral",
-                "Hailstone paths bending by parity; nobody knows if the coral is finite",
+                "Hailstone paths bending by parity; nobody knows if every path reaches 1",
                 2.6,
             )
             .look_at(0.0, 1.4, 0.0),

@@ -609,7 +609,7 @@ impl ConceptModule for DomainColoring {
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
         let k = self.params.c("fn");
         let mut out = vec![
-            title("Holomorphic map  f : \u{2102} \u{2192} \u{2102}"),
+            title("Holomorphic on its domain"),
             formula(format!("f(z) = {}", FN_LABELS[k])),
             def("hue(w) = arg f(w)     shading = |f(w)|"),
             ftex("complex.cr", "Cauchy\u{2013}Riemann:  \u{2202}u/\u{2202}x = \u{2202}v/\u{2202}y,   \u{2202}u/\u{2202}y = \u{2212}\u{2202}v/\u{2202}x"),

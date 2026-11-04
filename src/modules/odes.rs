@@ -468,7 +468,7 @@ impl ConceptModule for OdeWorkshop {
         vec![
             title("dy/dx = f(x, y)"),
             formula(F_NAMES[k]),
-            ftex("taylor.series", "solutions exist & are unique where f is Lipschitz"),
+            note("Solutions exist and are unique where f is Lipschitz in y."),
             value(format!("Euler error per step ~ h\u{00B2} = {:.3};  RK4 ~ h\u{2075} = {:.6}", h * h, h.powi(5))),
             value(format!("resonance peak at \u{03C9} \u{2248} \u{221A}(1\u{2212}2\u{03B6}\u{00B2}) = {:.3}", (1.0f64 - 2.0 * zeta * zeta).max(0.0).sqrt())),
             note("Van der Pol: the nonlinearity pumps small oscillations and damps large ones \u{2014} everything is herded onto one closed curve, the limit cycle."),

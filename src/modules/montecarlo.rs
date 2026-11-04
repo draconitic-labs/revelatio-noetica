@@ -144,7 +144,7 @@ impl ConceptModule for MonteCarloCasino {
             name: "The Monte Carlo Casino",
             tagline: "Computing with dice",
             branch: Branch::StatMech,
-            description: "Ulam, recovering from illness and playing solitaire, wondered: why compute the odds when you can just deal the cards many times? Every dart here is a random trial; the estimate converges as 1/\u{221A}N regardless of dimension \u{2014} which is why the method that measures a circle badly measures a thousand-dimensional integral better than anything else we have.",
+            description: "Ulam, recovering from illness and playing solitaire, wondered: why compute the odds when you can just deal the cards many times? Every dart here is a random trial; the estimate converges as 1/\u{221A}N regardless of dimension \u{2014} which is why the method that measures a circle badly still reaches a thousand-dimensional integral, where even two grid points per axis would outnumber the atoms in the universe.",
             epigraph: Some(Epigraph::quoted(
 "The first thoughts and attempts I made to practice [the Monte Carlo method] were suggested by a question which occurred to me in 1946 as I was convalescing from an illness and playing solitaires.",
 "Stanis\u{0142}aw Ulam, quoted by Roger Eckhardt, 1987",
@@ -428,7 +428,7 @@ impl ConceptModule for MonteCarloCasino {
             value(format!("\u{03C0} by needles = {buffon:.5}   (err {:+.5})", buffon - std::f64::consts::PI)),
             value(format!("\u{222B}f = {area:.5}   vs Simpson {:.5}", self.exact_area)),
             note("Buffon's needle, 1777: probability of crossing = 2\u{2113}/\u{03C0}d. With \u{2113} = d/2 the crossing fraction is exactly 1/\u{03C0} \u{2014} geometry paying out through chance."),
-            note("Ten times the accuracy costs a hundred times the darts. For one integral that is terrible; for a sixty-dimensional one it is the only game in town."),
+            note("Ten times the accuracy costs a hundred times the darts. For one integral that is terrible; for a sixty-dimensional one a grid is out of reach, and this rate does not depend on the dimension."),
         ]
     }
 

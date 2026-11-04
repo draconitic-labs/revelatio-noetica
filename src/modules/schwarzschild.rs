@@ -63,7 +63,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     var color = vec3<f32>(0.0);
     var trans = 1.0;
     var captured = false;
-    // Adaptive leapfrog integration of the null geodesic.
+    // Semi-implicit Euler along the null geodesic, with the step scaled to the radius.
     for (var i = 0; i < 320; i++) {
         let r = length(p);
         if (r < 0.52) { captured = true; break; }
@@ -72,7 +72,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
         let a = -1.5 * h2 * p / pow(dot(p, p), 2.5);
         let vn = v + a * dt;
         let pn = p + vn * dt;
-        // Thin disk in the y=0 plane, 1.7 < r < 4.6 (units of r_s... scaled).
+        // Thin disk in the y = 0 plane, 1.55 < r < 4.6 in scene units.
         if (p.y * pn.y < 0.0) {
             let f = p.y / (p.y - pn.y);
             let hit = mix(p, pn, f);
@@ -224,8 +224,8 @@ impl SchwarzschildCourt {
                 self.state = next;
                 continue;
             }
-            // This coordinate stops meaning anything at the horizon, so find how far
-            // into this step capture falls, stop there, and stay until restarted.
+            // The orbit counts as captured at CAPTURE_R, so find how far into this step
+            // that falls, stop there, and stay until restarted.
             let (mut short, mut long) = (0.0, sub);
             for _ in 0..50 {
                 let mid = 0.5 * (short + long);
