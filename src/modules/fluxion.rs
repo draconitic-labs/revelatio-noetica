@@ -107,7 +107,7 @@ fn fluent(k: usize, s: f64) -> FluentState {
                 dx: 8.0,
                 dy: (3.0 * u * u / 16.0 - 0.5) * 8.0,
                 ddx: 0.0,
-                ddy: (6.0 * u / 16.0) * 64.0 / 8.0,
+                ddy: (6.0 * u / 16.0) * 64.0,
             }
         }
         // Dying oscillation.
@@ -1364,6 +1364,29 @@ impl ConceptModule for FluxionChamber {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stated_derivatives_match_finite_differences() {
+        let h = 1e-4;
+        for k in 0..CURVE_NAMES.len() {
+            for i in 1..40 {
+                let s = i as f64 / 40.0;
+                let (a, f, b) = (fluent(k, s - h), fluent(k, s), fluent(k, s + h));
+                for (name, stated, numeric) in [
+                    ("dx", f.dx, (b.x - a.x) / (2.0 * h)),
+                    ("dy", f.dy, (b.y - a.y) / (2.0 * h)),
+                    ("ddx", f.ddx, (b.dx - a.dx) / (2.0 * h)),
+                    ("ddy", f.ddy, (b.dy - a.dy) / (2.0 * h)),
+                ] {
+                    assert!(
+                        (stated - numeric).abs() < 1e-3 * (1.0 + numeric.abs()),
+                        "{} {name} at s = {s}: stated {stated}, numeric {numeric}",
+                        CURVE_NAMES[k]
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn the_curve_is_finished_at_the_end_of_the_span_and_stays_finished() {
