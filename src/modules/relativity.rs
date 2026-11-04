@@ -57,6 +57,44 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 }
 "#;
 
+/// The causal character of two events, each (x, ct).
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Separation {
+    Spacelike,
+    Lightlike,
+    Timelike,
+}
+
+fn separation(a: glam::Vec2, b: glam::Vec2) -> Separation {
+    let d = (b - a).abs();
+    if (d.x - d.y).abs() < 1e-4 {
+        Separation::Lightlike
+    } else if d.x > d.y {
+        Separation::Spacelike
+    } else {
+        Separation::Timelike
+    }
+}
+
+/// What a boost can do to the order of these two events.
+fn order_note(a: glam::Vec2, b: glam::Vec2) -> String {
+    let d = b - a;
+    let lead = "The tilted blue slice is 'now' for the moving observer.";
+    let first = if d.y > 0.0 { "gold" } else { "blue" };
+    match separation(a, b) {
+        Separation::Spacelike => format!(
+            "{lead} The events are spacelike separated, so no signal connects them and their order depends on the frame: it swaps at \u{03B2} = {:+.3}.",
+            d.y / d.x
+        ),
+        Separation::Lightlike => format!(
+            "{lead} The events lie on one light ray, so every frame agrees on their order."
+        ),
+        Separation::Timelike => format!(
+            "{lead} The events are timelike separated, so a slower-than-light signal could connect them: every frame agrees that {first} comes first, whatever \u{03B2}."
+        ),
+    }
+}
+
 pub struct RelativityTheatre {
     params: Params,
     beta_now: f64,
@@ -120,7 +158,7 @@ impl ConceptModule for RelativityTheatre {
             name: "The Simultaneity Theatre",
             tagline: "On the electrodynamics of moving bodies",
             branch: Branch::Relativity,
-            description: "Einstein's 1905 insight was not about clocks failing but about geometry: space and time mix under boosts the way x and y mix under rotations \u{2014} except the invariant is c\u{00B2}t\u{00B2}\u{2212}x\u{00B2}, and the diagonals, the light cone, never move. Simultaneity tilts; lengths contract; the Coulomb field of a running charge flattens into a pancake.",
+            description: "Einstein's 1905 argument is about clocks, rods, and simultaneity. Geometry is Minkowski's 1908 reading of it: space and time mix under boosts the way x and y mix under rotations \u{2014} except the invariant is c\u{00B2}t\u{00B2}\u{2212}x\u{00B2}, and the diagonals, the light cone, never move. Simultaneity tilts; lengths contract; the Coulomb field of a running charge flattens into a pancake.",
             epigraph: Some(Epigraph::quoted(
 "Henceforth, space by itself, and time by itself, are doomed to fade away into mere shadows, and only a kind of union of the two will preserve an independent reality.",
 "Hermann Minkowski, 1908",
@@ -263,16 +301,14 @@ impl ConceptModule for RelativityTheatre {
                     let neg: Vec<Vec3> = hyp.iter().map(|p| Vec3::new(-p.x, -p.y, 0.0)).collect();
                     scene.polyline(LineLayer::World, &neg, 1.0, with_alpha(CONE_GOLD, 0.22));
                 }
-                // Two draggable events; their time-order depends on the frame
-                // whenever their separation is spacelike.
+                // Two draggable events; their time-order depends on the frame only
+                // when their separation is spacelike.
                 let ea = Vec3::new(self.ev_a.x, self.ev_a.y, 0.0);
                 let eb = Vec3::new(self.ev_b.x, self.ev_b.y, 0.0);
                 scene.point(ea, 4.5, CONE_GOLD, 2.0);
                 scene.point(eb, 4.5, SPACELIKE, 2.0);
                 // The chord between them, tinted by its causal character.
-                let d = self.ev_b - self.ev_a;
-                let spacelike = d.x.abs() > d.y.abs();
-                let chord_c = if spacelike {
+                let chord_c = if separation(self.ev_a, self.ev_b) == Separation::Spacelike {
                     with_alpha(SPACELIKE, 0.35)
                 } else {
                     with_alpha(CONE_GOLD, 0.35)
@@ -489,7 +525,7 @@ impl ConceptModule for RelativityTheatre {
     }
 
     fn pointer_hint(&self, mode: usize) -> Option<&'static str> {
-        (mode == 0).then_some("drag the two events; watch their order swap")
+        (mode == 0).then_some("drag the two events; only spacelike pairs can swap order")
     }
 
     fn pointer(&mut self, _mode: usize, ev: crate::engine::module::PointerEvent) {
@@ -555,10 +591,16 @@ impl ConceptModule for RelativityTheatre {
             value(format!("\u{03B2} = {beta:+.3}    \u{03B3} = {gamma:.3}")),
             value(format!(
                 "t'(gold) = {ta:+.2}   t'(blue) = {tb:+.2}   {}",
-                if ta > tb { "gold is LATER in this frame" } else { "blue is later in this frame" }
+                if ta > tb {
+                    "gold is LATER in this frame"
+                } else if tb > ta {
+                    "blue is later in this frame"
+                } else {
+                    "simultaneous in this frame"
+                }
             )),
             value(format!("time dilation \u{0394}t = \u{03B3}\u{0394}\u{03C4} = {gamma:.3}\u{0394}\u{03C4}    contraction L = L\u{2080}/\u{03B3} = {:.3}L\u{2080}", 1.0 / gamma)),
-            note("The tilted blue slice is 'now' for the moving observer: the gold and blue events change order as \u{03B2} sweeps \u{2014} allowed, because they are spacelike separated."),
+            note(order_note(self.ev_a, self.ev_b)),
         ]
     }
 
@@ -672,6 +714,54 @@ impl ConceptModule for RelativityTheatre {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Order of the two events in a frame moving at beta: positive means blue later.
+    fn order_at(a: glam::Vec2, b: glam::Vec2, beta: f64) -> f64 {
+        let t_of = |e: glam::Vec2| f64::from(e.y) - beta * f64::from(e.x);
+        t_of(b) - t_of(a)
+    }
+
+    #[test]
+    fn the_order_note_follows_where_the_events_are_dragged() {
+        let mut r = RelativityTheatre::new();
+        let note_now = |r: &RelativityTheatre| {
+            r.inspector(0.0)
+                .into_iter()
+                .map(|l| l.text)
+                .find(|t| t.contains("'now'"))
+                .unwrap()
+        };
+        assert!(note_now(&r).contains("spacelike separated"));
+        // Drag the blue event straight above the gold one, through the real pointer.
+        let (a, b) = (r.ev_a, r.ev_b);
+        r.pointer(0, PointerEvent::Down(b));
+        r.pointer(0, PointerEvent::Drag(a + glam::vec2(0.5, 2.0)));
+        r.pointer(0, PointerEvent::Up);
+        let timelike = note_now(&r);
+        assert!(timelike.contains("timelike separated"), "{timelike}");
+        assert!(timelike.contains("blue") || timelike.contains("gold"));
+        assert!(!timelike.contains("swaps"), "{timelike}");
+        // Up the light ray through gold.
+        r.ev_b = r.ev_a + glam::vec2(1.0, 1.0);
+        assert!(note_now(&r).contains("light ray"));
+    }
+
+    #[test]
+    fn what_the_note_says_about_order_is_what_a_boost_does() {
+        let betas: Vec<f64> = (-99..=99).map(|i| f64::from(i) / 100.0).collect();
+        // Timelike: the sign never changes, and the named event really is first.
+        let (a, b) = (glam::vec2(0.0, 0.0), glam::vec2(0.5, 2.0));
+        assert_eq!(separation(a, b), Separation::Timelike);
+        assert!(betas.iter().all(|&beta| order_at(a, b, beta) > 0.0));
+        assert!(order_note(a, b).contains("gold comes first"));
+        assert!(order_note(b, a).contains("blue comes first"));
+        // Spacelike: the order flips at exactly the printed beta.
+        let (a, b) = (glam::vec2(-1.6, 0.9), glam::vec2(1.8, 1.25));
+        assert_eq!(separation(a, b), Separation::Spacelike);
+        let swap = f64::from((b.y - a.y) / (b.x - a.x));
+        assert!(order_at(a, b, swap - 0.01) > 0.0 && order_at(a, b, swap + 0.01) < 0.0);
+        assert!(order_note(a, b).contains(&format!("{swap:+.3}")));
+    }
     use crate::engine::module::PointerEvent as PE;
 
     #[test]

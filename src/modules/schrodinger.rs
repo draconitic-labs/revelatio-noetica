@@ -194,7 +194,7 @@ impl ConceptModule for SchrodingerHall {
             name: "The Amplitude Hall",
             tagline: "\u{03C8}: amplitude, phase, and chance",
             branch: Branch::Quantum,
-            description: "A quantum state is not a particle smeared out \u{2014} it is a complex amplitude whose squared magnitude is the only thing experiment ever sees. Here exact eigenstates of the harmonic well are superposed: phase turns at rate E\u{2099}, interference makes the density slosh, and measurement \u{2014} the rain below \u{2014} samples what the amplitude permits.",
+            description: "A quantum state is not a particle smeared out \u{2014} it is a complex amplitude. Experiments see probabilities, which come from its squared magnitude and depend on the relative phases of its components; only an overall phase is unobservable. Here exact eigenstates of the harmonic well are superposed: phase turns at rate E\u{2099}, interference makes the density slosh, and measurement \u{2014} the rain below \u{2014} samples what the amplitude permits.",
             epigraph: None,
         }
     }

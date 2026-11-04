@@ -101,7 +101,7 @@ impl ConceptModule for ArithmeticRotunda {
             name: "The Arithmetic Rotunda",
             tagline: "The integers, seen from far away",
             branch: Branch::NumberTheory,
-            description: "Individually the integers are trivial; collectively they conspire. Primes fall into diagonal constellations no one predicted; multiplication tables wound on a circle draw cardioids; and the partial sums of \u{03B6}(\u{00BD}+it) trace a drunken spiral along the critical line, where the zeros that guard the primes' secret are found.",
+            description: "Individually the integers are trivial; collectively they conspire. Primes fall into diagonal constellations no one predicted; multiplication tables wound on a circle draw cardioids; and the partial sums of \u{03A3} n^{\u{2212}(\u{00BD}+it)} trace a drunken spiral at each point of the critical line. That series diverges there and \u{03B6} itself comes from analytic continuation, but every nontrivial zero computed so far lies on this line.",
             epigraph: Some(Epigraph::unquoted(
 "Mathematics is the queen of the sciences, and arithmetic the queen of mathematics.",
 "Gauss's own words, as reported by Sartorius von Waltershausen, 1856, translated",
@@ -367,7 +367,7 @@ impl ConceptModule for ArithmeticRotunda {
         let tt = self.params.f("zeta_t") + t * 2.0;
         vec![
             title("Structures in \u{2115}"),
-            ftex("number.zeta", "\u{03B6}(s) = \u{03A3} n^{\u{2212}s},  s = \u{00BD} + it"),
+            ftex("number.zeta", "S(t) = \u{03A3} n^{\u{2212}s} for n \u{2264} N,  s = \u{00BD} + it"),
             ftex("number.cardioid", "n \u{21A6} kn mod N"),
             value(format!("primes below {N_ULAM}: {n_primes}  (density ~ 1/ln n)")),
             value(format!("k = {k:.2}   \u{00B7}   critical line at t = {tt:.1}")),

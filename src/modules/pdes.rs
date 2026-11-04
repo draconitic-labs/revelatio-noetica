@@ -555,10 +555,10 @@ impl ConceptModule for PdeHall {
             ftex("waves.eq", "wave:  \u{2202}\u{00B2}u/\u{2202}t\u{00B2} = c\u{00B2}\u{2207}\u{00B2}u"),
             formula("Laplace: \u{2207}\u{00B2}u = 0        Burgers: u\u{209C} + u u\u{2093} = \u{03BD}u\u{2093}\u{2093}"),
             formula("Gray\u{2013}Scott: u\u{209C} = D\u{1D64}\u{2207}\u{00B2}u \u{2212} uv\u{00B2} + F(1\u{2212}u),   v\u{209C} = D\u{1D65}\u{2207}\u{00B2}v + uv\u{00B2} \u{2212} (F+k)v"),
-            value(format!("sim t = {:.1}   Gray\u{2013}Scott regime: {}", self.sim_t, ["spots", "stripes", "waves"][self.params.c("gs")])),
+            value(format!("sim t = {:.1}   Gray\u{2013}Scott regime: {}", self.sim_t, ["spots", "stripes", "U-skate parameters"][self.params.c("gs")])),
             value(format!("Burgers peak |u| = {:.2}, restarts from the sine at {BURGERS_RESTART_PEAK:.2}", peak_magnitude(&self.burgers))),
             note("Parabolic (heat) smooths and forgets; hyperbolic (wave) remembers; viscous Burgers is parabolic too, but at small \u{03BD} steepens toward the shock its hyperbolic limit forms; elliptic (Laplace) has no time at all \u{2014} only agreement. The three temperaments of physics."),
-            note("Turing 1952: two diffusing chemicals suffice for pattern. The spots dividing on screen are the same mathematics as leopard coats and fingertip ridges."),
+            note("Turing's 1952 mechanism is a uniform state that diffusion destabilizes. Gray\u{2013}Scott is different: its uniform state (u, v) = (1, 0) is linearly stable, with Jacobian diag(\u{2212}F, \u{2212}(F+k)), so these patterns grow only from finite seeds."),
         ]
     }
 
@@ -578,6 +578,40 @@ impl ConceptModule for PdeHall {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::engine::params::PValue;
+
+    #[test]
+    fn gray_scott_needs_finite_seeds_in_every_regime() {
+        // The note says the uniform state is linearly stable. A small disturbance must
+        // die out, while the app's finite seeds must not.
+        for regime in 0..3 {
+            let mut p = PdeHall::new();
+            p.reset();
+            p.params.set("gs", PValue::C(regime));
+            p.step_gray_scott(400);
+            let seeded = p.gs_v.iter().cloned().fold(0.0f32, f32::max);
+            assert!(seeded > 0.1, "regime {regime}: seeds died, max v = {seeded}");
+
+            let mut state = 0x9E37u64;
+            for i in 0..NG * NG {
+                state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+                p.gs_u[i] = 1.0;
+                p.gs_v[i] = 0.01 * (state >> 40) as f32 / (1u64 << 24) as f32;
+            }
+            p.step_gray_scott(400);
+            let small = p.gs_v.iter().cloned().fold(0.0f32, f32::max);
+            assert!(small < 1e-6, "regime {regime}: disturbance grew to {small}");
+        }
+    }
+
+    #[test]
+    fn the_regime_readout_names_the_regime() {
+        let mut p = PdeHall::new();
+        p.params.set("gs", PValue::C(2));
+        let lines = p.inspector(0.0);
+        let line = lines.iter().find(|l| l.text.contains("regime")).unwrap();
+        assert!(line.text.contains("U-skate"), "{}", line.text);
+    }
 
     #[test]
     fn fhn_rest_is_a_fixed_point_of_the_cell() {

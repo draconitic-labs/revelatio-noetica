@@ -32,7 +32,7 @@ em.dipole = \psi(r,\theta,t) = \sin^2\!\theta\left[\cos(kr-\omega t) - \frac{\si
 statmech.ising = E = -J\!\!\sum_{\langle i,j\rangle}\!\! s_i s_j,\qquad P(s) \propto e^{-E(s)/k_B T}
 statmech.maxwell = f(v) \propto v\,e^{-m v^2 / 2 k_B T}
 statmech.diffusion = \frac{\partial \rho}{\partial t} = D\,\nabla^2 \rho,\qquad \sigma(t) = \sqrt{2Dt}
-number.zeta = \zeta(s) = \sum_{n=1}^{\infty} \frac{1}{n^{s}},\qquad s = \tfrac{1}{2} + it
+number.zeta = S_N(t) = \sum_{n=1}^{N} \frac{1}{n^{s}},\qquad s = \tfrac{1}{2} + it
 number.cardioid = n \;\mapsto\; k\,n \bmod N
 taylor.series = f(x) \approx \sum_{k=0}^{N} \frac{f^{(k)}(a)}{k!}\,(x-a)^k
 taylor.newton = z_{n+1} = z_n - \frac{f(z_n)}{f'(z_n)}

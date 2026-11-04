@@ -176,7 +176,7 @@ impl ConceptModule for MonteCarloCasino {
             RenderMode::plane(
                 "galton",
                 "The Galton Board",
-                "Coin flips falling into a bell curve \u{2014} the central limit theorem, 1893",
+                "Coin flips falling into a bell curve \u{2014} the central limit theorem; Galton describes the board in Natural Inheritance, 1889",
                 2.5,
             )
             .look_at(0.0, -0.4, 0.0),

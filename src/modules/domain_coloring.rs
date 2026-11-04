@@ -356,7 +356,7 @@ impl ConceptModule for DomainColoring {
             RenderMode::plane(
                 "mandel",
                 "Mandelbrot Atlas",
-                "The catalogue of every Julia set; zoom is exact re-evaluation",
+                "The catalogue of every Julia set; every zoom recomputes every pixel, in fp32",
                 1.3,
             )
             .look_at(-0.6, 0.0, 0.0),
@@ -634,6 +634,7 @@ impl ConceptModule for DomainColoring {
             0 | 3 => Some("Exact pointwise evaluation in fp32 per pixel; contours are display shading, not data."),
             1 => Some("Landscape sampled on a 150\u{00D7}150 grid; height is ln(1+|f|), rescaled and capped below 3.1 by a tanh."),
             2 => Some("Grid images clamped to |w| \u{2264} 6.5 near poles for display."),
+            5 => Some("fp32, at most 220 iterations per pixel: a point that has not escaped by then is painted as inside. At the deepest zoom a 1080p pixel is only about 3 fp32 steps wide, so the finest detail there is rounding."),
             _ => None,
         }
     }
