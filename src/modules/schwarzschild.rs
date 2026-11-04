@@ -285,6 +285,11 @@ impl ConceptModule for SchwarzschildCourt {
         &self.params
     }
 
+    /// Only the first orbit reads these two sliders; the others have fixed values.
+    fn param_in_use(&self, key: &str) -> bool {
+        !matches!(key, "ll" | "r0") || self.params.c("preset") == 0
+    }
+
     fn init(&mut self, gpu: &GpuContext, rend: &mut Renderers) {
         rend.register_field(gpu, "gr.lensing", LENSING_SHADE, false);
         // Flamm funnel: revolve z = flamm_height(r).
@@ -602,6 +607,22 @@ mod tests {
                 assert_stopped_cleanly(&mut c, &format!("rate {rate}, seed {seed}"));
             }
         }
+    }
+
+    #[test]
+    fn the_sliders_are_offered_only_for_the_orbit_that_reads_them() {
+        use crate::engine::params::PValue;
+        let mut c = SchwarzschildCourt::new();
+        assert!(c.param_in_use("ll") && c.param_in_use("r0"));
+        for fixed in [1, 2] {
+            c.params.set("preset", PValue::C(fixed));
+            assert!(!c.param_in_use("ll") && !c.param_in_use("r0"));
+            assert!(c.param_in_use("rate") && c.param_in_use("preset"));
+        }
+        // What the panel still shows for those orbits is the value in use.
+        c.reset_orbit();
+        let lines = c.inspector(0.0);
+        assert!(lines.iter().any(|l| l.text.contains("L = 3.20")));
     }
 
     #[test]

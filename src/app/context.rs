@@ -143,10 +143,13 @@ impl AtlasApp {
         let known = guide(id, view_id).map(|g| g.params);
         let total = self.engine.modules[f.module].params_ref().items.len();
         let shows = |key: &str| known.is_none_or(|keys| keys.contains(&key));
-        let relevant: Vec<usize> = (0..total)
-            .filter(|&i| shows(self.engine.modules[f.module].params_ref().items[i].key))
+        let module = &self.engine.modules[f.module];
+        let in_use: Vec<usize> = (0..total)
+            .filter(|&i| module.param_in_use(module.params_ref().items[i].key))
             .collect();
-        let other: Vec<usize> = (0..total).filter(|i| !relevant.contains(i)).collect();
+        let (relevant, other): (Vec<usize>, Vec<usize>) = in_use
+            .into_iter()
+            .partition(|&i| shows(module.params_ref().items[i].key));
 
         let can_randomize = relevant.iter().any(|&i| {
             !matches!(

@@ -173,6 +173,11 @@ pub trait ConceptModule {
     }
     fn params(&mut self) -> &mut Params;
     fn params_ref(&self) -> &Params;
+    /// Whether this control affects anything right now. The panel leaves out one that
+    /// does not, because a value on screen that nothing uses is a false statement.
+    fn param_in_use(&self, _key: &str) -> bool {
+        true
+    }
     /// Create GPU resources; register field shaders. Called once, lazily.
     fn init(&mut self, gpu: &GpuContext, rend: &mut Renderers);
     /// Advance simulation / dynamic geometry to time `t`.
