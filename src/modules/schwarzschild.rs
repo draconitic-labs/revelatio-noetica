@@ -111,6 +111,11 @@ fn flamm_height(r: f64) -> f64 {
     2.0 * (2.0f64 * (r - 2.0).max(0.0)).sqrt()
 }
 
+/// Proper time for one frame. Capped, so a slow frame cannot take a huge step.
+fn proper_time_step(dt: f64, rate: f64) -> f64 {
+    (dt * rate).clamp(0.0, 1.0)
+}
+
 pub struct SchwarzschildCourt {
     params: Params,
     /// Orbit state: (r, pr, phi, tau).
@@ -192,17 +197,18 @@ impl SchwarzschildCourt {
             .sqrt()
     }
 
-    /// One frame of the orbit, h in proper time. Capture stops the orbit where it
-    /// is, values untouched, so the energy check still reports the integrator's
-    /// real error and not an artefact of stopping.
+    /// One frame of the orbit, h in proper time. An orbit that reaches capture stops
+    /// exactly there whatever the step size, so it never passes the horizon, and the
+    /// energy check reports the integrator's real error.
     fn advance(&mut self, h: f64) {
         if self.captured {
             return;
         }
         let l = self.l_now();
-        // Geodesic ODE in proper time: r'' from the effective potential.
+        // Geodesic ODE in proper time: r'' from the effective potential. It is smooth
+        // through r = 2, so a step that ends inside the horizon is still a fair trial.
         let f = move |_tau: f64, y: &[f64; 4]| -> [f64; 4] {
-            let r = y[0].max(2.05);
+            let r = y[0];
             [
                 y[1],
                 -1.0 / (r * r) + l * l / (r * r * r) - 3.0 * l * l / (r * r * r * r),
@@ -211,12 +217,28 @@ impl SchwarzschildCourt {
             ]
         };
         let steps = 6;
+        let sub = h / steps as f64;
         for _ in 0..steps {
-            self.state = rk4(&f, 0.0, &self.state, h / steps as f64);
+            let next = rk4(&f, 0.0, &self.state, sub);
+            if next[0] > CAPTURE_R {
+                self.state = next;
+                continue;
+            }
+            // This coordinate stops meaning anything at the horizon, so find how far
+            // into this step capture falls, stop there, and stay until restarted.
+            let (mut short, mut long) = (0.0, sub);
+            for _ in 0..50 {
+                let mid = 0.5 * (short + long);
+                if rk4(&f, 0.0, &self.state, mid)[0] > CAPTURE_R {
+                    short = mid;
+                } else {
+                    long = mid;
+                }
+            }
+            self.state = rk4(&f, 0.0, &self.state, long);
+            self.captured = true;
+            break;
         }
-        // This coordinate stops meaning anything at the horizon, so the orbit stops
-        // here until it is restarted.
-        self.captured = self.state[0] <= CAPTURE_R;
         let (r, phi) = (self.state[0], self.state[2]);
         let p = Vec3::new((r * phi.cos()) as f32, (r * phi.sin()) as f32, 0.0);
         if self.trail.last().is_none_or(|q| (*q - p).length() > 0.03) {
@@ -297,8 +319,7 @@ impl ConceptModule for SchwarzschildCourt {
             self.last_key = key;
             self.reset_orbit();
         }
-        let h = (dt * self.params.f("rate")).clamp(0.0, 1.0);
-        self.advance(h);
+        self.advance(proper_time_step(dt, self.params.f("rate")));
     }
 
     fn render(
@@ -514,33 +535,70 @@ impl ConceptModule for SchwarzschildCourt {
 mod tests {
     use super::*;
 
-    #[test]
-    fn a_plunge_stops_at_capture_without_faking_an_energy_error() {
+    /// The Plunge preset, run frame by frame at the given rate and frame rate, with
+    /// each frame's length varied by up to `jitter` either way.
+    fn plunge(rate: f64, fps: f64, jitter: f64, seed: u64) -> SchwarzschildCourt {
         use crate::engine::params::PValue;
         let mut c = SchwarzschildCourt::new();
         c.params.set("preset", PValue::C(2));
         c.reset_orbit();
-        for _ in 0..200_000 {
-            c.advance(0.02);
+        let mut s = seed.wrapping_mul(2654435761) | 1;
+        for _ in 0..2_000_000 {
+            s ^= s << 13;
+            s ^= s >> 7;
+            s ^= s << 17;
+            let uniform = (s >> 11) as f64 / (1u64 << 53) as f64;
+            let dt = (1.0 + jitter * (2.0 * uniform - 1.0)) / fps;
+            c.advance(proper_time_step(dt, rate));
             if c.captured {
-                break;
+                return c;
             }
         }
+        panic!("the plunge never reached capture: r = {}", c.state[0]);
+    }
+
+    fn assert_stopped_cleanly(c: &mut SchwarzschildCourt, label: &str) {
+        let r = c.state[0];
         assert!(
-            c.captured,
-            "the plunge never reached the horizon: r = {}",
-            c.state[0]
+            (CAPTURE_R - 1e-9..=CAPTURE_R).contains(&r),
+            "{label}: stopped at r = {r}, not at capture"
         );
         let drift = ((c.energy_now() - c.energy) / c.energy).abs();
-        assert!(drift < 1e-4, "energy drift {drift}");
+        assert!(drift < 1e-5, "{label}: energy drift {drift}");
+        // The live marker in Effective Potential is drawn at V(r).
+        assert!(c.veff(r).is_finite(), "{label}: marker at V({r}) is not real");
         let frozen = c.state;
-        c.advance(0.02);
-        assert_eq!(c.state, frozen, "a captured orbit stays where it stopped");
-        assert!(
-            c.state[0] > 2.0,
-            "stopped outside the horizon: r = {}",
-            c.state[0]
-        );
+        c.advance(0.5);
+        assert_eq!(c.state, frozen, "{label}: a captured orbit stays put");
+    }
+
+    #[test]
+    fn a_plunge_stops_at_capture_at_the_default_step_and_at_low_frame_rates() {
+        // Rate 28 is the default. Rate 80 at 60 fps and rate 28 at 10 fps hit the cap
+        // of one unit of proper time per frame.
+        for (rate, fps) in [
+            (28.0, 144.0),
+            (28.0, 60.0),
+            (28.0, 30.0),
+            (28.0, 10.0),
+            (80.0, 60.0),
+            (80.0, 30.0),
+            (10.0, 60.0),
+            (2.0, 60.0),
+        ] {
+            let mut c = plunge(rate, fps, 0.0, 0);
+            assert_stopped_cleanly(&mut c, &format!("rate {rate} at {fps} fps"));
+        }
+    }
+
+    #[test]
+    fn a_plunge_stops_at_capture_whatever_the_frame_jitter() {
+        for rate in [28.0, 80.0] {
+            for seed in 1..=400 {
+                let mut c = plunge(rate, 60.0, 0.1, seed);
+                assert_stopped_cleanly(&mut c, &format!("rate {rate}, seed {seed}"));
+            }
+        }
     }
 
     #[test]
