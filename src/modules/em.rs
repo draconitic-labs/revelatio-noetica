@@ -141,11 +141,38 @@ impl ConceptModule for FieldForge {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("lines", "Charges & Field Lines", "Drag the four charges; the lines re-weave live", 3.0),
-            RenderMode::plane("dipole", "Hertzian Dipole", "Exact field lines of an oscillating dipole: light, leaving", 4.4),
-            RenderMode::orbit("wave", "The Plane Wave", "E and B, perpendicular, in phase, self-propelling", 8.0, 0.30, 0.55),
-            RenderMode::plane("cyclotron", "Cyclotron Dance", "qv\u{00D7}B curls charges into circles; E adds the drift", 3.2),
-            RenderMode::plane("caustic", "The Teacup Caustic", "Parallel light reflecting in a cup envelopes a nephroid \u{2014} check your mug", 1.6),
+            RenderMode::plane(
+                "lines",
+                "Charges & Field Lines",
+                "Drag the four charges; the lines re-weave live",
+                3.0,
+            ),
+            RenderMode::plane(
+                "dipole",
+                "Hertzian Dipole",
+                "Exact field lines of an oscillating dipole: light, leaving",
+                4.4,
+            ),
+            RenderMode::orbit(
+                "wave",
+                "The Plane Wave",
+                "E and B, perpendicular, in phase, self-propelling",
+                8.0,
+                0.30,
+                0.55,
+            ),
+            RenderMode::plane(
+                "cyclotron",
+                "Cyclotron Dance",
+                "qv\u{00D7}B curls charges into circles; E adds the drift",
+                3.2,
+            ),
+            RenderMode::plane(
+                "caustic",
+                "The Teacup Caustic",
+                "Parallel light reflecting in a cup envelopes a nephroid \u{2014} check your mug",
+                1.6,
+            ),
         ]
     }
 
@@ -173,7 +200,10 @@ impl ConceptModule for FieldForge {
                     .iter()
                     .enumerate()
                     .min_by(|(_, a), (_, b)| {
-                        (a.0 - w).length_squared().partial_cmp(&(b.0 - w).length_squared()).unwrap()
+                        (a.0 - w)
+                            .length_squared()
+                            .partial_cmp(&(b.0 - w).length_squared())
+                            .unwrap()
                     })
                     .filter(|(_, c)| (c.0 - w).length() < 0.8)
                     .map(|(i, _)| i);
@@ -246,12 +276,20 @@ impl ConceptModule for FieldForge {
                                     break;
                                 }
                                 // Stop when swallowed by another charge.
-                                if self.charges.iter().any(|&(c2, _)| (p - c2).length() < 0.085) {
+                                if self
+                                    .charges
+                                    .iter()
+                                    .any(|&(c2, _)| (p - c2).length() < 0.085)
+                                {
                                     pts.push(Vec3::new(p.x, p.y, 0.02));
                                     break;
                                 }
                             }
-                            let col = if q > 0.0 { with_alpha(GOLDE, 0.34) } else { with_alpha(CYAN, 0.22) };
+                            let col = if q > 0.0 {
+                                with_alpha(GOLDE, 0.34)
+                            } else {
+                                with_alpha(CYAN, 0.22)
+                            };
                             scene.polyline(LineLayer::WorldAdd, &pts, 1.25, col);
                         }
                     }
@@ -261,9 +299,21 @@ impl ConceptModule for FieldForge {
                     scene.point(Vec3::new(c.x, c.y, 0.05), 7.0, col, 2.4);
                     // Engrave the sign.
                     let s = 0.085;
-                    scene.line(LineLayer::Overlay, Vec3::new(c.x - s, c.y, 0.06), Vec3::new(c.x + s, c.y, 0.06), 1.8, [0.0, 0.0, 0.0, 0.85]);
+                    scene.line(
+                        LineLayer::Overlay,
+                        Vec3::new(c.x - s, c.y, 0.06),
+                        Vec3::new(c.x + s, c.y, 0.06),
+                        1.8,
+                        [0.0, 0.0, 0.0, 0.85],
+                    );
                     if q > 0.0 {
-                        scene.line(LineLayer::Overlay, Vec3::new(c.x, c.y - s, 0.06), Vec3::new(c.x, c.y + s, 0.06), 1.8, [0.0, 0.0, 0.0, 0.85]);
+                        scene.line(
+                            LineLayer::Overlay,
+                            Vec3::new(c.x, c.y - s, 0.06),
+                            Vec3::new(c.x, c.y + s, 0.06),
+                            1.8,
+                            [0.0, 0.0, 0.0, 0.85],
+                        );
                     }
                 }
             }
@@ -272,7 +322,13 @@ impl ConceptModule for FieldForge {
                 scene.p(1, self.params.f("k") as f32);
                 // The dipole itself: a trembling vertical stub.
                 let osc = (2.2 * t).sin() as f32 * 0.16;
-                scene.line_soft(LineLayer::WorldAdd, Vec3::new(0.0, -0.2 - osc * 0.4, 0.05), Vec3::new(0.0, 0.2 + osc * 0.4, 0.05), 3.4, with_alpha(GOLDE, 0.9));
+                scene.line_soft(
+                    LineLayer::WorldAdd,
+                    Vec3::new(0.0, -0.2 - osc * 0.4, 0.05),
+                    Vec3::new(0.0, 0.2 + osc * 0.4, 0.05),
+                    3.4,
+                    with_alpha(GOLDE, 0.9),
+                );
             }
             3 => {
                 scene.clear = [0.005, 0.006, 0.010, 1.0];
@@ -297,7 +353,12 @@ impl ConceptModule for FieldForge {
                         );
                     }
                     scene.point(Vec3::new(p.x, p.y, 0.02), 4.0, col, 2.0);
-                    scene.vector(Vec3::new(p.x, p.y, 0.02), Vec3::new(v.x, v.y, 0.0) * 0.35, 2.6, with_alpha(GOLDE, 0.8));
+                    scene.vector(
+                        Vec3::new(p.x, p.y, 0.02),
+                        Vec3::new(v.x, v.y, 0.0) * 0.35,
+                        2.6,
+                        with_alpha(GOLDE, 0.8),
+                    );
                 }
             }
             4 => {
@@ -324,17 +385,35 @@ impl ConceptModule for FieldForge {
                     let refl = dir - n * 2.0 * dir.dot(n);
                     let start = hit - dir * 3.2;
                     let h3 = Vec3::new(hit.x, hit.y, 0.0);
-                    scene.line(LineLayer::WorldAdd, Vec3::new(start.x, start.y, 0.0), h3, 1.0, [0.85, 0.75, 0.45, 0.06]);
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        Vec3::new(start.x, start.y, 0.0),
+                        h3,
+                        1.0,
+                        [0.85, 0.75, 0.45, 0.06],
+                    );
                     // Clip the reflected ray at its second rim crossing.
                     let s2 = (-2.0 * hit.dot(refl)).max(0.05);
                     let out = hit + refl * s2;
-                    scene.line(LineLayer::WorldAdd, h3, Vec3::new(out.x, out.y, 0.0), 1.1, [0.95, 0.78, 0.35, 0.16]);
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        h3,
+                        Vec3::new(out.x, out.y, 0.0),
+                        1.1,
+                        [0.95, 0.78, 0.35, 0.16],
+                    );
                 }
             }
             _ => {
                 scene.clear = [0.006, 0.007, 0.011, 1.0];
                 // Propagation axis.
-                scene.line(LineLayer::World, Vec3::new(-6.4, 0.0, 0.0), Vec3::new(6.4, 0.0, 0.0), 1.2, [0.5, 0.5, 0.55, 0.5]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-6.4, 0.0, 0.0),
+                    Vec3::new(6.4, 0.0, 0.0),
+                    1.2,
+                    [0.5, 0.5, 0.55, 0.5],
+                );
                 let k = 1.6f64;
                 let om = 2.2f64;
                 let n = 96;
@@ -347,8 +426,18 @@ impl ConceptModule for FieldForge {
                     e_env.push(Vec3::new(zf, a * 1.7, 0.0));
                     b_env.push(Vec3::new(zf, 0.0, a * 1.7));
                     if i % 3 == 0 {
-                        scene.vector(Vec3::new(zf, 0.0, 0.0), Vec3::new(0.0, a * 1.7, 0.0), 2.6, with_alpha(GOLDE, 0.75));
-                        scene.vector(Vec3::new(zf, 0.0, 0.0), Vec3::new(0.0, 0.0, a * 1.7), 2.6, with_alpha(CYAN, 0.75));
+                        scene.vector(
+                            Vec3::new(zf, 0.0, 0.0),
+                            Vec3::new(0.0, a * 1.7, 0.0),
+                            2.6,
+                            with_alpha(GOLDE, 0.75),
+                        );
+                        scene.vector(
+                            Vec3::new(zf, 0.0, 0.0),
+                            Vec3::new(0.0, 0.0, a * 1.7),
+                            2.6,
+                            with_alpha(CYAN, 0.75),
+                        );
                     }
                 }
                 scene.glow_polyline(&e_env, 1.8, GOLDE, 2.4);
@@ -358,11 +447,7 @@ impl ConceptModule for FieldForge {
     }
 
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
-        let dip: f32 = self
-            .charges
-            .iter()
-            .map(|&(c, q)| c.x * q)
-            .sum();
+        let dip: f32 = self.charges.iter().map(|&(c, q)| c.x * q).sum();
         vec![
             title("Maxwell's electrostatics & radiation"),
             ftex("em.field", "E(r) = \u{03A3} q\u{1D62} r\u{0302}\u{1D62}/r\u{1D62}\u{00B2}     \u{2207}\u{00D7}E = 0 (statics)"),
@@ -376,7 +461,9 @@ impl ConceptModule for FieldForge {
 
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
-            0 => Some("Lines integrated by 340 Euler steps along E\u{0302}; potential exact per pixel."),
+            0 => Some(
+                "Lines integrated by 340 Euler steps along E\u{0302}; potential exact per pixel.",
+            ),
             1 => Some("Exact Hertzian-dipole field-line function; amplitude fade is display only."),
             _ => None,
         }

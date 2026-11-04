@@ -69,8 +69,20 @@ impl ArithmeticRotunda {
         p.int("modn", "Circle points N", "Symbolic", 40, 400, 210);
         p.slider("mulk", "Multiplier k", "Symbolic", 2.0, 7.0, 2.0, "");
         p.toggle("sweepk", "Sweep k with time", "Observer", true);
-        p.slider("zeta_t", "Critical-line start t", "Symbolic", 0.0, 120.0, 0.0, "");
-        Self { params: p, primes: Vec::new(), ulam_pts: Vec::new() }
+        p.slider(
+            "zeta_t",
+            "Critical-line start t",
+            "Symbolic",
+            0.0,
+            120.0,
+            0.0,
+            "",
+        );
+        Self {
+            params: p,
+            primes: Vec::new(),
+            ulam_pts: Vec::new(),
+        }
     }
 
     fn k_now(&self, t: f64) -> f64 {
@@ -99,16 +111,51 @@ impl ConceptModule for ArithmeticRotunda {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("ulam", "Ulam Spiral", "40,000 integers coiled; primes glow, diagonals emerge", 105.0),
-            RenderMode::plane("cardioid", "Modular Strings", "Chords n \u{2192} kn mod N; k = 2 draws the cardioid", 1.35),
-            RenderMode::plane("zeta", "Zeta Walk", "Partial sums of \u{03A3} n^{\u{2212}(\u{00BD}+it)} on the critical line", 2.6)
-                .look_at(0.8, 0.9, 0.0),
-            RenderMode::plane("staircase", "The Prime Staircase", "\u{03C0}(x) against x/ln x: chaos up close, law from afar", 1.35)
-                .look_at(2.4, 1.1, 0.0),
-            RenderMode::plane("phyllo", "Phyllotaxis", "Seeds placed one golden angle apart \u{2014} the sunflower's theorem", 2.4),
-            RenderMode::plane("collatz", "Collatz Coral", "Hailstone paths bending by parity; nobody knows if the coral is finite", 2.6)
-                .look_at(0.0, 1.4, 0.0),
-            RenderMode::plane("primepolar", "The Prime Galaxy", "Primes at (p, p) in polar coordinates: spirals, then rays", 2.6),
+            RenderMode::plane(
+                "ulam",
+                "Ulam Spiral",
+                "40,000 integers coiled; primes glow, diagonals emerge",
+                105.0,
+            ),
+            RenderMode::plane(
+                "cardioid",
+                "Modular Strings",
+                "Chords n \u{2192} kn mod N; k = 2 draws the cardioid",
+                1.35,
+            ),
+            RenderMode::plane(
+                "zeta",
+                "Zeta Walk",
+                "Partial sums of \u{03A3} n^{\u{2212}(\u{00BD}+it)} on the critical line",
+                2.6,
+            )
+            .look_at(0.8, 0.9, 0.0),
+            RenderMode::plane(
+                "staircase",
+                "The Prime Staircase",
+                "\u{03C0}(x) against x/ln x: chaos up close, law from afar",
+                1.35,
+            )
+            .look_at(2.4, 1.1, 0.0),
+            RenderMode::plane(
+                "phyllo",
+                "Phyllotaxis",
+                "Seeds placed one golden angle apart \u{2014} the sunflower's theorem",
+                2.4,
+            ),
+            RenderMode::plane(
+                "collatz",
+                "Collatz Coral",
+                "Hailstone paths bending by parity; nobody knows if the coral is finite",
+                2.6,
+            )
+            .look_at(0.0, 1.4, 0.0),
+            RenderMode::plane(
+                "primepolar",
+                "The Prime Galaxy",
+                "Primes at (p, p) in polar coordinates: spirals, then rays",
+                2.6,
+            ),
         ]
     }
 
@@ -187,7 +234,12 @@ impl ConceptModule for ArithmeticRotunda {
                         pts.push(Vec3::new(x as f32, (count as f64 * sc_y) as f32, 0.0));
                     }
                 }
-                scene.polyline(LineLayer::WorldAdd, &pts, 1.5, with_alpha(PRIME_GREEN, 0.85));
+                scene.polyline(
+                    LineLayer::WorldAdd,
+                    &pts,
+                    1.5,
+                    with_alpha(PRIME_GREEN, 0.85),
+                );
                 // The smooth law.
                 let law: Vec<Vec3> = (2..=220)
                     .map(|i| {
@@ -196,7 +248,13 @@ impl ConceptModule for ArithmeticRotunda {
                     })
                     .collect();
                 scene.polyline(LineLayer::World, &law, 1.3, with_alpha(GOLD_N, 0.75));
-                scene.line(LineLayer::World, Vec3::ZERO, Vec3::new(4.8, 0.0, 0.0), 1.0, [0.4, 0.45, 0.4, 0.5]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::ZERO,
+                    Vec3::new(4.8, 0.0, 0.0),
+                    1.0,
+                    [0.4, 0.45, 0.4, 0.5],
+                );
             }
             4 => {
                 // Golden-angle placement; deviation animates around 137.508.
@@ -281,12 +339,24 @@ impl ConceptModule for ArithmeticRotunda {
                 for i in 1..pts.len() {
                     let age = i as f32 / pts.len() as f32;
                     let hue = phase_color(age * 4.5);
-                    scene.line(LineLayer::WorldAdd, pts[i - 1], pts[i], 1.4, with_alpha(hue, 0.30 + 0.35 * (1.0 - age)));
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        pts[i - 1],
+                        pts[i],
+                        1.4,
+                        with_alpha(hue, 0.30 + 0.35 * (1.0 - age)),
+                    );
                 }
                 scene.point(origin, 3.4, GOLD_N, 1.8);
                 if let Some(&last) = pts.last() {
                     scene.point(last, 4.0, [0.95, 0.97, 1.0, 1.0], 2.0);
-                    scene.line(LineLayer::Overlay, origin, last, 1.0, [0.9, 0.85, 0.6, 0.25]);
+                    scene.line(
+                        LineLayer::Overlay,
+                        origin,
+                        last,
+                        1.0,
+                        [0.9, 0.85, 0.6, 0.25],
+                    );
                 }
             }
         }

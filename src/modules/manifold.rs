@@ -111,9 +111,22 @@ impl ManifoldAtlas {
     pub fn new() -> Self {
         let mut p = Params::new();
         p.choice("surf", "Manifold", "Symbolic", SURF_NAMES.to_vec(), 0);
-        p.slider("lat", "Transport latitude \u{03B8}\u{2080}", "Physics", 0.15, 1.35, 0.75, "rad");
+        p.slider(
+            "lat",
+            "Transport latitude \u{03B8}\u{2080}",
+            "Physics",
+            0.15,
+            1.35,
+            0.75,
+            "rad",
+        );
         p.toggle("kheat", "Curvature heat", "Display", false);
-        Self { params: p, surface: None, last_key: (usize::MAX, false), transported: Vec::new() }
+        Self {
+            params: p,
+            surface: None,
+            last_key: (usize::MAX, false),
+            transported: Vec::new(),
+        }
     }
 
     fn rebuild(&mut self, gpu: &GpuContext) {
@@ -230,8 +243,12 @@ impl ConceptModule for ManifoldAtlas {
             // Engraved parameter grid.
             for i in 0..12 {
                 let u = i as f32 / 12.0;
-                let a: Vec<Vec3> = (0..=60).map(|j| surf(k, u, j as f32 / 60.0) * 1.001).collect();
-                let b: Vec<Vec3> = (0..=60).map(|j| surf(k, j as f32 / 60.0, u) * 1.001).collect();
+                let a: Vec<Vec3> = (0..=60)
+                    .map(|j| surf(k, u, j as f32 / 60.0) * 1.001)
+                    .collect();
+                let b: Vec<Vec3> = (0..=60)
+                    .map(|j| surf(k, j as f32 / 60.0, u) * 1.001)
+                    .collect();
                 scene.polyline(LineLayer::World, &a, 0.8, with_alpha(ICE_BLUE, 0.14));
                 scene.polyline(LineLayer::World, &b, 0.8, with_alpha(ICE_BLUE, 0.14));
             }
@@ -301,17 +318,38 @@ impl ConceptModule for ManifoldAtlas {
             0 => {
                 // A wandering point with its tangent frame.
                 let s = (t / 12.0) as f32;
-                let (u, v) = (s + 0.13 * (s * 12.0).sin(), 0.35 + 0.22 * (s * std::f32::consts::TAU).sin());
+                let (u, v) = (
+                    s + 0.13 * (s * 12.0).sin(),
+                    0.35 + 0.22 * (s * std::f32::consts::TAU).sin(),
+                );
                 let (u, v) = (u.rem_euclid(1.0), v.clamp(0.05, 0.95));
                 let p = surf(k, u, v);
                 let du = surf_du(k, u, v).normalize_or_zero() * 0.7;
                 let dv = surf_dv(k, u, v).normalize_or_zero() * 0.7;
                 let nrm = du.cross(dv).normalize_or_zero() * 0.7;
                 // Tangent plane quad as glowing outline.
-                let quad = [p + du + dv, p + du - dv, p - du - dv, p - du + dv, p + du + dv];
+                let quad = [
+                    p + du + dv,
+                    p + du - dv,
+                    p - du - dv,
+                    p - du + dv,
+                    p + du + dv,
+                ];
                 scene.polyline(LineLayer::Overlay, &quad, 1.6, with_alpha(SILVER, 0.65));
-                scene.line(LineLayer::Overlay, quad[0], quad[2], 0.9, with_alpha(SILVER, 0.18));
-                scene.line(LineLayer::Overlay, quad[1], quad[3], 0.9, with_alpha(SILVER, 0.18));
+                scene.line(
+                    LineLayer::Overlay,
+                    quad[0],
+                    quad[2],
+                    0.9,
+                    with_alpha(SILVER, 0.18),
+                );
+                scene.line(
+                    LineLayer::Overlay,
+                    quad[1],
+                    quad[3],
+                    0.9,
+                    with_alpha(SILVER, 0.18),
+                );
                 scene.vector(p, du, 3.6, WARM);
                 scene.vector(p, dv, 3.6, ICE_BLUE);
                 scene.vector(p, nrm, 3.0, SILVER);
@@ -321,7 +359,8 @@ impl ConceptModule for ManifoldAtlas {
                     .map(|i| {
                         let ss = s * i as f32 / 140.0;
                         let uu = (ss + 0.13 * (ss * 12.0).sin()).rem_euclid(1.0);
-                        let vv = (0.35 + 0.22 * (ss * std::f32::consts::TAU).sin()).clamp(0.05, 0.95);
+                        let vv =
+                            (0.35 + 0.22 * (ss * std::f32::consts::TAU).sin()).clamp(0.05, 0.95);
                         surf(k, uu, vv) * 1.004
                     })
                     .collect();
@@ -362,14 +401,25 @@ impl ConceptModule for ManifoldAtlas {
             ftex("geometry.metric", "T\u{209A}M = span(\u{2202}u, \u{2202}v)     g\u{1D62}\u{2C7C} = \u{2202}\u{1D62}\u{00B7}\u{2202}\u{2C7C}"),
         ];
         match k {
-            0 => out.push(value(format!("K = 1/R\u{00B2} = {:.3} everywhere", 1.0 / (1.4f64 * 1.4)))),
-            1 => out.push(value("K > 0 outside, K < 0 inside, \u{222C}K dA = 0 = 2\u{03C0}\u{03C7}(T\u{00B2})".to_string())),
-            _ => out.push(value("K < 0 everywhere: a saddle at every point".to_string())),
+            0 => out.push(value(format!(
+                "K = 1/R\u{00B2} = {:.3} everywhere",
+                1.0 / (1.4f64 * 1.4)
+            ))),
+            1 => out.push(value(
+                "K > 0 outside, K < 0 inside, \u{222C}K dA = 0 = 2\u{03C0}\u{03C7}(T\u{00B2})"
+                    .to_string(),
+            )),
+            _ => out.push(value(
+                "K < 0 everywhere: a saddle at every point".to_string(),
+            )),
         }
         if k == 0 {
             let hol = std::f64::consts::TAU * (1.0 - th0.cos());
             let frac = (t / 12.0).clamp(0.0, 1.0);
-            out.push(ftex("geometry.holonomy", "holonomy \u{03B1} = \u{222C} K dA = 2\u{03C0}(1 \u{2212} cos\u{03B8}\u{2080})"));
+            out.push(ftex(
+                "geometry.holonomy",
+                "holonomy \u{03B1} = \u{222C} K dA = 2\u{03C0}(1 \u{2212} cos\u{03B8}\u{2080})",
+            ));
             out.push(value(format!(
                 "\u{03B8}\u{2080} = {th0:.2}   \u{03B1} = {:.3} rad = {:.1}\u{00B0}   (loop {:.0}% done)",
                 hol,

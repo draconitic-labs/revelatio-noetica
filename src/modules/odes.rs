@@ -25,7 +25,12 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 }
 "#;
 
-const F_NAMES: [&str; 4] = ["logistic  y' = y(1\u{2212}y/2)", "y' = x \u{2212} y", "y' = sin(x\u{00B7}y)", "y' = x\u{00B2} \u{2212} y\u{00B2}"];
+const F_NAMES: [&str; 4] = [
+    "logistic  y' = y(1\u{2212}y/2)",
+    "y' = x \u{2212} y",
+    "y' = sin(x\u{00B7}y)",
+    "y' = x\u{00B2} \u{2212} y\u{00B2}",
+];
 
 fn slope(k: usize, x: f64, y: f64) -> f64 {
     match k {
@@ -53,9 +58,24 @@ impl OdeWorkshop {
         p.slider("h", "Integrator step h", "Physics", 0.05, 0.6, 0.35, "");
         p.slider("mu", "Van der Pol \u{03BC}", "Physics", 0.2, 4.0, 1.6, "");
         p.slider("zeta", "Damping \u{03B6}", "Physics", 0.02, 0.9, 0.12, "");
-        p.slider("omega", "Drive frequency \u{03C9}", "Physics", 0.2, 2.4, 0.85, "");
+        p.slider(
+            "omega",
+            "Drive frequency \u{03C9}",
+            "Physics",
+            0.2,
+            2.4,
+            0.85,
+            "",
+        );
         p.slider("r0", "Epidemic R\u{2080}", "Physics", 0.8, 5.0, 2.6, "");
-        Self { params: p, curves: Vec::new(), vdp: Vec::new(), lv: Vec::new(), last_key: (9, 0), last_t: 0.0 }
+        Self {
+            params: p,
+            curves: Vec::new(),
+            vdp: Vec::new(),
+            lv: Vec::new(),
+            last_key: (9, 0),
+            last_t: 0.0,
+        }
     }
 
     fn solve_through(&self, k: usize, p0: Vec2) -> Vec<Vec2> {
@@ -93,7 +113,13 @@ impl OdeWorkshop {
         self.vdp = (0..7)
             .map(|i| {
                 let a = i as f32 / 7.0 * std::f32::consts::TAU;
-                (Vec2::new(a.cos() * (0.3 + 0.5 * i as f32), a.sin() * (0.3 + 0.4 * i as f32)), Vec::new())
+                (
+                    Vec2::new(
+                        a.cos() * (0.3 + 0.5 * i as f32),
+                        a.sin() * (0.3 + 0.4 * i as f32),
+                    ),
+                    Vec::new(),
+                )
             })
             .collect();
         self.lv = [(2.2f32, 1.1f32), (1.6, 0.8), (3.0, 1.5), (1.2, 0.5)]
@@ -120,15 +146,45 @@ impl ConceptModule for OdeWorkshop {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("slope", "Slope Field", "The rule everywhere; click to thread a solution through", 3.4),
-            RenderMode::plane("euler", "Euler vs Runge\u{2013}Kutta", "Same equation, same step: one polygon lies, one holds", 2.4),
-            RenderMode::plane("vdp", "Van der Pol Cycle", "Every start forgets itself; the limit cycle remains", 3.6),
-            RenderMode::plane("lv", "Predator & Prey", "Lotka\u{2013}Volterra: closed orbits around an uneasy truce", 2.6)
-                .look_at(2.2, 1.6, 0.0),
-            RenderMode::plane("resonance", "Resonance", "Drive a damped oscillator; the response curve knows where it hurts", 1.9)
-                .look_at(1.4, 0.9, 0.0),
-            RenderMode::plane("sir", "The SIR Epidemic", "Susceptible, infected, recovered: one nonlinearity writes every plague", 0.72)
-                .look_at(2.0, 0.55, 0.0),
+            RenderMode::plane(
+                "slope",
+                "Slope Field",
+                "The rule everywhere; click to thread a solution through",
+                3.4,
+            ),
+            RenderMode::plane(
+                "euler",
+                "Euler vs Runge\u{2013}Kutta",
+                "Same equation, same step: one polygon lies, one holds",
+                2.4,
+            ),
+            RenderMode::plane(
+                "vdp",
+                "Van der Pol Cycle",
+                "Every start forgets itself; the limit cycle remains",
+                3.6,
+            ),
+            RenderMode::plane(
+                "lv",
+                "Predator & Prey",
+                "Lotka\u{2013}Volterra: closed orbits around an uneasy truce",
+                2.6,
+            )
+            .look_at(2.2, 1.6, 0.0),
+            RenderMode::plane(
+                "resonance",
+                "Resonance",
+                "Drive a damped oscillator; the response curve knows where it hurts",
+                1.9,
+            )
+            .look_at(1.4, 0.9, 0.0),
+            RenderMode::plane(
+                "sir",
+                "The SIR Epidemic",
+                "Susceptible, infected, recovered: one nonlinearity writes every plague",
+                0.72,
+            )
+            .look_at(2.0, 0.55, 0.0),
         ]
     }
 
@@ -190,9 +246,7 @@ impl ConceptModule for OdeWorkshop {
             }
         }
         // Lotka-Volterra (a=1.1, b=0.9, c=0.9, d=0.6).
-        let fl = |_t: f64, y: &[f64; 2]| {
-            [y[0] * (1.1 - 0.9 * y[1]), -y[1] * (0.9 - 0.6 * y[0])]
-        };
+        let fl = |_t: f64, y: &[f64; 2]| [y[0] * (1.1 - 0.9 * y[1]), -y[1] * (0.9 - 0.6 * y[0])];
         for (p, trail) in &mut self.lv {
             let mut y = [p.x as f64, p.y as f64];
             for _ in 0..2 {
@@ -288,9 +342,26 @@ impl ConceptModule for OdeWorkshop {
                     scene.point(Vec3::new(p.x, p.y, 0.02), 4.0, hue, 2.0);
                 }
                 // Equilibrium.
-                scene.point(Vec3::new(1.5, 1.2222, 0.02), 3.4, with_alpha(BONE_O, 0.9), 1.6);
-                scene.line(LineLayer::World, Vec3::new(0.0, 0.0, 0.0), Vec3::new(4.6, 0.0, 0.0), 1.1, [0.5, 0.55, 0.5, 0.4]);
-                scene.line(LineLayer::World, Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 3.4, 0.0), 1.1, [0.5, 0.55, 0.5, 0.4]);
+                scene.point(
+                    Vec3::new(1.5, 1.2222, 0.02),
+                    3.4,
+                    with_alpha(BONE_O, 0.9),
+                    1.6,
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(0.0, 0.0, 0.0),
+                    Vec3::new(4.6, 0.0, 0.0),
+                    1.1,
+                    [0.5, 0.55, 0.5, 0.4],
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(0.0, 0.0, 0.0),
+                    Vec3::new(0.0, 3.4, 0.0),
+                    1.1,
+                    [0.5, 0.55, 0.5, 0.4],
+                );
             }
             5 => {
                 // SIR integrated fresh each frame up to the timeline clock.
@@ -298,7 +369,11 @@ impl ConceptModule for OdeWorkshop {
                 let gamma = 0.55;
                 let beta = r0 * gamma;
                 let f = move |_t: f64, y: &[f64; 3]| {
-                    [-beta * y[0] * y[1], beta * y[0] * y[1] - gamma * y[1], gamma * y[1]]
+                    [
+                        -beta * y[0] * y[1],
+                        beta * y[0] * y[1] - gamma * y[1],
+                        gamma * y[1],
+                    ]
                 };
                 let t_end = (t / 12.0).clamp(0.0, 1.0) * 22.0;
                 let mut y = [0.999, 0.001, 0.0];
@@ -312,13 +387,25 @@ impl ConceptModule for OdeWorkshop {
                     r_c.push(Vec3::new(x, y[2] as f32, 0.0));
                     y = rk4(&f, tt, &y, t_end / n_st as f64);
                 }
-                scene.line(LineLayer::World, Vec3::ZERO, Vec3::new(4.5, 0.0, 0.0), 1.1, [0.5, 0.55, 0.5, 0.4]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::ZERO,
+                    Vec3::new(4.5, 0.0, 0.0),
+                    1.1,
+                    [0.5, 0.55, 0.5, 0.4],
+                );
                 scene.polyline(LineLayer::WorldAdd, &s_c, 1.9, with_alpha(TEAL, 0.85));
                 scene.glow_polyline(&i_c, 2.2, RED_E, 2.6);
                 scene.polyline(LineLayer::WorldAdd, &r_c, 1.9, with_alpha(BONE_O, 0.6));
                 // Herd-immunity threshold on S.
                 let hit = 1.0 / r0;
-                scene.line(LineLayer::Overlay, Vec3::new(0.0, hit as f32, 0.0), Vec3::new(4.5, hit as f32, 0.0), 0.9, with_alpha(APRICOT, 0.4));
+                scene.line(
+                    LineLayer::Overlay,
+                    Vec3::new(0.0, hit as f32, 0.0),
+                    Vec3::new(4.5, hit as f32, 0.0),
+                    0.9,
+                    with_alpha(APRICOT, 0.4),
+                );
             }
             _ => {
                 let zeta = self.params.f("zeta");
@@ -332,7 +419,8 @@ impl ConceptModule for OdeWorkshop {
                     })
                     .collect();
                 scene.glow_polyline(&resp, 2.0, TEAL, 2.6);
-                let h_now = 1.0 / (((1.0 - om_d * om_d).powi(2) + (2.0 * zeta * om_d).powi(2)).sqrt());
+                let h_now =
+                    1.0 / (((1.0 - om_d * om_d).powi(2) + (2.0 * zeta * om_d).powi(2)).sqrt());
                 scene.line(
                     LineLayer::WorldAdd,
                     Vec3::new(om_d as f32, 0.0, 0.0),
@@ -344,10 +432,28 @@ impl ConceptModule for OdeWorkshop {
                 let phase = (om_d * t * 3.0).cos();
                 let x = h_now * phase * 0.5;
                 let bob = Vec3::new(3.4, 0.9 + x as f32, 0.0);
-                scene.line(LineLayer::World, Vec3::new(3.4, 2.1, 0.0), bob, 1.6, with_alpha(BONE_O, 0.7));
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(3.4, 2.1, 0.0),
+                    bob,
+                    1.6,
+                    with_alpha(BONE_O, 0.7),
+                );
                 scene.point(bob, 7.0, APRICOT, 2.4);
-                scene.line(LineLayer::World, Vec3::new(3.1, 2.1, 0.0), Vec3::new(3.7, 2.1, 0.0), 2.2, with_alpha(BONE_O, 0.8));
-                scene.line(LineLayer::World, Vec3::ZERO, Vec3::new(2.9, 0.0, 0.0), 1.1, [0.5, 0.55, 0.5, 0.4]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(3.1, 2.1, 0.0),
+                    Vec3::new(3.7, 2.1, 0.0),
+                    2.2,
+                    with_alpha(BONE_O, 0.8),
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::ZERO,
+                    Vec3::new(2.9, 0.0, 0.0),
+                    1.1,
+                    [0.5, 0.55, 0.5, 0.4],
+                );
             }
         }
     }

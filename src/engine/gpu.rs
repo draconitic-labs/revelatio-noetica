@@ -35,7 +35,10 @@ impl GpuContext {
     }
 
     pub fn from_eframe(rs: &eframe::egui_wgpu::RenderState) -> Self {
-        Self { device: rs.device.clone(), queue: rs.queue.clone() }
+        Self {
+            device: rs.device.clone(),
+            queue: rs.queue.clone(),
+        }
     }
 }
 
@@ -97,7 +100,11 @@ impl ViewTarget {
     pub fn new(gpu: &GpuContext, layout: &wgpu::BindGroupLayout, width: u32, height: u32) -> Self {
         let width = width.max(8);
         let height = height.max(8);
-        let size = wgpu::Extent3d { width, height, depth_or_array_layers: 1 };
+        let size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
         let msaa = gpu.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("view-msaa"),
             size,
@@ -139,7 +146,10 @@ impl ViewTarget {
         let bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("view-uniforms-bg"),
             layout,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() }],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: ubuf.as_entire_binding(),
+            }],
         });
         Self {
             width,
@@ -211,7 +221,11 @@ impl ViewTarget {
                     rows_per_image: Some(self.height),
                 },
             },
-            wgpu::Extent3d { width: self.width, height: self.height, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width: self.width,
+                height: self.height,
+                depth_or_array_layers: 1,
+            },
         );
         gpu.queue.submit([encoder.finish()]);
         let slice = buf.slice(..);

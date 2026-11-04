@@ -40,8 +40,12 @@ pub enum LineLayer {
     /// Always on top, additive light.
     OverlayAdd,
 }
-pub const LINE_LAYERS: [LineLayer; 4] =
-    [LineLayer::World, LineLayer::WorldAdd, LineLayer::Overlay, LineLayer::OverlayAdd];
+pub const LINE_LAYERS: [LineLayer; 4] = [
+    LineLayer::World,
+    LineLayer::WorldAdd,
+    LineLayer::Overlay,
+    LineLayer::OverlayAdd,
+];
 
 /// What a module wants drawn this frame in one view.
 pub struct Scene {
@@ -77,7 +81,14 @@ impl Scene {
         self.params[i / 4][i % 4] = v;
     }
 
-    pub fn line(&mut self, layer: LineLayer, p0: glam::Vec3, p1: glam::Vec3, w: f32, color: [f32; 4]) {
+    pub fn line(
+        &mut self,
+        layer: LineLayer,
+        p0: glam::Vec3,
+        p1: glam::Vec3,
+        w: f32,
+        color: [f32; 4],
+    ) {
         self.lines.entry(layer).or_default().push(LineInst {
             p0: p0.to_array(),
             w0: w,
@@ -117,28 +128,34 @@ impl Scene {
         let hc = [color[0], color[1], color[2], color[3] * 0.25];
         for seg in pts.windows(2) {
             self.line(LineLayer::World, seg[0], seg[1], w, color);
-            self.lines.entry(LineLayer::WorldAdd).or_default().push(LineInst {
-                p0: seg[0].to_array(),
-                w0: w * halo,
-                p1: seg[1].to_array(),
-                w1: w * halo,
-                color: hc,
-                style: [1.0, 0.0, 0.0, 0.0],
-            });
+            self.lines
+                .entry(LineLayer::WorldAdd)
+                .or_default()
+                .push(LineInst {
+                    p0: seg[0].to_array(),
+                    w0: w * halo,
+                    p1: seg[1].to_array(),
+                    w1: w * halo,
+                    color: hc,
+                    style: [1.0, 0.0, 0.0, 0.0],
+                });
         }
     }
 
     /// A directed vector drawn as a tapered comet stroke with a bright tip.
     pub fn vector(&mut self, p: glam::Vec3, v: glam::Vec3, w: f32, color: [f32; 4]) {
         let tip = p + v;
-        self.lines.entry(LineLayer::WorldAdd).or_default().push(LineInst {
-            p0: p.to_array(),
-            w0: w * 0.35,
-            p1: tip.to_array(),
-            w1: w,
-            color,
-            style: [0.35, 0.0, 0.0, 0.0],
-        });
+        self.lines
+            .entry(LineLayer::WorldAdd)
+            .or_default()
+            .push(LineInst {
+                p0: p.to_array(),
+                w0: w * 0.35,
+                p1: tip.to_array(),
+                w1: w,
+                color,
+                style: [0.35, 0.0, 0.0, 0.0],
+            });
         self.points_world.push(PointInst {
             pos: tip.to_array(),
             size: w * 0.9,
@@ -149,11 +166,23 @@ impl Scene {
     }
 
     pub fn point(&mut self, pos: glam::Vec3, size: f32, color: [f32; 4], glow: f32) {
-        self.points_world.push(PointInst { pos: pos.to_array(), size, color, glow, _pad: [0.0; 3] });
+        self.points_world.push(PointInst {
+            pos: pos.to_array(),
+            size,
+            color,
+            glow,
+            _pad: [0.0; 3],
+        });
     }
 
     pub fn point_overlay(&mut self, pos: glam::Vec3, size: f32, color: [f32; 4], glow: f32) {
-        self.points_overlay.push(PointInst { pos: pos.to_array(), size, color, glow, _pad: [0.0; 3] });
+        self.points_overlay.push(PointInst {
+            pos: pos.to_array(),
+            size,
+            color,
+            glow,
+            _pad: [0.0; 3],
+        });
     }
 
     pub fn mesh(&mut self, m: &GpuMesh) {
@@ -195,7 +224,11 @@ fn depth_state(test: bool, write: bool) -> wgpu::DepthStencilState {
     wgpu::DepthStencilState {
         format: DEPTH_FORMAT,
         depth_write_enabled: write,
-        depth_compare: if test { wgpu::CompareFunction::LessEqual } else { wgpu::CompareFunction::Always },
+        depth_compare: if test {
+            wgpu::CompareFunction::LessEqual
+        } else {
+            wgpu::CompareFunction::Always
+        },
         stencil: Default::default(),
         bias: Default::default(),
     }
@@ -211,38 +244,39 @@ fn make_pipeline(
     blend: wgpu::BlendState,
     depth: wgpu::DepthStencilState,
 ) -> wgpu::RenderPipeline {
-    gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some(label),
-        layout: Some(layout),
-        vertex: wgpu::VertexState {
-            module,
-            entry_point: Some("vs_main"),
-            compilation_options: Default::default(),
-            buffers,
-        },
-        fragment: Some(wgpu::FragmentState {
-            module,
-            entry_point: Some("fs_main"),
-            compilation_options: Default::default(),
-            targets: &[Some(wgpu::ColorTargetState {
-                format: FORMAT,
-                blend: Some(blend),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-        primitive: wgpu::PrimitiveState {
-            topology,
-            cull_mode: None,
-            ..Default::default()
-        },
-        depth_stencil: Some(depth),
-        multisample: wgpu::MultisampleState {
-            count: SAMPLES,
-            ..Default::default()
-        },
-        multiview: None,
-        cache: None,
-    })
+    gpu.device
+        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some(label),
+            layout: Some(layout),
+            vertex: wgpu::VertexState {
+                module,
+                entry_point: Some("vs_main"),
+                compilation_options: Default::default(),
+                buffers,
+            },
+            fragment: Some(wgpu::FragmentState {
+                module,
+                entry_point: Some("fs_main"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: FORMAT,
+                    blend: Some(blend),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology,
+                cull_mode: None,
+                ..Default::default()
+            },
+            depth_stencil: Some(depth),
+            multisample: wgpu::MultisampleState {
+                count: SAMPLES,
+                ..Default::default()
+            },
+            multiview: None,
+            cache: None,
+        })
 }
 
 /// A dynamically grown instance buffer.
@@ -253,7 +287,10 @@ struct InstBuf {
 
 impl InstBuf {
     fn new(gpu: &GpuContext, cap: u64) -> Self {
-        Self { buf: Self::alloc(gpu, cap), cap }
+        Self {
+            buf: Self::alloc(gpu, cap),
+            cap,
+        }
     }
     fn alloc(gpu: &GpuContext, cap: u64) -> wgpu::Buffer {
         gpu.device.create_buffer(&wgpu::BufferDescriptor {
@@ -298,46 +335,70 @@ impl Renderers {
     pub fn new(gpu: &GpuContext) -> Self {
         let view_bgl = super::gpu::view_bind_group_layout(&gpu.device);
 
-        let mesh_bgl = gpu.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("mesh-model-bgl"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
+        let mesh_bgl = gpu
+            .device
+            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("mesh-model-bgl"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
 
-        let line_src = format!("{}\n{}", COMMON_WGSL, include_str!("../../shaders/line.wgsl"));
-        let point_src = format!("{}\n{}", COMMON_WGSL, include_str!("../../shaders/point.wgsl"));
-        let mesh_src = format!("{}\n{}", COMMON_WGSL, include_str!("../../shaders/mesh.wgsl"));
-        let line_mod = gpu.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("line"),
-            source: wgpu::ShaderSource::Wgsl(line_src.into()),
-        });
-        let point_mod = gpu.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("point"),
-            source: wgpu::ShaderSource::Wgsl(point_src.into()),
-        });
-        let mesh_mod = gpu.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("mesh"),
-            source: wgpu::ShaderSource::Wgsl(mesh_src.into()),
-        });
+        let line_src = format!(
+            "{}\n{}",
+            COMMON_WGSL,
+            include_str!("../../shaders/line.wgsl")
+        );
+        let point_src = format!(
+            "{}\n{}",
+            COMMON_WGSL,
+            include_str!("../../shaders/point.wgsl")
+        );
+        let mesh_src = format!(
+            "{}\n{}",
+            COMMON_WGSL,
+            include_str!("../../shaders/mesh.wgsl")
+        );
+        let line_mod = gpu
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("line"),
+                source: wgpu::ShaderSource::Wgsl(line_src.into()),
+            });
+        let point_mod = gpu
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("point"),
+                source: wgpu::ShaderSource::Wgsl(point_src.into()),
+            });
+        let mesh_mod = gpu
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("mesh"),
+                source: wgpu::ShaderSource::Wgsl(mesh_src.into()),
+            });
 
-        let view_layout = gpu.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("view-only"),
-            bind_group_layouts: &[&view_bgl],
-            push_constant_ranges: &[],
-        });
-        let mesh_layout = gpu.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("view+model"),
-            bind_group_layouts: &[&view_bgl, &mesh_bgl],
-            push_constant_ranges: &[],
-        });
+        let view_layout = gpu
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("view-only"),
+                bind_group_layouts: &[&view_bgl],
+                push_constant_ranges: &[],
+            });
+        let mesh_layout = gpu
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("view+model"),
+                bind_group_layouts: &[&view_bgl, &mesh_bgl],
+                push_constant_ranges: &[],
+            });
 
         let line_attrs = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32, 2 => Float32x3, 3 => Float32, 4 => Float32x4, 5 => Float32x4];
         let line_vbl = wgpu::VertexBufferLayout {
@@ -345,7 +406,8 @@ impl Renderers {
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &line_attrs,
         };
-        let point_attrs = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32, 2 => Float32x4, 3 => Float32];
+        let point_attrs =
+            wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32, 2 => Float32x4, 3 => Float32];
         let point_vbl = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<PointInst>() as u64,
             step_mode: wgpu::VertexStepMode::Instance,
@@ -362,27 +424,99 @@ impl Renderers {
         let mut line_pipes = HashMap::new();
         line_pipes.insert(
             LineLayer::World,
-            make_pipeline(gpu, "line-world", &view_layout, &line_mod, &[line_vbl.clone()], strip, premul_over(), depth_state(true, false)),
+            make_pipeline(
+                gpu,
+                "line-world",
+                &view_layout,
+                &line_mod,
+                &[line_vbl.clone()],
+                strip,
+                premul_over(),
+                depth_state(true, false),
+            ),
         );
         line_pipes.insert(
             LineLayer::WorldAdd,
-            make_pipeline(gpu, "line-world-add", &view_layout, &line_mod, &[line_vbl.clone()], strip, additive(), depth_state(true, false)),
+            make_pipeline(
+                gpu,
+                "line-world-add",
+                &view_layout,
+                &line_mod,
+                &[line_vbl.clone()],
+                strip,
+                additive(),
+                depth_state(true, false),
+            ),
         );
         line_pipes.insert(
             LineLayer::Overlay,
-            make_pipeline(gpu, "line-ov", &view_layout, &line_mod, &[line_vbl.clone()], strip, premul_over(), depth_state(false, false)),
+            make_pipeline(
+                gpu,
+                "line-ov",
+                &view_layout,
+                &line_mod,
+                &[line_vbl.clone()],
+                strip,
+                premul_over(),
+                depth_state(false, false),
+            ),
         );
         line_pipes.insert(
             LineLayer::OverlayAdd,
-            make_pipeline(gpu, "line-ov-add", &view_layout, &line_mod, &[line_vbl.clone()], strip, additive(), depth_state(false, false)),
+            make_pipeline(
+                gpu,
+                "line-ov-add",
+                &view_layout,
+                &line_mod,
+                &[line_vbl.clone()],
+                strip,
+                additive(),
+                depth_state(false, false),
+            ),
         );
 
-        let point_world = make_pipeline(gpu, "pt-world", &view_layout, &point_mod, &[point_vbl.clone()], strip, additive(), depth_state(true, false));
-        let point_overlay = make_pipeline(gpu, "pt-ov", &view_layout, &point_mod, &[point_vbl.clone()], strip, additive(), depth_state(false, false));
+        let point_world = make_pipeline(
+            gpu,
+            "pt-world",
+            &view_layout,
+            &point_mod,
+            &[point_vbl.clone()],
+            strip,
+            additive(),
+            depth_state(true, false),
+        );
+        let point_overlay = make_pipeline(
+            gpu,
+            "pt-ov",
+            &view_layout,
+            &point_mod,
+            &[point_vbl.clone()],
+            strip,
+            additive(),
+            depth_state(false, false),
+        );
 
         let tri = wgpu::PrimitiveTopology::TriangleList;
-        let mesh_pipe = make_pipeline(gpu, "mesh", &mesh_layout, &mesh_mod, &[mesh_vbl.clone()], tri, premul_over(), depth_state(true, true));
-        let mesh_pipe_transparent = make_pipeline(gpu, "mesh-t", &mesh_layout, &mesh_mod, &[mesh_vbl], tri, premul_over(), depth_state(true, false));
+        let mesh_pipe = make_pipeline(
+            gpu,
+            "mesh",
+            &mesh_layout,
+            &mesh_mod,
+            &[mesh_vbl.clone()],
+            tri,
+            premul_over(),
+            depth_state(true, true),
+        );
+        let mesh_pipe_transparent = make_pipeline(
+            gpu,
+            "mesh-t",
+            &mesh_layout,
+            &mesh_mod,
+            &[mesh_vbl],
+            tri,
+            premul_over(),
+            depth_state(true, false),
+        );
 
         let sampler = gpu.device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("field-sampler"),
@@ -450,73 +584,82 @@ fn fs_main(in: FsOut) -> @location(0) vec4<f32> {{
             tex = tex_decl,
             frag = frag_src
         );
-        let module = gpu.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some(key),
-            source: wgpu::ShaderSource::Wgsl(src.into()),
-        });
+        let module = gpu
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(key),
+                source: wgpu::ShaderSource::Wgsl(src.into()),
+            });
         let tex_bgl = with_texture.then(|| {
-            gpu.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("field-tex-bgl"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            multisampled: false,
+            gpu.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: Some("field-tex-bgl"),
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                multisampled: false,
+                            },
+                            count: None,
                         },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-            })
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                            count: None,
+                        },
+                    ],
+                })
         });
         let layout = {
             let mut bgls: Vec<&wgpu::BindGroupLayout> = vec![&self.view_bgl];
             if let Some(ref b) = tex_bgl {
                 bgls.push(b);
             }
-            gpu.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some(key),
-                bind_group_layouts: &bgls,
-                push_constant_ranges: &[],
-            })
+            gpu.device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some(key),
+                    bind_group_layouts: &bgls,
+                    push_constant_ranges: &[],
+                })
         };
-        let pipeline = gpu.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some(key),
-            layout: Some(&layout),
-            vertex: wgpu::VertexState {
-                module: &module,
-                entry_point: Some("vs_main"),
-                compilation_options: Default::default(),
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &module,
-                entry_point: Some("fs_main"),
-                compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: FORMAT,
-                    blend: Some(premul_over()),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                cull_mode: None,
-                ..Default::default()
-            },
-            depth_stencil: Some(depth_state(false, false)),
-            multisample: wgpu::MultisampleState { count: SAMPLES, ..Default::default() },
-            multiview: None,
-            cache: None,
-        });
+        let pipeline = gpu
+            .device
+            .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(key),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &module,
+                    entry_point: Some("vs_main"),
+                    compilation_options: Default::default(),
+                    buffers: &[],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &module,
+                    entry_point: Some("fs_main"),
+                    compilation_options: Default::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: FORMAT,
+                        blend: Some(premul_over()),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    cull_mode: None,
+                    ..Default::default()
+                },
+                depth_stencil: Some(depth_state(false, false)),
+                multisample: wgpu::MultisampleState {
+                    count: SAMPLES,
+                    ..Default::default()
+                },
+                multiview: None,
+                cache: None,
+            });
         self.fs.insert(key, FsShader { pipeline, tex_bgl });
     }
 
@@ -548,14 +691,23 @@ fn fs_main(in: FsOut) -> @location(0) vec4<f32> {{
         let field_bg = scene.field.and_then(|key| {
             let sh = self.fs.get(key)?;
             match (&sh.tex_bgl, &scene.field_tex) {
-                (Some(bgl), Some(view)) => Some((key, Some(gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("field-tex-bg"),
-                    layout: bgl,
-                    entries: &[
-                        wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(view) },
-                        wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.sampler) },
-                    ],
-                })))),
+                (Some(bgl), Some(view)) => Some((
+                    key,
+                    Some(gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some("field-tex-bg"),
+                        layout: bgl,
+                        entries: &[
+                            wgpu::BindGroupEntry {
+                                binding: 0,
+                                resource: wgpu::BindingResource::TextureView(view),
+                            },
+                            wgpu::BindGroupEntry {
+                                binding: 1,
+                                resource: wgpu::BindingResource::Sampler(&self.sampler),
+                            },
+                        ],
+                    })),
+                )),
                 (None, _) => Some((key, None)),
                 _ => None,
             }
@@ -586,7 +738,11 @@ fn fs_main(in: FsOut) -> @location(0) vec4<f32> {{
 
             for m in &scene.meshes {
                 let transparent = m.alpha() < 0.999;
-                pass.set_pipeline(if transparent { &self.mesh_pipe_transparent } else { &self.mesh_pipe });
+                pass.set_pipeline(if transparent {
+                    &self.mesh_pipe_transparent
+                } else {
+                    &self.mesh_pipe
+                });
                 pass.set_bind_group(1, &m.bind_group, &[]);
                 pass.set_vertex_buffer(0, m.vbuf.slice(..));
                 pass.set_index_buffer(m.ibuf.slice(..), wgpu::IndexFormat::Uint32);

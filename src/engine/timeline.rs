@@ -18,7 +18,14 @@ pub struct Timeline {
 
 impl Timeline {
     pub fn new() -> Self {
-        Self { t: 0.0, playing: true, speed: 1.0, span: 12.0, loop_mode: LoopMode::Loop, direction: 1.0 }
+        Self {
+            t: 0.0,
+            playing: true,
+            speed: 1.0,
+            span: 12.0,
+            loop_mode: LoopMode::Loop,
+            direction: 1.0,
+        }
     }
 
     pub fn reset(&mut self) {

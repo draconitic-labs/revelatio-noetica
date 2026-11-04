@@ -56,9 +56,23 @@ impl FormsOratory {
     pub fn new() -> Self {
         let mut p = Params::new();
         p.int("cells", "Cell subdivision", "Physics", 2, 12, 6);
-        p.slider("cancel", "Interior cancellation", "Observer", 0.0, 1.0, 0.6, "");
+        p.slider(
+            "cancel",
+            "Interior cancellation",
+            "Observer",
+            0.0,
+            1.0,
+            0.6,
+            "",
+        );
         p.toggle("autocancel", "Animate cancellation", "Observer", true);
-        Self { params: p, cap: None, flux_val: 0.0, circ_val: 0.0, work_path: Vec::new() }
+        Self {
+            params: p,
+            cap: None,
+            flux_val: 0.0,
+            circ_val: 0.0,
+            work_path: Vec::new(),
+        }
     }
 
     fn compute_stokes(&mut self) {
@@ -122,10 +136,27 @@ impl ConceptModule for FormsOratory {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::orbit("stokes", "Surface & Boundary", "curl F \u{00B7} dS on the cap balances F \u{00B7} dl around the rim", 4.6, 0.5, 0.8)
-                .look_at(0.0, 0.5, 0.0),
-            RenderMode::plane("cancel", "Telescoping Cells", "Green's theorem: interior edges cancel in pairs; the rim remains", 1.7),
-            RenderMode::plane("oneform", "1-Form as Level Stack", "\u{03C9} = dH counts contour crossings along any path", 1.9),
+            RenderMode::orbit(
+                "stokes",
+                "Surface & Boundary",
+                "curl F \u{00B7} dS on the cap balances F \u{00B7} dl around the rim",
+                4.6,
+                0.5,
+                0.8,
+            )
+            .look_at(0.0, 0.5, 0.0),
+            RenderMode::plane(
+                "cancel",
+                "Telescoping Cells",
+                "Green's theorem: interior edges cancel in pairs; the rim remains",
+                1.7,
+            ),
+            RenderMode::plane(
+                "oneform",
+                "1-Form as Level Stack",
+                "\u{03C9} = dH counts contour crossings along any path",
+                1.9,
+            ),
         ]
     }
 
@@ -186,18 +217,34 @@ impl ConceptModule for FormsOratory {
                         let p = cap_pt(u, v);
                         let nrm = cap_normal(u, v);
                         let k = curl3(p).dot(nrm);
-                        scene.vector(p, nrm * k * 0.22, 2.6, if k >= 0.0 { with_alpha(COPPER, 0.9) } else { with_alpha([0.3, 0.5, 0.95, 1.0], 0.9) });
+                        scene.vector(
+                            p,
+                            nrm * k * 0.22,
+                            2.6,
+                            if k >= 0.0 {
+                                with_alpha(COPPER, 0.9)
+                            } else {
+                                with_alpha([0.3, 0.5, 0.95, 1.0], 0.9)
+                            },
+                        );
                     }
                 }
                 // The rim, with circulation runners.
-                let rim: Vec<Vec3> = (0..=200).map(|i| rim_point(i as f32 / 200.0 * std::f32::consts::TAU)).collect();
+                let rim: Vec<Vec3> = (0..=200)
+                    .map(|i| rim_point(i as f32 / 200.0 * std::f32::consts::TAU))
+                    .collect();
                 scene.glow_polyline(&rim, 2.4, VERDIGRIS, 3.0);
                 for k in 0..14 {
                     let a = (k as f32 / 14.0 + (t * 0.05) as f32) % 1.0 * std::f32::consts::TAU;
                     let p = rim_point(a);
                     let tan = (rim_point(a + 0.02) - p).normalize_or_zero();
                     let speed = field3(p).dot(tan);
-                    scene.point(p + Vec3::Y * 0.01, 3.0 + speed.abs() * 2.0, with_alpha(PALE, 0.9), 1.8);
+                    scene.point(
+                        p + Vec3::Y * 0.01,
+                        3.0 + speed.abs() * 2.0,
+                        with_alpha(PALE, 0.9),
+                        1.8,
+                    );
                     scene.vector(p, tan * speed * 0.30, 2.4, with_alpha(VERDIGRIS, 0.9));
                 }
             }
@@ -219,13 +266,33 @@ impl ConceptModule for FormsOratory {
                         // Each cell: rotating circulation loop; interior edges fade
                         // with `cancel`, boundary edges stay.
                         let corners = [
-                            (Vec3::new(x0, y0, 0.0), Vec3::new(x0 + cell, y0, 0.0), j == 0),
-                            (Vec3::new(x0 + cell, y0, 0.0), Vec3::new(x0 + cell, y0 + cell, 0.0), i == n - 1),
-                            (Vec3::new(x0 + cell, y0 + cell, 0.0), Vec3::new(x0, y0 + cell, 0.0), j == n - 1),
-                            (Vec3::new(x0, y0 + cell, 0.0), Vec3::new(x0, y0, 0.0), i == 0),
+                            (
+                                Vec3::new(x0, y0, 0.0),
+                                Vec3::new(x0 + cell, y0, 0.0),
+                                j == 0,
+                            ),
+                            (
+                                Vec3::new(x0 + cell, y0, 0.0),
+                                Vec3::new(x0 + cell, y0 + cell, 0.0),
+                                i == n - 1,
+                            ),
+                            (
+                                Vec3::new(x0 + cell, y0 + cell, 0.0),
+                                Vec3::new(x0, y0 + cell, 0.0),
+                                j == n - 1,
+                            ),
+                            (
+                                Vec3::new(x0, y0 + cell, 0.0),
+                                Vec3::new(x0, y0, 0.0),
+                                i == 0,
+                            ),
                         ];
                         for (a, b, on_rim) in corners {
-                            let alpha = if on_rim { 0.95 } else { (1.0 - cancel) * 0.55 + 0.03 };
+                            let alpha = if on_rim {
+                                0.95
+                            } else {
+                                (1.0 - cancel) * 0.55 + 0.03
+                            };
                             let col = if on_rim { COPPER } else { VERDIGRIS };
                             let mid = (a + b) * 0.5;
                             let dir = (b - a) * 0.5 * 0.72;
@@ -249,8 +316,14 @@ impl ConceptModule for FormsOratory {
                 }
                 // The path and its running integral: crossings light up.
                 let s_end = ((t / 12.0).clamp(0.0, 1.0) * self.work_path.len() as f64) as usize;
-                let done: Vec<Vec3> = self.work_path[..s_end.max(2)].iter().map(|p| Vec3::new(p.x, p.y, 0.05)).collect();
-                let rest: Vec<Vec3> = self.work_path[s_end.saturating_sub(1)..].iter().map(|p| Vec3::new(p.x, p.y, 0.05)).collect();
+                let done: Vec<Vec3> = self.work_path[..s_end.max(2)]
+                    .iter()
+                    .map(|p| Vec3::new(p.x, p.y, 0.05))
+                    .collect();
+                let rest: Vec<Vec3> = self.work_path[s_end.saturating_sub(1)..]
+                    .iter()
+                    .map(|p| Vec3::new(p.x, p.y, 0.05))
+                    .collect();
                 scene.glow_polyline(&done, 2.4, COPPER, 2.8);
                 scene.polyline(LineLayer::World, &rest, 1.0, with_alpha(COPPER, 0.18));
                 if let Some(p) = self.work_path.get(s_end.max(2) - 1) {
@@ -271,13 +344,23 @@ impl ConceptModule for FormsOratory {
         ];
         if self.params.b("autocancel") {
             let ph = (t / 12.0) * std::f64::consts::TAU;
-            out.insert(4, value(format!("interior cancellation: {:.0}%", (0.5 - 0.5 * ph.cos()) * 100.0)));
+            out.insert(
+                4,
+                value(format!(
+                    "interior cancellation: {:.0}%",
+                    (0.5 - 0.5 * ph.cos()) * 100.0
+                )),
+            );
         }
         // 1-form running integral.
         let s_end = ((t / 12.0).clamp(0.0, 1.0) * self.work_path.len() as f64) as usize;
-        if let (Some(p0), Some(p1)) = (self.work_path.first(), self.work_path.get(s_end.max(1) - 1)) {
+        if let (Some(p0), Some(p1)) = (self.work_path.first(), self.work_path.get(s_end.max(1) - 1))
+        {
             let h = |p: &Vec2| p.y + 0.35 * (2.0 * p.x).sin();
-            out.push(value(format!("\u{222B}\u{03B3} dH = H(end)\u{2212}H(start) = {:+.3}", h(p1) - h(p0))));
+            out.push(value(format!(
+                "\u{222B}\u{03B3} dH = H(end)\u{2212}H(start) = {:+.3}",
+                h(p1) - h(p0)
+            )));
         }
         out
     }

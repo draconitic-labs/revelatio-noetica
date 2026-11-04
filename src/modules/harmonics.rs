@@ -62,9 +62,21 @@ impl SphericalChoir {
         let mut p = Params::new();
         p.int("l", "Degree \u{2113}", "Symbolic", 0, 4, 3);
         p.int("m", "Order m", "Symbolic", 0, 4, 2);
-        p.slider("amp", "Deformation amplitude", "Display", 0.0, 0.7, 0.35, "");
+        p.slider(
+            "amp",
+            "Deformation amplitude",
+            "Display",
+            0.0,
+            0.7,
+            0.35,
+            "",
+        );
         p.slider("omega", "Mode frequency", "Physics", 0.4, 4.0, 1.6, "");
-        Self { params: p, sphere: None, last_key: (-1, -1) }
+        Self {
+            params: p,
+            sphere: None,
+            last_key: (-1, -1),
+        }
     }
 
     fn lm(&self) -> (u32, u32) {
@@ -147,7 +159,14 @@ impl ConceptModule for SphericalChoir {
         }
     }
 
-    fn render(&mut self, _gpu: &GpuContext, mode: usize, _t: f64, _cam: &Camera, scene: &mut Scene) {
+    fn render(
+        &mut self,
+        _gpu: &GpuContext,
+        mode: usize,
+        _t: f64,
+        _cam: &Camera,
+        scene: &mut Scene,
+    ) {
         scene.clear = [0.006, 0.008, 0.011, 1.0];
         if let Some(m) = &self.sphere {
             scene.mesh(m);
@@ -177,11 +196,17 @@ impl ConceptModule for SphericalChoir {
                         )
                     })
                     .collect();
-                scene.polyline(LineLayer::World, &ring, 1.8, with_alpha([0.95, 0.85, 0.5, 1.0], 0.8));
+                scene.polyline(
+                    LineLayer::World,
+                    &ring,
+                    1.8,
+                    with_alpha([0.95, 0.85, 0.5, 1.0], 0.8),
+                );
             }
             // Nodal meridians: cos(m phi) = 0.
             for j in 0..(2 * m_ord).max(0) {
-                let phi = (std::f64::consts::PI / 2.0 + j as f64 * std::f64::consts::PI) / m_ord.max(1) as f64;
+                let phi = (std::f64::consts::PI / 2.0 + j as f64 * std::f64::consts::PI)
+                    / m_ord.max(1) as f64;
                 let mer: Vec<Vec3> = (0..=96)
                     .map(|i| {
                         let th = i as f64 / 96.0 * std::f64::consts::PI;
@@ -192,7 +217,12 @@ impl ConceptModule for SphericalChoir {
                         )
                     })
                     .collect();
-                scene.polyline(LineLayer::World, &mer, 1.8, with_alpha([0.95, 0.85, 0.5, 1.0], 0.8));
+                scene.polyline(
+                    LineLayer::World,
+                    &mer,
+                    1.8,
+                    with_alpha([0.95, 0.85, 0.5, 1.0], 0.8),
+                );
             }
         }
     }

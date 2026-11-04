@@ -89,7 +89,15 @@ pub struct EnsembleGallery {
 impl EnsembleGallery {
     pub fn new() -> Self {
         let mut p = Params::new();
-        p.slider("temp", "Ising temperature T", "Physics", 1.0, 4.5, 2.27, "J/k_B");
+        p.slider(
+            "temp",
+            "Ising temperature T",
+            "Physics",
+            1.0,
+            4.5,
+            2.27,
+            "J/k_B",
+        );
         p.slider("sweeps", "Sweeps per frame", "Physics", 1.0, 12.0, 5.0, "");
         p.slider("dstep", "Walker step", "Physics", 0.004, 0.030, 0.012, "");
         p.slider("pfill", "Percolation p", "Physics", 0.35, 0.75, 0.5927, "");
@@ -139,7 +147,15 @@ impl EnsembleGallery {
             }
         }
         self.perc = (0..NI * NI)
-            .map(|i| if mark[i] { 1.0 } else if occ[i] { 0.35 } else { 0.0 })
+            .map(|i| {
+                if mark[i] {
+                    1.0
+                } else if occ[i] {
+                    0.35
+                } else {
+                    0.0
+                }
+            })
             .collect();
     }
 
@@ -170,17 +186,25 @@ impl EnsembleGallery {
     }
 
     fn rand(&mut self) -> f64 {
-        self.rng = self.rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.rng = self
+            .rng
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         (self.rng >> 11) as f64 / (1u64 << 53) as f64
     }
 
     fn reset_all(&mut self) {
-        self.spins = (0..NI * NI).map(|_| if self.rand() < 0.5 { 1i8 } else { -1 }).collect();
+        self.spins = (0..NI * NI)
+            .map(|_| if self.rand() < 0.5 { 1i8 } else { -1 })
+            .collect();
         // Gas: all particles share one speed; direction random. M-B emerges.
         self.gas_p.clear();
         self.gas_v.clear();
         for _ in 0..N_GAS {
-            let p = Vec2::new(self.rand() as f32 * 5.6 - 2.8, self.rand() as f32 * 5.6 - 2.8);
+            let p = Vec2::new(
+                self.rand() as f32 * 5.6 - 2.8,
+                self.rand() as f32 * 5.6 - 2.8,
+            );
             let a = self.rand() as f32 * std::f32::consts::TAU;
             self.gas_p.push(p);
             self.gas_v.push(Vec2::new(a.cos(), a.sin()) * 1.35);
@@ -229,7 +253,11 @@ impl EnsembleGallery {
                 bytes_per_row: Some((NI * 4) as u32),
                 rows_per_image: Some(NI as u32),
             },
-            wgpu::Extent3d { width: NI as u32, height: NI as u32, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width: NI as u32,
+                height: NI as u32,
+                depth_or_array_layers: 1,
+            },
         );
     }
 
@@ -262,7 +290,8 @@ impl EnsembleGallery {
         // Spatial grid.
         let cell = 4.0 * r;
         let dim = ((2.0 * box_h) / cell).ceil() as i32;
-        let mut grid: std::collections::HashMap<(i32, i32), Vec<usize>> = std::collections::HashMap::new();
+        let mut grid: std::collections::HashMap<(i32, i32), Vec<usize>> =
+            std::collections::HashMap::new();
         for i in 0..N_GAS {
             let c = (
                 ((self.gas_p[i].x + box_h) / cell) as i32,
@@ -277,7 +306,9 @@ impl EnsembleGallery {
                 if key.0 < 0 || key.1 < 0 || key.0 > dim || key.1 > dim {
                     continue;
                 }
-                let Some(other) = grid.get(&key) else { continue };
+                let Some(other) = grid.get(&key) else {
+                    continue;
+                };
                 for (ai, &a) in items.iter().enumerate() {
                     let start = if key == (cx, cy) { ai + 1 } else { 0 };
                     for &b in &other[start..] {
@@ -319,12 +350,37 @@ impl ConceptModule for EnsembleGallery {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("ising", "Ising Lattice", "128\u{00B2} spins under Metropolis; criticality at T \u{2248} 2.269", 3.4),
-            RenderMode::plane("gas", "Gas in a Box", "900 elastic discs; one speed becomes Maxwell\u{2013}Boltzmann", 3.6)
-                .look_at(0.0, -0.3, 0.0),
-            RenderMode::plane("walk", "The Drunkard's Cloud", "7,000 random walks; \u{221A}t written in light", 3.2),
-            RenderMode::plane("perc", "Percolation Threshold", "At p \u{2248} 0.5927 a path suddenly spans the world (teal cluster)", 3.4),
-            RenderMode::plane("life", "Conway's Colony", "Three rules, no physics \u{2014} and still: gliders, pulsars, memory", 3.4),
+            RenderMode::plane(
+                "ising",
+                "Ising Lattice",
+                "128\u{00B2} spins under Metropolis; criticality at T \u{2248} 2.269",
+                3.4,
+            ),
+            RenderMode::plane(
+                "gas",
+                "Gas in a Box",
+                "900 elastic discs; one speed becomes Maxwell\u{2013}Boltzmann",
+                3.6,
+            )
+            .look_at(0.0, -0.3, 0.0),
+            RenderMode::plane(
+                "walk",
+                "The Drunkard's Cloud",
+                "7,000 random walks; \u{221A}t written in light",
+                3.2,
+            ),
+            RenderMode::plane(
+                "perc",
+                "Percolation Threshold",
+                "At p \u{2248} 0.5927 a path suddenly spans the world (teal cluster)",
+                3.4,
+            ),
+            RenderMode::plane(
+                "life",
+                "Conway's Colony",
+                "Three rules, no physics \u{2014} and still: gliders, pulsars, memory",
+                3.4,
+            ),
         ]
     }
 
@@ -369,7 +425,11 @@ impl ConceptModule for EnsembleGallery {
         rend.register_field(gpu, "sm.levels", LEVELS_SHADE, true);
         let tex = gpu.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("ising-spins"),
-            size: wgpu::Extent3d { width: NI as u32, height: NI as u32, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: NI as u32,
+                height: NI as u32,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -418,7 +478,14 @@ impl ConceptModule for EnsembleGallery {
         }
     }
 
-    fn render(&mut self, _gpu: &GpuContext, mode: usize, _t: f64, _cam: &Camera, scene: &mut Scene) {
+    fn render(
+        &mut self,
+        _gpu: &GpuContext,
+        mode: usize,
+        _t: f64,
+        _cam: &Camera,
+        scene: &mut Scene,
+    ) {
         match mode {
             0 => {
                 scene.field = Some("sm.ising");
@@ -445,7 +512,11 @@ impl ConceptModule for EnsembleGallery {
                             bytes_per_row: Some((NI * 4) as u32),
                             rows_per_image: Some(NI as u32),
                         },
-                        wgpu::Extent3d { width: NI as u32, height: NI as u32, depth_or_array_layers: 1 },
+                        wgpu::Extent3d {
+                            width: NI as u32,
+                            height: NI as u32,
+                            depth_or_array_layers: 1,
+                        },
                     );
                 }
                 scene.field = Some("sm.levels");
@@ -471,7 +542,11 @@ impl ConceptModule for EnsembleGallery {
                             bytes_per_row: Some((NI * 4) as u32),
                             rows_per_image: Some(NI as u32),
                         },
-                        wgpu::Extent3d { width: NI as u32, height: NI as u32, depth_or_array_layers: 1 },
+                        wgpu::Extent3d {
+                            width: NI as u32,
+                            height: NI as u32,
+                            depth_or_array_layers: 1,
+                        },
                     );
                 }
                 scene.field = Some("sm.levels");
@@ -498,7 +573,12 @@ impl ConceptModule for EnsembleGallery {
                         0.95 - 0.70 * heat,
                         0.9,
                     ];
-                    scene.point(Vec3::new(self.gas_p[i].x, self.gas_p[i].y, 0.0), 2.0, c, 0.8);
+                    scene.point(
+                        Vec3::new(self.gas_p[i].x, self.gas_p[i].y, 0.0),
+                        2.0,
+                        c,
+                        0.8,
+                    );
                 }
                 // Speed histogram below the box + Maxwell-Boltzmann overlay.
                 let bins = 44;
@@ -521,7 +601,13 @@ impl ConceptModule for EnsembleGallery {
                     }
                     let x = -b + (bi as f32 + 0.5) / bins as f32 * 2.0 * b;
                     let hgt = hv as f32 / max_h * 1.0;
-                    scene.line(LineLayer::World, Vec3::new(x, y0, 0.0), Vec3::new(x, y0 + hgt, 0.0), 5.0, with_alpha(HEAT, 0.55));
+                    scene.line(
+                        LineLayer::World,
+                        Vec3::new(x, y0, 0.0),
+                        Vec3::new(x, y0 + hgt, 0.0),
+                        5.0,
+                        with_alpha(HEAT, 0.55),
+                    );
                 }
                 // 2D M-B: f(v) ~ v exp(-v^2/(2 sigma^2)), sigma^2 = <v^2>/2.
                 let sig2 = (mean_v2 / 2.0) as f32;
@@ -563,8 +649,12 @@ impl ConceptModule for EnsembleGallery {
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
         let temp = self.params.f("temp");
         let mag: f64 = self.spins.iter().map(|&s| s as f64).sum::<f64>() / (NI * NI) as f64;
-        let mean_v2: f64 =
-            self.gas_v.iter().map(|v| (v.length() * v.length()) as f64).sum::<f64>() / N_GAS as f64;
+        let mean_v2: f64 = self
+            .gas_v
+            .iter()
+            .map(|v| (v.length() * v.length()) as f64)
+            .sum::<f64>()
+            / N_GAS as f64;
         vec![
             title("Boltzmann's gamble"),
             ftex("statmech.ising", "E = \u{2212}J \u{03A3} s\u{1D62}s\u{2C7C},   P \u{221D} e^{\u{2212}E/k_BT}"),

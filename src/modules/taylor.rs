@@ -15,7 +15,12 @@ const SKY: [f32; 4] = [0.45, 0.75, 1.0, 1.0];
 const FLAME: [f32; 4] = [1.0, 0.62, 0.30, 1.0];
 const GHOST_T: [f32; 4] = [0.62, 0.66, 0.75, 0.40];
 
-const FN_NAMES: [&str; 4] = ["sin x", "e^x \u{00B7} \u{00BD}", "ln(1+x)", "1/(1+x\u{00B2})"];
+const FN_NAMES: [&str; 4] = [
+    "sin x",
+    "e^x \u{00B7} \u{00BD}",
+    "ln(1+x)",
+    "1/(1+x\u{00B2})",
+];
 
 fn f_true(k: usize, x: f64) -> f64 {
     match k {
@@ -128,8 +133,22 @@ impl ApproximationAtelier {
         p.choice("fn", "Function", "Symbolic", FN_NAMES.to_vec(), 0);
         p.int("deg", "Degree N", "Physics", 0, 24, 7);
         p.toggle("grow", "Grow N with time", "Observer", true);
-        p.slider("zoomx", "Microscope center x", "Observer", -1.5, 1.5, 0.6, "");
-        p.choice("fractal", "Chaos-game target", "Symbolic", vec!["Sierpi\u{0144}ski", "Barnsley fern"], 0);
+        p.slider(
+            "zoomx",
+            "Microscope center x",
+            "Observer",
+            -1.5,
+            1.5,
+            0.6,
+            "",
+        );
+        p.choice(
+            "fractal",
+            "Chaos-game target",
+            "Symbolic",
+            vec!["Sierpi\u{0144}ski", "Barnsley fern"],
+            0,
+        );
         Self {
             params: p,
             chaos_pts: Vec::new(),
@@ -141,7 +160,10 @@ impl ApproximationAtelier {
     }
 
     fn rand(&mut self) -> f64 {
-        self.rng = self.rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.rng = self
+            .rng
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         (self.rng >> 11) as f64 / (1u64 << 53) as f64
     }
 
@@ -214,7 +236,11 @@ impl ConceptModule for ApproximationAtelier {
             }
             let p = self.chaos_p;
             self.chaos_p = if kind == 0 {
-                let verts = [glam::Vec2::new(-1.3, 0.0), glam::Vec2::new(1.3, 0.0), glam::Vec2::new(0.0, 2.2)];
+                let verts = [
+                    glam::Vec2::new(-1.3, 0.0),
+                    glam::Vec2::new(1.3, 0.0),
+                    glam::Vec2::new(0.0, 2.2),
+                ];
                 let v = verts[(self.rand() * 3.0) as usize % 3];
                 (p + v) * 0.5
             } else {
@@ -243,7 +269,13 @@ impl ConceptModule for ApproximationAtelier {
         match mode {
             0 => {
                 scene.field = Some("taylor.paper");
-                scene.line(LineLayer::World, Vec3::new(-4.4, 0.0, 0.0), Vec3::new(4.4, 0.0, 0.0), 1.1, [0.5, 0.5, 0.55, 0.4]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-4.4, 0.0, 0.0),
+                    Vec3::new(4.4, 0.0, 0.0),
+                    1.1,
+                    [0.5, 0.5, 0.55, 0.4],
+                );
                 // The function, true and patient.
                 let truth: Vec<Vec3> = (0..=440)
                     .filter_map(|i| {
@@ -258,7 +290,10 @@ impl ConceptModule for ApproximationAtelier {
                 scene.polyline(LineLayer::World, &truth, 1.3, GHOST_T);
                 // Ghosts of earlier partial sums, then the current one bright.
                 let deg = self.deg_now(t);
-                for (d, alpha, w) in [(deg.saturating_sub(2), 0.15f32, 1.2f32), (deg.saturating_sub(1), 0.25, 1.4)] {
+                for (d, alpha, w) in [
+                    (deg.saturating_sub(2), 0.15f32, 1.2f32),
+                    (deg.saturating_sub(1), 0.25, 1.4),
+                ] {
                     if d < deg {
                         let pts = taylor_pts(k, d);
                         scene.polyline(LineLayer::World, &pts, w, with_alpha(SKY, alpha));
@@ -273,7 +308,13 @@ impl ConceptModule for ApproximationAtelier {
                 };
                 if let Some(r) = radius {
                     for s in [-r, r] {
-                        scene.line(LineLayer::Overlay, Vec3::new(s, -2.4, 0.0), Vec3::new(s, 2.4, 0.0), 1.1, [0.95, 0.4, 0.4, 0.4]);
+                        scene.line(
+                            LineLayer::Overlay,
+                            Vec3::new(s, -2.4, 0.0),
+                            Vec3::new(s, 2.4, 0.0),
+                            1.1,
+                            [0.95, 0.4, 0.4, 0.4],
+                        );
                     }
                 }
                 scene.point(Vec3::ZERO, 3.4, FLAME, 1.8);
@@ -283,7 +324,12 @@ impl ConceptModule for ApproximationAtelier {
                 // The three roots of unity, engraved.
                 for i in 0..3 {
                     let a = i as f32 / 3.0 * std::f32::consts::TAU;
-                    scene.point(Vec3::new(a.cos(), a.sin(), 0.02), 4.0, with_alpha([1.0, 1.0, 1.0, 1.0], 0.9), 1.8);
+                    scene.point(
+                        Vec3::new(a.cos(), a.sin(), 0.02),
+                        4.0,
+                        with_alpha([1.0, 1.0, 1.0, 1.0], 0.9),
+                        1.8,
+                    );
                 }
             }
             3 => {
@@ -298,12 +344,22 @@ impl ConceptModule for ApproximationAtelier {
                     let s = i as f64 * ds;
                     x += (s * s).cos() * ds;
                     y += (s * s).sin() * ds;
-                    pts.push(Vec3::new((x - 0.6267) as f32 * 1.6, (y - 0.6267) as f32 * 1.6, 0.0));
+                    pts.push(Vec3::new(
+                        (x - 0.6267) as f32 * 1.6,
+                        (y - 0.6267) as f32 * 1.6,
+                        0.0,
+                    ));
                 }
                 // Recentered on the limit point sqrt(pi/8)(1,1) ~ 0.6267.
                 for i in 1..pts.len() {
                     let a = i as f32 / pts.len() as f32;
-                    scene.line(LineLayer::WorldAdd, pts[i - 1], pts[i], 1.6, with_alpha(phase_color(a * 4.0), 0.20 + 0.45 * a));
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        pts[i - 1],
+                        pts[i],
+                        1.6,
+                        with_alpha(phase_color(a * 4.0), 0.20 + 0.45 * a),
+                    );
                 }
                 scene.point(Vec3::ZERO, 3.0, with_alpha(FLAME, 0.9), 1.6);
                 if let Some(&last) = pts.last() {
@@ -312,11 +368,20 @@ impl ConceptModule for ApproximationAtelier {
             }
             4 => {
                 let kind = self.params.c("fractal");
-                let col = if kind == 0 { [0.95f32, 0.72, 0.30, 0.5] } else { [0.35, 0.88, 0.45, 0.5] };
+                let col = if kind == 0 {
+                    [0.95f32, 0.72, 0.30, 0.5]
+                } else {
+                    [0.35, 0.88, 0.45, 0.5]
+                };
                 for p in &self.chaos_pts {
                     scene.point(*p, 0.75, col, 0.3);
                 }
-                scene.point(Vec3::new(self.chaos_p.x, self.chaos_p.y, 0.02), 4.0, [0.95, 0.97, 1.0, 1.0], 2.0);
+                scene.point(
+                    Vec3::new(self.chaos_p.x, self.chaos_p.y, 0.02),
+                    4.0,
+                    [0.95, 0.97, 1.0, 1.0],
+                    2.0,
+                );
             }
             5 => {
                 scene.field = Some("taylor.paper");
@@ -353,7 +418,13 @@ impl ConceptModule for ApproximationAtelier {
                 }
                 for i in 1..pts.len() {
                     let hue = phase_color(i as f32 / pts.len() as f32 * 5.0);
-                    scene.line(LineLayer::WorldAdd, pts[i - 1], pts[i], 1.4, with_alpha(hue, 0.55));
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        pts[i - 1],
+                        pts[i],
+                        1.4,
+                        with_alpha(hue, 0.55),
+                    );
                 }
             }
             _ => {
@@ -370,7 +441,11 @@ impl ConceptModule for ApproximationAtelier {
                     .map(|i| {
                         let x = x0 - span + 2.0 * span * i as f64 / n as f64;
                         let y = f_true(k, x);
-                        Vec3::new(((x - x0) / span * 3.0) as f32, ((y - y0) / span * 3.0) as f32, 0.0)
+                        Vec3::new(
+                            ((x - x0) / span * 3.0) as f32,
+                            ((y - y0) / span * 3.0) as f32,
+                            0.0,
+                        )
                     })
                     .collect();
                 scene.glow_polyline(&curve, 2.2, SKY, 2.6);
@@ -392,8 +467,14 @@ impl ConceptModule for ApproximationAtelier {
         let d = (f_true(k, x0 + 1e-6) - f_true(k, x0 - 1e-6)) / 2e-6;
         let mut v = vec![
             title(format!("f(x) = {}", FN_NAMES[k])),
-            ftex("taylor.series", "f(x) \u{2248} \u{03A3} f\u{207D}\u{1D4F}\u{207E}(0)/k! \u{00B7} x\u{1D4F}"),
-            ftex("taylor.newton", "z\u{2099}\u{208A}\u{2081} = z\u{2099} \u{2212} f(z\u{2099})/f'(z\u{2099})"),
+            ftex(
+                "taylor.series",
+                "f(x) \u{2248} \u{03A3} f\u{207D}\u{1D4F}\u{207E}(0)/k! \u{00B7} x\u{1D4F}",
+            ),
+            ftex(
+                "taylor.newton",
+                "z\u{2099}\u{208A}\u{2081} = z\u{2099} \u{2212} f(z\u{2099})/f'(z\u{2099})",
+            ),
             value(format!("degree N = {deg}    f'({x0:.2}) = {d:.4}")),
         ];
         match k {

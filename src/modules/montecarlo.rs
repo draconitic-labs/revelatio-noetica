@@ -41,13 +41,27 @@ const G_ROWS: usize = 13;
 impl MonteCarloCasino {
     pub fn new() -> Self {
         let mut p = Params::new();
-        p.slider("rate", "Samples per second", "Physics", 20.0, 2000.0, 400.0, "");
+        p.slider(
+            "rate",
+            "Samples per second",
+            "Physics",
+            20.0,
+            2000.0,
+            400.0,
+            "",
+        );
         // Quasi-exact reference by fine Simpson.
         let n = 4000;
         let mut acc = 0.0;
         for i in 0..=n {
             let x = 3.0 * i as f64 / n as f64;
-            let w = if i == 0 || i == n { 1.0 } else if i % 2 == 1 { 4.0 } else { 2.0 };
+            let w = if i == 0 || i == n {
+                1.0
+            } else if i % 2 == 1 {
+                4.0
+            } else {
+                2.0
+            };
             acc += w * mc_f(x);
         }
         let exact = acc * (3.0 / n as f64) / 3.0;
@@ -69,7 +83,10 @@ impl MonteCarloCasino {
     }
 
     fn rand(&mut self) -> f64 {
-        self.rng = self.rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.rng = self
+            .rng
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         (self.rng >> 11) as f64 / (1u64 << 53) as f64
     }
 
@@ -95,7 +112,11 @@ impl MonteCarloCasino {
             x += if (path >> r) & 1 == 1 { 0.115 } else { -0.115 };
         }
         let x_next = if row < G_ROWS {
-            x + if (path >> row) & 1 == 1 { 0.115 } else { -0.115 }
+            x + if (path >> row) & 1 == 1 {
+                0.115
+            } else {
+                -0.115
+            }
         } else {
             x
         };
@@ -121,12 +142,32 @@ impl ConceptModule for MonteCarloCasino {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("pi", "Dartboard \u{03C0}", "In-circle fraction \u{00D7} 4 \u{2192} \u{03C0}, one dart at a time", 1.5),
-            RenderMode::plane("buffon", "Buffon's Needle", "1777: drop needles on floorboards, read off \u{03C0} from the crossings", 2.2),
-            RenderMode::plane("integrate", "Integration by Rain", "Area under a curve nobody wants to antidifferentiate", 1.35)
-                .look_at(1.5, 0.85, 0.0),
-            RenderMode::plane("galton", "The Galton Board", "Coin flips falling into a bell curve \u{2014} the central limit theorem, 1893", 2.5)
-                .look_at(0.0, -0.4, 0.0),
+            RenderMode::plane(
+                "pi",
+                "Dartboard \u{03C0}",
+                "In-circle fraction \u{00D7} 4 \u{2192} \u{03C0}, one dart at a time",
+                1.5,
+            ),
+            RenderMode::plane(
+                "buffon",
+                "Buffon's Needle",
+                "1777: drop needles on floorboards, read off \u{03C0} from the crossings",
+                2.2,
+            ),
+            RenderMode::plane(
+                "integrate",
+                "Integration by Rain",
+                "Area under a curve nobody wants to antidifferentiate",
+                1.35,
+            )
+            .look_at(1.5, 0.85, 0.0),
+            RenderMode::plane(
+                "galton",
+                "The Galton Board",
+                "Coin flips falling into a bell curve \u{2014} the central limit theorem, 1893",
+                2.5,
+            )
+            .look_at(0.0, -0.4, 0.0),
         ]
     }
 
@@ -152,7 +193,10 @@ impl ConceptModule for MonteCarloCasino {
         let n = (self.params.f("rate") * dt).round() as usize;
         for _ in 0..n.min(4000) {
             // Dartboard.
-            let p = Vec2::new(self.rand() as f32 * 2.0 - 1.0, self.rand() as f32 * 2.0 - 1.0);
+            let p = Vec2::new(
+                self.rand() as f32 * 2.0 - 1.0,
+                self.rand() as f32 * 2.0 - 1.0,
+            );
             let inside = p.length_squared() <= 1.0;
             self.n_tot += 1;
             if inside {
@@ -205,7 +249,14 @@ impl ConceptModule for MonteCarloCasino {
         }
     }
 
-    fn render(&mut self, _gpu: &GpuContext, mode: usize, _t: f64, _cam: &Camera, scene: &mut Scene) {
+    fn render(
+        &mut self,
+        _gpu: &GpuContext,
+        mode: usize,
+        _t: f64,
+        _cam: &Camera,
+        scene: &mut Scene,
+    ) {
         scene.clear = [0.008, 0.009, 0.012, 1.0];
         match mode {
             0 => {
@@ -229,7 +280,11 @@ impl ConceptModule for MonteCarloCasino {
                     scene.point(
                         Vec3::new(p.x, p.y, 0.0),
                         1.1,
-                        if inside { with_alpha(HIT, 0.5) } else { with_alpha(MISS, 0.5) },
+                        if inside {
+                            with_alpha(HIT, 0.5)
+                        } else {
+                            with_alpha(MISS, 0.5)
+                        },
                         0.5,
                     );
                 }
@@ -248,7 +303,11 @@ impl ConceptModule for MonteCarloCasino {
                 for &(c, a, crosses) in &self.needles {
                     let d = Vec3::new(a.cos(), a.sin(), 0.0) * 0.25;
                     let p = Vec3::new(c.x, c.y, 0.0);
-                    let col = if crosses { with_alpha(CROSS, 0.75) } else { [0.75, 0.78, 0.85, 0.30] };
+                    let col = if crosses {
+                        with_alpha(CROSS, 0.75)
+                    } else {
+                        [0.75, 0.78, 0.85, 0.30]
+                    };
                     scene.line(LineLayer::WorldAdd, p - d, p + d, 1.3, col);
                 }
             }
@@ -257,7 +316,12 @@ impl ConceptModule for MonteCarloCasino {
                 for r in 0..G_ROWS {
                     for k in 0..=r {
                         let x = (k as f32 - r as f32 / 2.0) * 0.23;
-                        scene.point(Vec3::new(x, 2.0 - (r as f32 + 0.5) * 0.27, 0.0), 1.6, [0.65, 0.67, 0.72, 0.8], 0.6);
+                        scene.point(
+                            Vec3::new(x, 2.0 - (r as f32 + 0.5) * 0.27, 0.0),
+                            1.6,
+                            [0.65, 0.67, 0.72, 0.8],
+                            0.6,
+                        );
                     }
                 }
                 // Falling balls.
@@ -271,7 +335,13 @@ impl ConceptModule for MonteCarloCasino {
                 for (b, &n) in self.bins.iter().enumerate() {
                     let x = (b as f32 - G_ROWS as f32 / 2.0) * 0.23;
                     let h = n as f32 / maxb * 1.5;
-                    scene.line(LineLayer::World, Vec3::new(x, -2.2, 0.0), Vec3::new(x, -2.2 + h.max(0.004), 0.0), 9.0, with_alpha(HIT, 0.55));
+                    scene.line(
+                        LineLayer::World,
+                        Vec3::new(x, -2.2, 0.0),
+                        Vec3::new(x, -2.2 + h.max(0.004), 0.0),
+                        9.0,
+                        with_alpha(HIT, 0.55),
+                    );
                 }
                 if total > 40 {
                     let sigma = (G_ROWS as f32 * 0.25).sqrt() * 0.23;
@@ -294,12 +364,22 @@ impl ConceptModule for MonteCarloCasino {
                     })
                     .collect();
                 scene.glow_polyline(&curve, 2.0, [0.35, 0.85, 0.75, 1.0], 2.4);
-                scene.line(LineLayer::World, Vec3::ZERO, Vec3::new(3.0, 0.0, 0.0), 1.2, [0.5, 0.5, 0.55, 0.5]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::ZERO,
+                    Vec3::new(3.0, 0.0, 0.0),
+                    1.2,
+                    [0.5, 0.5, 0.55, 0.5],
+                );
                 for &(p, under) in &self.integ {
                     scene.point(
                         Vec3::new(p.x, p.y, 0.0),
                         1.0,
-                        if under { with_alpha(HIT, 0.45) } else { with_alpha(MISS, 0.28) },
+                        if under {
+                            with_alpha(HIT, 0.45)
+                        } else {
+                            with_alpha(MISS, 0.28)
+                        },
                         0.4,
                     );
                 }
@@ -308,7 +388,11 @@ impl ConceptModule for MonteCarloCasino {
     }
 
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
-        let pi_est = if self.n_tot > 0 { 4.0 * self.n_in as f64 / self.n_tot as f64 } else { 0.0 };
+        let pi_est = if self.n_tot > 0 {
+            4.0 * self.n_in as f64 / self.n_tot as f64
+        } else {
+            0.0
+        };
         let buffon = if self.n_cross > 0 {
             // P(cross) = 2 l / (pi d), l = 0.5, d = 1.
             self.n_tot as f64 / self.n_cross as f64

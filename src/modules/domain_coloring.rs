@@ -206,10 +206,26 @@ impl DomainColoring {
             ],
             3,
         );
-        p.slider("contours", "Modulus contours", "Display", 0.0, 1.0, 0.75, "");
+        p.slider(
+            "contours",
+            "Modulus contours",
+            "Display",
+            0.0,
+            1.0,
+            0.75,
+            "",
+        );
         p.slider("plines", "Phase isochromes", "Display", 0.0, 1.0, 0.45, "");
         p.toggle("animate", "Animate parameter / flow", "Observer", true);
-        p.slider("morph", "Grid morph z \u{2192} f(z)", "Observer", 0.0, 1.0, 1.0, "");
+        p.slider(
+            "morph",
+            "Grid morph z \u{2192} f(z)",
+            "Observer",
+            0.0,
+            1.0,
+            1.0,
+            "",
+        );
         p.int("grid_n", "Grid lines", "Display", 5, 41, 17);
         p.slider("hscale", "Landscape height", "Display", 0.2, 2.5, 1.0, "");
         Self {
@@ -266,10 +282,7 @@ impl DomainColoring {
             for i in 0..=samples {
                 let z = f(i as f64 / samples as f64);
                 let fz = self.feval(k, z);
-                let mut p = c(
-                    z.re * (1.0 - s) + fz.re * s,
-                    z.im * (1.0 - s) + fz.im * s,
-                );
+                let mut p = c(z.re * (1.0 - s) + fz.re * s, z.im * (1.0 - s) + fz.im * s);
                 let r = p.abs();
                 if r > 6.5 {
                     p = p * (6.5 / r);
@@ -304,15 +317,54 @@ impl ConceptModule for DomainColoring {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("dc", "Domain Coloring", "Hue = arg f(z), shading = |f(z)| with log-spaced contours", 2.3),
-            RenderMode::orbit("landscape", "Analytic Landscape", "Height = ln(1+|f|), color = phase", 10.0, 0.50, 1.05)
-                .look_at(0.0, 1.1, 0.0),
-            RenderMode::plane("conformal", "Conformal Grid Flow", "The Cartesian grid carried from z to f(z); angles survive", 2.8),
-            RenderMode::orbit("sphere", "Riemann Sphere", "The plane wrapped stereographically; \u{221E} becomes a point", 3.6, 0.35, 0.7),
-            RenderMode::plane("julia", "Julia Frontier", "z \u{2192} z\u{00B2}+c; c circles the parameter space and the frontier storms", 1.7),
-            RenderMode::plane("mandel", "Mandelbrot Atlas", "The catalogue of every Julia set; zoom is exact re-evaluation", 1.3)
-                .look_at(-0.6, 0.0, 0.0),
-            RenderMode::plane("moebius", "M\u{00F6}bius Ballet", "Circles remain circles under (az+b)/(cz+d); the dance is loxodromic", 2.6),
+            RenderMode::plane(
+                "dc",
+                "Domain Coloring",
+                "Hue = arg f(z), shading = |f(z)| with log-spaced contours",
+                2.3,
+            ),
+            RenderMode::orbit(
+                "landscape",
+                "Analytic Landscape",
+                "Height = ln(1+|f|), color = phase",
+                10.0,
+                0.50,
+                1.05,
+            )
+            .look_at(0.0, 1.1, 0.0),
+            RenderMode::plane(
+                "conformal",
+                "Conformal Grid Flow",
+                "The Cartesian grid carried from z to f(z); angles survive",
+                2.8,
+            ),
+            RenderMode::orbit(
+                "sphere",
+                "Riemann Sphere",
+                "The plane wrapped stereographically; \u{221E} becomes a point",
+                3.6,
+                0.35,
+                0.7,
+            ),
+            RenderMode::plane(
+                "julia",
+                "Julia Frontier",
+                "z \u{2192} z\u{00B2}+c; c circles the parameter space and the frontier storms",
+                1.7,
+            ),
+            RenderMode::plane(
+                "mandel",
+                "Mandelbrot Atlas",
+                "The catalogue of every Julia set; zoom is exact re-evaluation",
+                1.3,
+            )
+            .look_at(-0.6, 0.0, 0.0),
+            RenderMode::plane(
+                "moebius",
+                "M\u{00F6}bius Ballet",
+                "Circles remain circles under (az+b)/(cz+d); the dance is loxodromic",
+                2.6,
+            ),
         ]
     }
 
@@ -329,7 +381,12 @@ impl ConceptModule for DomainColoring {
 
     fn init(&mut self, gpu: &GpuContext, rend: &mut Renderers) {
         rend.register_field(gpu, "complex.dc", &format!("{FEVAL_WGSL}{DC_SHADE}"), false);
-        rend.register_field(gpu, "complex.sphere", &format!("{FEVAL_WGSL}{SPHERE_SHADE}"), false);
+        rend.register_field(
+            gpu,
+            "complex.sphere",
+            &format!("{FEVAL_WGSL}{SPHERE_SHADE}"),
+            false,
+        );
         rend.register_field(gpu, "complex.julia", JULIA_SHADE, false);
         rend.register_field(gpu, "complex.mandel", MANDEL_SHADE, false);
         let mut m = self.landscape_data().upload(gpu, &rend.mesh_bgl);
@@ -354,7 +411,11 @@ impl ConceptModule for DomainColoring {
         let key = (
             self.params.c("fn"),
             (self.params.f("hscale") * 1000.0) as i64,
-            if animate && self.params.c("fn") == 7 { (t * 60.0) as u64 } else { 0 },
+            if animate && self.params.c("fn") == 7 {
+                (t * 60.0) as u64
+            } else {
+                0
+            },
         );
         if key != self.last_key {
             self.last_key = key;
@@ -366,7 +427,14 @@ impl ConceptModule for DomainColoring {
         self.rebuild_grid();
     }
 
-    fn render(&mut self, _gpu: &GpuContext, mode: usize, _t: f64, _cam: &Camera, scene: &mut Scene) {
+    fn render(
+        &mut self,
+        _gpu: &GpuContext,
+        mode: usize,
+        _t: f64,
+        _cam: &Camera,
+        scene: &mut Scene,
+    ) {
         scene.p(0, self.params.c("fn") as f32);
         scene.p(2, self.a.re as f32);
         scene.p(3, self.a.im as f32);
@@ -377,8 +445,20 @@ impl ConceptModule for DomainColoring {
         match mode {
             0 => {
                 scene.field = Some("complex.dc");
-                scene.line(LineLayer::Overlay, Vec3::new(-40.0, 0.0, 0.1), Vec3::new(40.0, 0.0, 0.1), 1.2, axis);
-                scene.line(LineLayer::Overlay, Vec3::new(0.0, -40.0, 0.1), Vec3::new(0.0, 40.0, 0.1), 1.2, axis);
+                scene.line(
+                    LineLayer::Overlay,
+                    Vec3::new(-40.0, 0.0, 0.1),
+                    Vec3::new(40.0, 0.0, 0.1),
+                    1.2,
+                    axis,
+                );
+                scene.line(
+                    LineLayer::Overlay,
+                    Vec3::new(0.0, -40.0, 0.1),
+                    Vec3::new(0.0, 40.0, 0.1),
+                    1.2,
+                    axis,
+                );
             }
             1 => {
                 scene.clear = [0.008, 0.009, 0.015, 1.0];
@@ -387,8 +467,20 @@ impl ConceptModule for DomainColoring {
                 }
                 // Base plane axes.
                 let y = 0.005;
-                scene.line(LineLayer::World, Vec3::new(-2.4, y, 0.0), Vec3::new(2.4, y, 0.0), 1.4, axis);
-                scene.line(LineLayer::World, Vec3::new(0.0, y, -2.4), Vec3::new(0.0, y, 2.4), 1.4, axis);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-2.4, y, 0.0),
+                    Vec3::new(2.4, y, 0.0),
+                    1.4,
+                    axis,
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(0.0, y, -2.4),
+                    Vec3::new(0.0, y, 2.4),
+                    1.4,
+                    axis,
+                );
             }
             2 => {
                 scene.clear = [0.008, 0.010, 0.017, 1.0];
@@ -431,7 +523,13 @@ impl ConceptModule for DomainColoring {
                 // Net, family one: circles through BOTH fixed points.
                 for k_c in -5i32..=5 {
                     if k_c == 0 {
-                        scene.line(LineLayer::World, Vec3::new(-6.0, 0.0, 0.0), Vec3::new(6.0, 0.0, 0.0), 0.9, [0.45, 0.50, 0.62, 0.22]);
+                        scene.line(
+                            LineLayer::World,
+                            Vec3::new(-6.0, 0.0, 0.0),
+                            Vec3::new(6.0, 0.0, 0.0),
+                            0.9,
+                            [0.45, 0.50, 0.62, 0.22],
+                        );
                         continue;
                     }
                     let cy = 1.35f64 / k_c as f64;
@@ -453,7 +551,11 @@ impl ConceptModule for DomainColoring {
                         let pts: Vec<Vec3> = (0..=120)
                             .map(|i| {
                                 let a = i as f64 / 120.0 * std::f64::consts::TAU;
-                                Vec3::new((sign * cx_m + r * a.cos()) as f32, (r * a.sin()) as f32, 0.0)
+                                Vec3::new(
+                                    (sign * cx_m + r * a.cos()) as f32,
+                                    (r * a.sin()) as f32,
+                                    0.0,
+                                )
                             })
                             .collect();
                         scene.polyline(LineLayer::World, &pts, 0.9, [0.45, 0.50, 0.62, 0.18]);
@@ -482,7 +584,13 @@ impl ConceptModule for DomainColoring {
                     let hue = phase_color(d as f32 * 0.35);
                     for i in 1..path.len() {
                         let age = i as f32 / path.len() as f32;
-                        scene.line(LineLayer::WorldAdd, path[i - 1], path[i], 1.4, with_alpha(hue, 0.06 + 0.30 * age));
+                        scene.line(
+                            LineLayer::WorldAdd,
+                            path[i - 1],
+                            path[i],
+                            1.4,
+                            with_alpha(hue, 0.06 + 0.30 * age),
+                        );
                     }
                     if let Some(&last) = path.last() {
                         scene.point(last, 3.2, hue, 1.6);
@@ -490,7 +598,12 @@ impl ConceptModule for DomainColoring {
                 }
                 // The two poles of the dance.
                 scene.point(Vec3::new(1.0, 0.0, 0.02), 4.5, [0.95, 0.75, 0.35, 1.0], 2.2);
-                scene.point(Vec3::new(-1.0, 0.0, 0.02), 4.5, [0.45, 0.75, 0.95, 1.0], 2.2);
+                scene.point(
+                    Vec3::new(-1.0, 0.0, 0.02),
+                    4.5,
+                    [0.45, 0.75, 0.95, 1.0],
+                    2.2,
+                );
             }
         }
     }
@@ -505,7 +618,10 @@ impl ConceptModule for DomainColoring {
             note(FN_NOTES[k]),
         ];
         if k == 7 {
-            out.push(value(format!("a(t) = {:.3} + {:.3}i,  |a| = 0.7", self.a.re, self.a.im)));
+            out.push(value(format!(
+                "a(t) = {:.3} + {:.3}i,  |a| = 0.7",
+                self.a.re, self.a.im
+            )));
         }
         out.push(note(
             "Winding of hue around a point = order of the zero (counter-clockwise) or pole (clockwise).",
@@ -522,13 +638,32 @@ impl ConceptModule for DomainColoring {
         }
     }
 
-    fn overlay(&self, painter: &egui::Painter, rect: egui::Rect, cam: &Camera, mode: usize, _t: f64) {
+    fn overlay(
+        &self,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+        cam: &Camera,
+        mode: usize,
+        _t: f64,
+    ) {
         if mode == 0 || mode == 2 {
             if let Some(p) = to_screen(cam, rect, Vec3::new(2.05, 0.08, 0.0)) {
-                painter.text(p, egui::Align2::LEFT_BOTTOM, "Re", crate::theme::math_font(13.0), crate::theme::OVERLAY_DIM);
+                painter.text(
+                    p,
+                    egui::Align2::LEFT_BOTTOM,
+                    "Re",
+                    crate::theme::math_font(13.0),
+                    crate::theme::OVERLAY_DIM,
+                );
             }
             if let Some(p) = to_screen(cam, rect, Vec3::new(0.06, 2.05, 0.0)) {
-                painter.text(p, egui::Align2::LEFT_BOTTOM, "Im", crate::theme::math_font(13.0), crate::theme::OVERLAY_DIM);
+                painter.text(
+                    p,
+                    egui::Align2::LEFT_BOTTOM,
+                    "Im",
+                    crate::theme::math_font(13.0),
+                    crate::theme::OVERLAY_DIM,
+                );
             }
         }
     }

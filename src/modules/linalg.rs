@@ -50,7 +50,11 @@ fn eigvec(m: Mat2, l: f32) -> Option<Vec2> {
     let d = m.col(1).y - l;
     let v1 = Vec2::new(-b, a);
     let v2 = Vec2::new(-d, c);
-    let v = if v1.length_squared() > v2.length_squared() { v1 } else { v2 };
+    let v = if v1.length_squared() > v2.length_squared() {
+        v1
+    } else {
+        v2
+    };
     (v.length_squared() > 1e-9).then(|| v.normalize())
 }
 
@@ -122,9 +126,24 @@ impl ConceptModule for LinearAtelier {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("grid", "Grid Deformation", "The lattice carried by (1\u{2212}s)I + sA; det = signed area", 3.0),
-            RenderMode::plane("eigen", "Eigen-directions", "Rays that only stretch; everything else turns", 3.0),
-            RenderMode::plane("svd", "SVD Stage", "A = U \u{03A3} V\u{1D40}: rotate, stretch, rotate", 3.0),
+            RenderMode::plane(
+                "grid",
+                "Grid Deformation",
+                "The lattice carried by (1\u{2212}s)I + sA; det = signed area",
+                3.0,
+            ),
+            RenderMode::plane(
+                "eigen",
+                "Eigen-directions",
+                "Rays that only stretch; everything else turns",
+                3.0,
+            ),
+            RenderMode::plane(
+                "svd",
+                "SVD Stage",
+                "A = U \u{03A3} V\u{1D40}: rotate, stretch, rotate",
+                3.0,
+            ),
         ]
     }
 
@@ -177,15 +196,39 @@ impl ConceptModule for LinearAtelier {
                 }
                 // Unit square -> parallelogram, tinted by det sign.
                 let sq = [Vec2::ZERO, Vec2::X, Vec2::ONE, Vec2::Y, Vec2::ZERO];
-                let poly: Vec<Vec3> = sq.iter().map(|&p| map(p) + Vec3::new(0.0, 0.0, 0.05)).collect();
-                let fill_c = if det >= 0.0 { with_alpha(GOLDL, 0.85) } else { with_alpha(RED, 0.9) };
+                let poly: Vec<Vec3> = sq
+                    .iter()
+                    .map(|&p| map(p) + Vec3::new(0.0, 0.0, 0.05))
+                    .collect();
+                let fill_c = if det >= 0.0 {
+                    with_alpha(GOLDL, 0.85)
+                } else {
+                    with_alpha(RED, 0.9)
+                };
                 scene.polyline(LineLayer::WorldAdd, &poly, 2.4, fill_c);
                 // Basis vectors: the columns of M.
                 scene.vector(Vec3::ZERO, Vec3::new(m.col(0).x, m.col(0).y, 0.1), 4.5, RED);
-                scene.vector(Vec3::ZERO, Vec3::new(m.col(1).x, m.col(1).y, 0.1), 4.5, STEEL);
+                scene.vector(
+                    Vec3::ZERO,
+                    Vec3::new(m.col(1).x, m.col(1).y, 0.1),
+                    4.5,
+                    STEEL,
+                );
                 // Ghost of the identity basis.
-                scene.line(LineLayer::World, Vec3::ZERO, Vec3::new(1.0, 0.0, 0.0), 1.0, with_alpha(RED, 0.25));
-                scene.line(LineLayer::World, Vec3::ZERO, Vec3::new(0.0, 1.0, 0.0), 1.0, with_alpha(STEEL, 0.25));
+                scene.line(
+                    LineLayer::World,
+                    Vec3::ZERO,
+                    Vec3::new(1.0, 0.0, 0.0),
+                    1.0,
+                    with_alpha(RED, 0.25),
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::ZERO,
+                    Vec3::new(0.0, 1.0, 0.0),
+                    1.0,
+                    with_alpha(STEEL, 0.25),
+                );
             }
             1 => {
                 // Ring of unit vectors and their images; eigen rays highlighted.
@@ -193,7 +236,13 @@ impl ConceptModule for LinearAtelier {
                     let ang = i as f32 / 48.0 * std::f32::consts::TAU;
                     let u = Vec2::new(ang.cos(), ang.sin());
                     let v = m * u;
-                    scene.line(LineLayer::World, Vec3::new(u.x, u.y, 0.0), Vec3::new(v.x, v.y, 0.0), 1.2, with_alpha(STEEL, 0.30));
+                    scene.line(
+                        LineLayer::World,
+                        Vec3::new(u.x, u.y, 0.0),
+                        Vec3::new(v.x, v.y, 0.0),
+                        1.2,
+                        with_alpha(STEEL, 0.30),
+                    );
                     scene.point(Vec3::new(v.x, v.y, 0.0), 1.8, with_alpha(GOLDL, 0.8), 1.0);
                 }
                 let circle: Vec<Vec3> = (0..=96)
@@ -202,12 +251,23 @@ impl ConceptModule for LinearAtelier {
                         Vec3::new(ang.cos(), ang.sin(), 0.0)
                     })
                     .collect();
-                scene.polyline(LineLayer::World, &circle, 1.0, with_alpha([0.7, 0.75, 0.85, 1.0], 0.3));
+                scene.polyline(
+                    LineLayer::World,
+                    &circle,
+                    1.0,
+                    with_alpha([0.7, 0.75, 0.85, 1.0], 0.3),
+                );
                 let (r1, i1, r2, _) = eigen2(m);
                 if i1.abs() < 1e-9 {
                     for (l, c) in [(r1 as f32, RED), (r2 as f32, GOLDL)] {
                         if let Some(v) = eigvec(m, l) {
-                            scene.line(LineLayer::WorldAdd, Vec3::new(-v.x * 8.0, -v.y * 8.0, 0.05), Vec3::new(v.x * 8.0, v.y * 8.0, 0.05), 1.8, with_alpha(c, 0.5));
+                            scene.line(
+                                LineLayer::WorldAdd,
+                                Vec3::new(-v.x * 8.0, -v.y * 8.0, 0.05),
+                                Vec3::new(v.x * 8.0, v.y * 8.0, 0.05),
+                                1.8,
+                                with_alpha(c, 0.5),
+                            );
                             scene.vector(Vec3::ZERO, Vec3::new(v.x * l, v.y * l, 0.08), 4.0, c);
                         }
                     }
@@ -236,7 +296,10 @@ impl ConceptModule for LinearAtelier {
                 );
                 let rot = |ang: f32| Mat2::from_angle(ang);
                 let cur = rot(phi * w3.max(0.0))
-                    * Mat2::from_cols(Vec2::new(1.0 + (s1 - 1.0) * w2, 0.0), Vec2::new(0.0, 1.0 + (s2 - 1.0) * w2))
+                    * Mat2::from_cols(
+                        Vec2::new(1.0 + (s1 - 1.0) * w2, 0.0),
+                        Vec2::new(0.0, 1.0 + (s2 - 1.0) * w2),
+                    )
                     * rot(-theta * w1);
                 let mapc = |p: Vec2| -> Vec3 {
                     let q = cur * p;
@@ -249,14 +312,25 @@ impl ConceptModule for LinearAtelier {
                         Vec3::new(ang.cos(), ang.sin(), -0.01)
                     })
                     .collect();
-                scene.polyline(LineLayer::World, &unit, 1.0, with_alpha([0.7, 0.74, 0.84, 1.0], 0.30));
+                scene.polyline(
+                    LineLayer::World,
+                    &unit,
+                    1.0,
+                    with_alpha([0.7, 0.74, 0.84, 1.0], 0.30),
+                );
                 // Spokes: every marked direction and where it lands.
                 for i in 0..24 {
                     let ang = i as f32 / 24.0 * std::f32::consts::TAU;
                     let u = Vec2::new(ang.cos(), ang.sin());
                     let q = mapc(u);
                     let hue = phase_color(ang);
-                    scene.line(LineLayer::World, Vec3::new(u.x, u.y, 0.0), q, 1.0, with_alpha(hue, 0.30));
+                    scene.line(
+                        LineLayer::World,
+                        Vec3::new(u.x, u.y, 0.0),
+                        q,
+                        1.0,
+                        with_alpha(hue, 0.30),
+                    );
                     scene.point(q, 2.4, with_alpha(hue, 0.95), 1.3);
                 }
                 // Circle -> ellipse, luminous.
@@ -272,8 +346,18 @@ impl ConceptModule for LinearAtelier {
                 // Principal semi-axes of the final ellipse.
                 let u1 = rot(phi) * Vec2::new(s1, 0.0);
                 let u2 = rot(phi) * Vec2::new(0.0, s2);
-                scene.vector(Vec3::ZERO, Vec3::new(u1.x, u1.y, 0.05), 3.0, with_alpha(GOLDL, 0.75));
-                scene.vector(Vec3::ZERO, Vec3::new(u2.x, u2.y, 0.05), 3.0, with_alpha(GOLDL, 0.75));
+                scene.vector(
+                    Vec3::ZERO,
+                    Vec3::new(u1.x, u1.y, 0.05),
+                    3.0,
+                    with_alpha(GOLDL, 0.75),
+                );
+                scene.vector(
+                    Vec3::ZERO,
+                    Vec3::new(u2.x, u2.y, 0.05),
+                    3.0,
+                    with_alpha(GOLDL, 0.75),
+                );
             }
         }
     }
@@ -299,7 +383,8 @@ impl ConceptModule for LinearAtelier {
             self.params.set_f(ay, (w.y as f64).clamp(-2.5, 2.5));
             if self.params.b("animate") {
                 // Dragging implies direct control.
-                self.params.load_json(&serde_json::json!({"animate": false}));
+                self.params
+                    .load_json(&serde_json::json!({"animate": false}));
             }
         }
     }
@@ -312,7 +397,10 @@ impl ConceptModule for LinearAtelier {
         let eig_str = if i1.abs() < 1e-9 {
             format!("\u{03BB}\u{2081} = {r1:.3}    \u{03BB}\u{2082} = {r2:.3}")
         } else {
-            format!("\u{03BB} = {r1:.3} \u{00B1} {:.3}i  (rotation-like)", i1.abs())
+            format!(
+                "\u{03BB} = {r1:.3} \u{00B1} {:.3}i  (rotation-like)",
+                i1.abs()
+            )
         };
         let _ = i2;
         vec![

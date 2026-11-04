@@ -112,7 +112,13 @@ pub struct SchrodingerHall {
 impl SchrodingerHall {
     pub fn new() -> Self {
         let mut p = Params::new();
-        p.choice("state", "Prepared state", "Symbolic", STATE_NAMES.to_vec(), 0);
+        p.choice(
+            "state",
+            "Prepared state",
+            "Symbolic",
+            STATE_NAMES.to_vec(),
+            0,
+        );
         p.slider("rate", "Measurement rate", "Physics", 2.0, 60.0, 24.0, "/s");
         p.toggle("current", "Probability current", "Display", true);
         Self {
@@ -129,7 +135,10 @@ impl SchrodingerHall {
     }
 
     fn rand(&mut self) -> f64 {
-        self.rng = self.rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.rng = self
+            .rng
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         (self.rng >> 11) as f64 / (1u64 << 53) as f64
     }
 
@@ -184,14 +193,34 @@ impl ConceptModule for SchrodingerHall {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("psi", "Wavefunction", "\u{03C8}(x,t) colored by phase; envelope \u{00B1}|\u{03C8}|", 2.4)
-                .look_at(0.0, 0.4, 0.0),
-            RenderMode::plane("prob", "Probability River", "|\u{03C8}|\u{00B2} with probability current", 2.4)
-                .look_at(0.0, 0.6, 0.0),
-            RenderMode::plane("phasor", "Phase Clocks", "Each eigenstate turns at its own energy: e^{\u{2212}iE\u{2099}t}", 2.2)
-                .look_at(0.0, 0.0, 0.0),
-            RenderMode::plane("measure", "Measurement Rain", "Samples from |\u{03C8}|\u{00B2} accumulate into the Born histogram", 2.6)
-                .look_at(0.0, -0.2, 0.0),
+            RenderMode::plane(
+                "psi",
+                "Wavefunction",
+                "\u{03C8}(x,t) colored by phase; envelope \u{00B1}|\u{03C8}|",
+                2.4,
+            )
+            .look_at(0.0, 0.4, 0.0),
+            RenderMode::plane(
+                "prob",
+                "Probability River",
+                "|\u{03C8}|\u{00B2} with probability current",
+                2.4,
+            )
+            .look_at(0.0, 0.6, 0.0),
+            RenderMode::plane(
+                "phasor",
+                "Phase Clocks",
+                "Each eigenstate turns at its own energy: e^{\u{2212}iE\u{2099}t}",
+                2.2,
+            )
+            .look_at(0.0, 0.0, 0.0),
+            RenderMode::plane(
+                "measure",
+                "Measurement Rain",
+                "Samples from |\u{03C8}|\u{00B2} accumulate into the Born histogram",
+                2.6,
+            )
+            .look_at(0.0, -0.2, 0.0),
         ]
     }
 
@@ -211,12 +240,21 @@ impl ConceptModule for SchrodingerHall {
         // Probability fill strip.
         let mut d = MeshData::new();
         for _ in 0..=NX {
-            d.vertices.push(MeshVertex { pos: [0.0; 3], normal: [0.0, 0.0, 1.0], color: [1.0; 4] });
-            d.vertices.push(MeshVertex { pos: [0.0; 3], normal: [0.0, 0.0, 1.0], color: [1.0; 4] });
+            d.vertices.push(MeshVertex {
+                pos: [0.0; 3],
+                normal: [0.0, 0.0, 1.0],
+                color: [1.0; 4],
+            });
+            d.vertices.push(MeshVertex {
+                pos: [0.0; 3],
+                normal: [0.0, 0.0, 1.0],
+                color: [1.0; 4],
+            });
         }
         for i in 0..NX as u32 {
             let a = i * 2;
-            d.indices.extend_from_slice(&[a, a + 1, a + 2, a + 2, a + 1, a + 3]);
+            d.indices
+                .extend_from_slice(&[a, a + 1, a + 2, a + 2, a + 1, a + 3]);
         }
         let mut m = d.upload(gpu, &rend.mesh_bgl);
         m.set_model(gpu, glam::Mat4::IDENTITY, [1.0; 4], [1.0, 0.0, 1.0, 0.0]);
@@ -241,8 +279,16 @@ impl ConceptModule for SchrodingerHall {
                 col[3] = 0.55;
                 let base = [col[0] * 0.5, col[1] * 0.5, col[2] * 0.5, 0.10];
                 [
-                    MeshVertex { pos: [x * 0.9, dens, -0.05], normal: [0.0, 0.0, 1.0], color: col },
-                    MeshVertex { pos: [x * 0.9, 0.0, -0.05], normal: [0.0, 0.0, 1.0], color: base },
+                    MeshVertex {
+                        pos: [x * 0.9, dens, -0.05],
+                        normal: [0.0, 0.0, 1.0],
+                        color: col,
+                    },
+                    MeshVertex {
+                        pos: [x * 0.9, 0.0, -0.05],
+                        normal: [0.0, 0.0, 1.0],
+                        color: base,
+                    },
                 ]
             })
             .collect();
@@ -280,10 +326,22 @@ impl ConceptModule for SchrodingerHall {
         match mode {
             0 => {
                 well(scene, -1.8);
-                scene.line(LineLayer::World, Vec3::new(-5.6, 0.0, 0.0), Vec3::new(5.6, 0.0, 0.0), 1.0, GHOSTQ);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-5.6, 0.0, 0.0),
+                    Vec3::new(5.6, 0.0, 0.0),
+                    1.0,
+                    GHOSTQ,
+                );
                 // Envelope.
                 let env: Vec<Vec3> = (0..=NX)
-                    .map(|i| Vec3::new(Self::x_of(i) as f32 * sx, (self.psi[i].abs() * 1.5) as f32, 0.0))
+                    .map(|i| {
+                        Vec3::new(
+                            Self::x_of(i) as f32 * sx,
+                            (self.psi[i].abs() * 1.5) as f32,
+                            0.0,
+                        )
+                    })
                     .collect();
                 let env2: Vec<Vec3> = env.iter().map(|p| Vec3::new(p.x, -p.y, 0.0)).collect();
                 scene.polyline(LineLayer::World, &env, 1.0, with_alpha(VIOLET, 0.30));
@@ -306,7 +364,13 @@ impl ConceptModule for SchrodingerHall {
             }
             1 => {
                 well(scene, 0.0);
-                scene.line(LineLayer::World, Vec3::new(-5.6, 0.0, 0.0), Vec3::new(5.6, 0.0, 0.0), 1.0, GHOSTQ);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-5.6, 0.0, 0.0),
+                    Vec3::new(5.6, 0.0, 0.0),
+                    1.0,
+                    GHOSTQ,
+                );
                 if let Some(m) = &self.prob_mesh {
                     scene.mesh(m);
                 }
@@ -352,7 +416,13 @@ impl ConceptModule for SchrodingerHall {
                     let ang = (-e * t) as f32;
                     let needle = Vec3::new(cx + ang.cos() * r, ang.sin() * r, 0.0);
                     let hue = phase_color(ang);
-                    scene.line(LineLayer::WorldAdd, Vec3::new(cx, 0.0, 0.0), needle, 2.6, hue);
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        Vec3::new(cx, 0.0, 0.0),
+                        needle,
+                        2.6,
+                        hue,
+                    );
                     scene.point(needle, 3.5, hue, 1.8);
                     // Energy rungs below.
                     scene.line(
@@ -368,7 +438,13 @@ impl ConceptModule for SchrodingerHall {
                 well(scene, 0.6);
                 // |psi|^2 as the live target curve.
                 let curve: Vec<Vec3> = (0..=NX)
-                    .map(|i| Vec3::new(Self::x_of(i) as f32 * sx, 0.6 + (self.psi[i].abs().powi(2) * 1.8) as f32, 0.0))
+                    .map(|i| {
+                        Vec3::new(
+                            Self::x_of(i) as f32 * sx,
+                            0.6 + (self.psi[i].abs().powi(2) * 1.8) as f32,
+                            0.0,
+                        )
+                    })
                     .collect();
                 scene.polyline(LineLayer::World, &curve, 1.6, with_alpha(VIOLET, 0.8));
                 // Falling samples.
@@ -376,7 +452,12 @@ impl ConceptModule for SchrodingerHall {
                     let age = (t - birth) as f32;
                     let y = (1.9 - age * 2.4).max(-1.4);
                     let fade = if y <= -1.39 { 0.25 } else { 0.9 };
-                    scene.point(Vec3::new(x as f32 * sx, y, 0.05), 2.2, with_alpha(AMBER, fade), 1.4);
+                    scene.point(
+                        Vec3::new(x as f32 * sx, y, 0.05),
+                        2.2,
+                        with_alpha(AMBER, fade),
+                        1.4,
+                    );
                 }
                 // Histogram bars.
                 let max_h = self.hist.iter().copied().max().unwrap_or(1).max(6) as f32;
@@ -394,7 +475,13 @@ impl ConceptModule for SchrodingerHall {
                         with_alpha(AMBER, 0.55),
                     );
                 }
-                scene.line(LineLayer::World, Vec3::new(-5.6, -1.5, 0.0), Vec3::new(5.6, -1.5, 0.0), 1.0, GHOSTQ);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-5.6, -1.5, 0.0),
+                    Vec3::new(5.6, -1.5, 0.0),
+                    1.0,
+                    GHOSTQ,
+                );
             }
         }
     }

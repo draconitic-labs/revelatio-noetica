@@ -19,7 +19,11 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(kind: CamKind) -> Self {
-        Self { kind, target: Vec3::ZERO, aspect: 16.0 / 9.0 }
+        Self {
+            kind,
+            target: Vec3::ZERO,
+            aspect: 16.0 / 9.0,
+        }
     }
 
     pub fn eye(&self) -> Vec3 {

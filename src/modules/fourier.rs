@@ -85,7 +85,9 @@ fn target(wave: usize, x: f64) -> f64 {
 }
 
 fn partial_sum(wave: usize, n_max: usize, x: f64) -> f64 {
-    (1..=n_max).map(|n| coeff(wave, n) * (n as f64 * x).sin()).sum()
+    (1..=n_max)
+        .map(|n| coeff(wave, n) * (n as f64 * x).sin())
+        .sum()
 }
 
 const WAVE_NAMES: [&str; 4] = ["Square", "Sawtooth", "Triangle", "Pulse train"];
@@ -109,14 +111,18 @@ impl FourierAtelier {
         p.int("n", "Harmonics N", "Physics", 1, 64, 7);
         p.toggle("circles", "Show epicycles", "Display", true);
         p.toggle("ghost", "Show true waveform", "Display", true);
-        Self { params: p, draw_coefs: Vec::new() }
+        Self {
+            params: p,
+            draw_coefs: Vec::new(),
+        }
     }
 
     /// The figure the drawing machine reproduces: a heart, sampled closed.
     fn figure(s: f64) -> (f64, f64) {
         let th = s * std::f64::consts::TAU;
         let x = 16.0 * th.sin().powi(3);
-        let y = 13.0 * th.cos() - 5.0 * (2.0 * th).cos() - 2.0 * (3.0 * th).cos() - (4.0 * th).cos();
+        let y =
+            13.0 * th.cos() - 5.0 * (2.0 * th).cos() - 2.0 * (3.0 * th).cos() - (4.0 * th).cos();
         (x * 0.085, y * 0.085 + 0.15)
     }
 
@@ -162,16 +168,46 @@ impl ConceptModule for FourierAtelier {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("epicycles", "Epicycle Loom", "A chain of rotating circles traces the partial sum", 2.9)
-                .look_at(1.6, 0.0, 0.0),
-            RenderMode::plane("stack", "Harmonic Stack", "Each harmonic alone, then their sum", 3.4)
-                .look_at(3.1, 0.0, 0.0),
-            RenderMode::plane("spectrum", "Amplitude Spectrum", "|b\u{2099}| against n \u{2014} the recipe of the waveform", 1.6)
-                .look_at(2.9, 0.9, 0.0),
-            RenderMode::plane("gibbs", "Gibbs Lens", "Overshoot at the jump refuses to die: \u{2248}8.95% forever", 0.75)
-                .look_at(0.55, 0.85, 0.0),
-            RenderMode::plane("lissajous", "Lissajous Chamber", "x and y each hum one frequency; their ratio draws the figure", 1.6),
-            RenderMode::plane("drawing", "The Drawing Machine", "70 rotating circles chained tip-to-tip, reproducing a closed figure", 1.7),
+            RenderMode::plane(
+                "epicycles",
+                "Epicycle Loom",
+                "A chain of rotating circles traces the partial sum",
+                2.9,
+            )
+            .look_at(1.6, 0.0, 0.0),
+            RenderMode::plane(
+                "stack",
+                "Harmonic Stack",
+                "Each harmonic alone, then their sum",
+                3.4,
+            )
+            .look_at(3.1, 0.0, 0.0),
+            RenderMode::plane(
+                "spectrum",
+                "Amplitude Spectrum",
+                "|b\u{2099}| against n \u{2014} the recipe of the waveform",
+                1.6,
+            )
+            .look_at(2.9, 0.9, 0.0),
+            RenderMode::plane(
+                "gibbs",
+                "Gibbs Lens",
+                "Overshoot at the jump refuses to die: \u{2248}8.95% forever",
+                0.75,
+            )
+            .look_at(0.55, 0.85, 0.0),
+            RenderMode::plane(
+                "lissajous",
+                "Lissajous Chamber",
+                "x and y each hum one frequency; their ratio draws the figure",
+                1.6,
+            ),
+            RenderMode::plane(
+                "drawing",
+                "The Drawing Machine",
+                "70 rotating circles chained tip-to-tip, reproducing a closed figure",
+                1.7,
+            ),
         ]
     }
 
@@ -221,7 +257,12 @@ impl ConceptModule for FourierAtelier {
                             .collect();
                         scene.polyline(LineLayer::World, &ring, 1.0, with_alpha(TEAL, 0.28));
                     }
-                    let next = tip + Vec3::new((ang.cos() * r as f64) as f32, (ang.sin() * r as f64) as f32, 0.0);
+                    let next = tip
+                        + Vec3::new(
+                            (ang.cos() * r as f64) as f32,
+                            (ang.sin() * r as f64) as f32,
+                            0.0,
+                        );
                     let hue = phase_color(idx as f32 * 0.9);
                     scene.line(LineLayer::WorldAdd, tip, next, 2.0, with_alpha(hue, 0.85));
                     scene.point(next, 2.2, hue, 1.2);
@@ -241,8 +282,20 @@ impl ConceptModule for FourierAtelier {
                     .collect();
                 scene.glow_polyline(&pts, 2.2, ORANGE, 2.8);
                 // Thread from the chain tip to the trace head.
-                scene.line_soft(LineLayer::Overlay, tip, Vec3::new(x0, tip.y, 0.0), 1.2, with_alpha([0.9, 0.9, 0.95, 1.0], 0.25));
-                scene.line(LineLayer::World, Vec3::new(x0, -2.6, 0.0), Vec3::new(x0, 2.6, 0.0), 1.0, with_alpha(GHOST, 0.4));
+                scene.line_soft(
+                    LineLayer::Overlay,
+                    tip,
+                    Vec3::new(x0, tip.y, 0.0),
+                    1.2,
+                    with_alpha([0.9, 0.9, 0.95, 1.0], 0.25),
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(x0, -2.6, 0.0),
+                    Vec3::new(x0, 2.6, 0.0),
+                    1.0,
+                    with_alpha(GHOST, 0.4),
+                );
                 scene.point(Vec3::new(x0, tip.y, 0.0), 4.0, ORANGE, 2.0);
             }
             1 => {
@@ -250,7 +303,10 @@ impl ConceptModule for FourierAtelier {
                 let x0 = 0.0f32;
                 let width = 6.2f32;
                 let mut row = 0;
-                let shown: Vec<usize> = (1..=n_max).filter(|&n| coeff(wave, n).abs() > 1e-9).take(9).collect();
+                let shown: Vec<usize> = (1..=n_max)
+                    .filter(|&n| coeff(wave, n).abs() > 1e-9)
+                    .take(9)
+                    .collect();
                 let rows = shown.len().max(1);
                 for &n in &shown {
                     let b = coeff(wave, n);
@@ -260,7 +316,11 @@ impl ConceptModule for FourierAtelier {
                         .map(|i| {
                             let x = std::f64::consts::TAU * 2.0 * i as f64 / 300.0;
                             let y = b * (n as f64 * (x + th)).sin();
-                            Vec3::new(x0 + width * i as f32 / 300.0, y_off + (y * 0.42) as f32, 0.0)
+                            Vec3::new(
+                                x0 + width * i as f32 / 300.0,
+                                y_off + (y * 0.42) as f32,
+                                0.0,
+                            )
                         })
                         .collect();
                     scene.polyline(LineLayer::World, &pts, 1.4, with_alpha(hue, 0.55));
@@ -278,7 +338,11 @@ impl ConceptModule for FourierAtelier {
                     let gp: Vec<Vec3> = (0..=440)
                         .map(|i| {
                             let x = std::f64::consts::TAU * 2.0 * i as f64 / 440.0;
-                            Vec3::new(x0 + width * i as f32 / 440.0, 2.35 + (target(wave, x + th) * 0.55) as f32, 0.0)
+                            Vec3::new(
+                                x0 + width * i as f32 / 440.0,
+                                2.35 + (target(wave, x + th) * 0.55) as f32,
+                                0.0,
+                            )
                         })
                         .collect();
                     scene.polyline(LineLayer::World, &gp, 1.0, GHOST);
@@ -316,7 +380,13 @@ impl ConceptModule for FourierAtelier {
                     })
                     .collect();
                 scene.polyline(LineLayer::WorldAdd, &env, 1.2, with_alpha(ORANGE, 0.35));
-                scene.line(LineLayer::World, Vec3::new(-0.1, 0.0, 0.0), Vec3::new(6.0, 0.0, 0.0), 1.2, GHOST);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-0.1, 0.0, 0.0),
+                    Vec3::new(6.0, 0.0, 0.0),
+                    1.2,
+                    GHOST,
+                );
             }
             4 => {
                 // Lissajous: integer ratio locks the figure; the phase drifts.
@@ -334,7 +404,13 @@ impl ConceptModule for FourierAtelier {
                     .collect();
                 for i in 1..pts.len() {
                     let hue = phase_color(i as f32 / pts.len() as f32 * std::f32::consts::TAU);
-                    scene.line(LineLayer::WorldAdd, pts[i - 1], pts[i], 1.5, with_alpha(hue, 0.30));
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        pts[i - 1],
+                        pts[i],
+                        1.5,
+                        with_alpha(hue, 0.30),
+                    );
                 }
                 // The two generating oscillators, engraved on the margins.
                 let px = ((fa * phase * 2.0 + phase).sin() * 1.25) as f32;
@@ -379,7 +455,11 @@ impl ConceptModule for FourierAtelier {
                         let ring: Vec<Vec3> = (0..=36)
                             .map(|i| {
                                 let b = i as f64 / 36.0 * std::f64::consts::TAU;
-                                Vec3::new((cx + amp * b.cos()) as f32, (cy + amp * b.sin()) as f32, 0.0)
+                                Vec3::new(
+                                    (cx + amp * b.cos()) as f32,
+                                    (cy + amp * b.sin()) as f32,
+                                    0.0,
+                                )
                             })
                             .collect();
                         scene.polyline(LineLayer::World, &ring, 0.9, with_alpha(TEAL, 0.34));
@@ -419,7 +499,13 @@ impl ConceptModule for FourierAtelier {
                 // The Wilbraham-Gibbs ceiling for the square wave.
                 if wave == 0 {
                     let g = 1.0894898;
-                    scene.line(LineLayer::Overlay, Vec3::new(-0.8, g, 0.0), Vec3::new(1.8, g, 0.0), 1.0, with_alpha([0.95, 0.4, 0.4, 1.0], 0.5));
+                    scene.line(
+                        LineLayer::Overlay,
+                        Vec3::new(-0.8, g, 0.0),
+                        Vec3::new(1.8, g, 0.0),
+                        1.0,
+                        with_alpha([0.95, 0.4, 0.4, 1.0], 0.5),
+                    );
                 }
             }
         }

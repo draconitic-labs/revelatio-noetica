@@ -69,9 +69,23 @@ pub struct ChaosObservatory {
 impl ChaosObservatory {
     pub fn new() -> Self {
         let mut p = Params::new();
-        p.choice("system", "System", "Symbolic", vec!["Lorenz", "R\u{00F6}ssler"], 0);
+        p.choice(
+            "system",
+            "System",
+            "Symbolic",
+            vec!["Lorenz", "R\u{00F6}ssler"],
+            0,
+        );
         p.slider("rho", "Lorenz \u{03C1}", "Physics", 14.0, 45.0, 28.0, "");
-        p.slider("speed", "Integration rate", "Observer", 0.2, 4.0, 1.0, "\u{00D7}");
+        p.slider(
+            "speed",
+            "Integration rate",
+            "Observer",
+            0.2,
+            4.0,
+            1.0,
+            "\u{00D7}",
+        );
         Self {
             params: p,
             swarm: Vec::new(),
@@ -87,7 +101,10 @@ impl ChaosObservatory {
     }
 
     fn rand(&mut self) -> f32 {
-        self.rng = self.rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.rng = self
+            .rng
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         ((self.rng >> 33) as u32 as f64 / u32::MAX as f64) as f32 * 2.0 - 1.0
     }
 
@@ -95,7 +112,8 @@ impl ChaosObservatory {
         self.swarm.clear();
         for _ in 0..N_SWARM {
             let (a, b, c) = (self.rand(), self.rand(), self.rand());
-            self.swarm.push(Vec3::new(a * 18.0, b * 22.0, c * 18.0 + 22.0));
+            self.swarm
+                .push(Vec3::new(a * 18.0, b * 22.0, c * 18.0 + 22.0));
         }
         self.twin_a = vec![Vec3::new(1.0, 1.0, 20.0)];
         self.twin_b = vec![Vec3::new(1.0, 1.0, 20.00002)];
@@ -136,11 +154,35 @@ impl ConceptModule for ChaosObservatory {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::orbit("swarm", "Particle Swarm", "26,000 states advected by the flow; density reveals the attractor", 11.0, 0.15, 0.7),
-            RenderMode::orbit("ribbon", "Twin Trajectories", "Two histories 2\u{00D7}10\u{207B}\u{2075} apart \u{2014} watch them part ways", 11.0, 0.15, 0.7),
-            RenderMode::plane("logistic", "Logistic Bifurcation", "x \u{2192} rx(1\u{2212}x): period doubling cascading into chaos", 0.62)
-                .look_at(1.65, 0.55, 0.0),
-            RenderMode::plane("threebody", "The Figure-Eight Waltz", "Three equal suns sharing one orbit \u{2014} the choreography of 2000", 1.6),
+            RenderMode::orbit(
+                "swarm",
+                "Particle Swarm",
+                "26,000 states advected by the flow; density reveals the attractor",
+                11.0,
+                0.15,
+                0.7,
+            ),
+            RenderMode::orbit(
+                "ribbon",
+                "Twin Trajectories",
+                "Two histories 2\u{00D7}10\u{207B}\u{2075} apart \u{2014} watch them part ways",
+                11.0,
+                0.15,
+                0.7,
+            ),
+            RenderMode::plane(
+                "logistic",
+                "Logistic Bifurcation",
+                "x \u{2192} rx(1\u{2212}x): period doubling cascading into chaos",
+                0.62,
+            )
+            .look_at(1.65, 0.55, 0.0),
+            RenderMode::plane(
+                "threebody",
+                "The Figure-Eight Waltz",
+                "Three equal suns sharing one orbit \u{2014} the choreography of 2000",
+                1.6,
+            ),
         ]
     }
 
@@ -166,7 +208,8 @@ impl ConceptModule for ChaosObservatory {
             }
             for _ in 0..130 {
                 x = r * x * (1.0 - x);
-                self.logistic.push(Vec3::new(((r - 2.5) * 2.2) as f32, (x * 1.1) as f32, 0.0));
+                self.logistic
+                    .push(Vec3::new(((r - 2.5) * 2.2) as f32, (x * 1.1) as f32, 0.0));
             }
         }
     }
@@ -248,7 +291,14 @@ impl ConceptModule for ChaosObservatory {
         }
     }
 
-    fn render(&mut self, _gpu: &GpuContext, mode: usize, _t: f64, _cam: &Camera, scene: &mut Scene) {
+    fn render(
+        &mut self,
+        _gpu: &GpuContext,
+        mode: usize,
+        _t: f64,
+        _cam: &Camera,
+        scene: &mut Scene,
+    ) {
         scene.clear = [0.005, 0.005, 0.008, 1.0];
         match mode {
             0 => {
@@ -274,24 +324,43 @@ impl ConceptModule for ChaosObservatory {
                 // Feigenbaum landmarks.
                 for r in [3.0f32, 3.44949, 3.56995] {
                     let x = (r - 2.5) * 2.2;
-                    scene.line(LineLayer::Overlay, Vec3::new(x, 0.0, 0.0), Vec3::new(x, 1.1, 0.0), 0.8, [0.4, 0.6, 0.9, 0.25]);
+                    scene.line(
+                        LineLayer::Overlay,
+                        Vec3::new(x, 0.0, 0.0),
+                        Vec3::new(x, 1.1, 0.0),
+                        0.8,
+                        [0.4, 0.6, 0.9, 0.25],
+                    );
                 }
             }
             3 => {
                 scene.clear = [0.005, 0.005, 0.008, 1.0];
-                let cols = [[0.95f32, 0.72, 0.30, 1.0], [0.40, 0.75, 0.95, 1.0], [0.95, 0.45, 0.60, 1.0]];
+                let cols = [
+                    [0.95f32, 0.72, 0.30, 1.0],
+                    [0.40, 0.75, 0.95, 1.0],
+                    [0.95, 0.45, 0.60, 1.0],
+                ];
                 for i in 0..3 {
                     let tr = &self.tb_trails[i];
                     for k in 1..tr.len() {
                         let age = k as f32 / tr.len() as f32;
-                        scene.line(LineLayer::WorldAdd, tr[k - 1], tr[k], 1.5, with_alpha(cols[i], 0.04 + 0.4 * age * age));
+                        scene.line(
+                            LineLayer::WorldAdd,
+                            tr[k - 1],
+                            tr[k],
+                            1.5,
+                            with_alpha(cols[i], 0.04 + 0.4 * age * age),
+                        );
                     }
                     let p = Vec3::new(self.tb[i][0] as f32 * 1.3, self.tb[i][1] as f32 * 1.3, 0.01);
                     scene.point(p, 6.5, cols[i], 2.4);
                 }
             }
             _ => {
-                for (tw, base) in [(&self.twin_a, [0.95, 0.72, 0.30f32]), (&self.twin_b, [0.35, 0.75, 0.95])] {
+                for (tw, base) in [
+                    (&self.twin_a, [0.95, 0.72, 0.30f32]),
+                    (&self.twin_b, [0.35, 0.75, 0.95]),
+                ] {
                     let pts: Vec<Vec3> = tw.iter().map(|&p| self.view_of(p)).collect();
                     let n = pts.len();
                     for i in 1..n {
@@ -310,7 +379,13 @@ impl ConceptModule for ChaosObservatory {
                 }
                 // The gap, made visible.
                 if let (Some(&a), Some(&b)) = (self.twin_a.last(), self.twin_b.last()) {
-                    scene.line(LineLayer::Overlay, self.view_of(a), self.view_of(b), 1.2, with_alpha([1.0, 1.0, 1.0, 1.0], 0.5));
+                    scene.line(
+                        LineLayer::Overlay,
+                        self.view_of(a),
+                        self.view_of(b),
+                        1.2,
+                        with_alpha([1.0, 1.0, 1.0, 1.0], 0.5),
+                    );
                 }
             }
         }

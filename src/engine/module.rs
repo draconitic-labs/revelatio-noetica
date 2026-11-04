@@ -31,7 +31,13 @@ pub struct RenderMode {
 
 impl RenderMode {
     pub fn plane(id: &'static str, name: &'static str, desc: &'static str, half_h: f32) -> Self {
-        Self { id, name, desc, cam: CamKind::Plane { half_h }, target: glam::Vec3::ZERO }
+        Self {
+            id,
+            name,
+            desc,
+            cam: CamKind::Plane { half_h },
+            target: glam::Vec3::ZERO,
+        }
     }
     pub fn orbit(
         id: &'static str,
@@ -41,7 +47,13 @@ impl RenderMode {
         pitch: f32,
         yaw: f32,
     ) -> Self {
-        Self { id, name, desc, cam: CamKind::Orbit { dist, pitch, yaw }, target: glam::Vec3::ZERO }
+        Self {
+            id,
+            name,
+            desc,
+            cam: CamKind::Orbit { dist, pitch, yaw },
+            target: glam::Vec3::ZERO,
+        }
     }
     pub fn look_at(mut self, x: f32, y: f32, z: f32) -> Self {
         self.target = glam::Vec3::new(x, y, z);
@@ -67,23 +79,47 @@ pub struct InsLine {
 }
 
 pub fn title(s: impl Into<String>) -> InsLine {
-    InsLine { role: InsRole::Title, text: s.into(), tex: None }
+    InsLine {
+        role: InsRole::Title,
+        text: s.into(),
+        tex: None,
+    }
 }
 pub fn formula(s: impl Into<String>) -> InsLine {
-    InsLine { role: InsRole::Formula, text: s.into(), tex: None }
+    InsLine {
+        role: InsRole::Formula,
+        text: s.into(),
+        tex: None,
+    }
 }
 /// A formula typeset by LaTeX when available, with a Unicode fallback.
 pub fn ftex(key: &'static str, fallback: impl Into<String>) -> InsLine {
-    InsLine { role: InsRole::Formula, text: fallback.into(), tex: Some(key) }
+    InsLine {
+        role: InsRole::Formula,
+        text: fallback.into(),
+        tex: Some(key),
+    }
 }
 pub fn def(s: impl Into<String>) -> InsLine {
-    InsLine { role: InsRole::Def, text: s.into(), tex: None }
+    InsLine {
+        role: InsRole::Def,
+        text: s.into(),
+        tex: None,
+    }
 }
 pub fn value(s: impl Into<String>) -> InsLine {
-    InsLine { role: InsRole::Value, text: s.into(), tex: None }
+    InsLine {
+        role: InsRole::Value,
+        text: s.into(),
+        tex: None,
+    }
 }
 pub fn note(s: impl Into<String>) -> InsLine {
-    InsLine { role: InsRole::Note, text: s.into(), tex: None }
+    InsLine {
+        role: InsRole::Note,
+        text: s.into(),
+        tex: None,
+    }
 }
 
 /// Pointer gestures delivered to modules on plane-camera views, in world
@@ -237,7 +273,12 @@ impl Engine {
             view_proj: vp.to_cols_array_2d(),
             inv_view_proj: vp.inverse().to_cols_array_2d(),
             eye: cam.eye().extend(1.0).to_array(),
-            resolution: [target.width as f32, target.height as f32, t as f32, cam.aspect],
+            resolution: [
+                target.width as f32,
+                target.height as f32,
+                t as f32,
+                cam.aspect,
+            ],
             p: scene.params,
         };
         target.write_uniforms(&self.gpu, &u);

@@ -205,7 +205,8 @@ impl HydrogenSanctum {
         let ct = p.y as f64 / r;
         let am = m.unsigned_abs();
         let fact = |k: u32| -> f64 { (1..=k).map(|v| v as f64).product::<f64>().max(1.0) };
-        let ny = ((2 * l + 1) as f64 / (4.0 * std::f64::consts::PI) * fact(l - am) / fact(l + am)).sqrt();
+        let ny = ((2 * l + 1) as f64 / (4.0 * std::f64::consts::PI) * fact(l - am) / fact(l + am))
+            .sqrt();
         let a = radial(n, l, r) * ny * legendre(l, am, ct);
         a * a
     }
@@ -258,7 +259,10 @@ impl HydrogenSanctum {
     }
 
     fn rand(&mut self) -> f64 {
-        self.rng = self.rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.rng = self
+            .rng
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         (self.rng >> 11) as f64 / (1u64 << 53) as f64
     }
 
@@ -274,7 +278,9 @@ impl HydrogenSanctum {
             let rad = radial(n, l, r);
             let am = m.unsigned_abs();
             let fact = |k: u32| -> f64 { (1..=k).map(|v| v as f64).product::<f64>().max(1.0) };
-            let ny = ((2 * l + 1) as f64 / (4.0 * std::f64::consts::PI) * fact(l - am) / fact(l + am)).sqrt();
+            let ny = ((2 * l + 1) as f64 / (4.0 * std::f64::consts::PI) * fact(l - am)
+                / fact(l + am))
+            .sqrt();
             let p2 = (rad * ny * legendre(l, am, ct)).powi(2);
             // Weight by volume element r^2 (uniform-in-ball proposal ~ r^2 missing).
             let w = p2 * r * r;
@@ -329,7 +335,12 @@ impl ConceptModule for HydrogenSanctum {
     }
 
     fn init(&mut self, gpu: &GpuContext, rend: &mut Renderers) {
-        rend.register_field(gpu, "hydrogen.cloud", &format!("{PSI_WGSL}{CLOUD_SHADE}"), false);
+        rend.register_field(
+            gpu,
+            "hydrogen.cloud",
+            &format!("{PSI_WGSL}{CLOUD_SHADE}"),
+            false,
+        );
     }
 
     fn update(&mut self, _gpu: &GpuContext, _t: f64, _dt: f64) {
@@ -356,7 +367,14 @@ impl ConceptModule for HydrogenSanctum {
         }
     }
 
-    fn render(&mut self, _gpu: &GpuContext, mode: usize, _t: f64, _cam: &Camera, scene: &mut Scene) {
+    fn render(
+        &mut self,
+        _gpu: &GpuContext,
+        mode: usize,
+        _t: f64,
+        _cam: &Camera,
+        scene: &mut Scene,
+    ) {
         let (n, l, m) = self.nlm();
         scene.clear = [0.005, 0.005, 0.009, 1.0];
         scene.p(0, n as f32);
@@ -365,14 +383,27 @@ impl ConceptModule for HydrogenSanctum {
         // Density autoscale ~ n^6 to keep clouds visible across n.
         scene.p(3, self.params.f("dens") as f32 * (n as f32).powi(6) * 2.2);
         scene.p(4, if mode == 2 { 1.0 } else { 0.0 });
-        scene.p(5, if self.params.b("cut") || mode == 2 { 1.0 } else { 0.0 });
+        scene.p(
+            5,
+            if self.params.b("cut") || mode == 2 {
+                1.0
+            } else {
+                0.0
+            },
+        );
 
         match mode {
             0 | 2 => {
                 scene.field = Some("hydrogen.cloud");
                 // Quantization axis, engraved.
                 let ax = (n * n) as f32 * 2.0 + 6.0;
-                scene.line(LineLayer::Overlay, Vec3::new(0.0, -ax, 0.0), Vec3::new(0.0, ax, 0.0), 1.0, [0.5, 0.55, 0.7, 0.18]);
+                scene.line(
+                    LineLayer::Overlay,
+                    Vec3::new(0.0, -ax, 0.0),
+                    Vec3::new(0.0, ax, 0.0),
+                    1.0,
+                    [0.5, 0.55, 0.7, 0.18],
+                );
             }
             1 => {
                 // The trembling pointillist cloud: every dot is a walker.
@@ -382,13 +413,19 @@ impl ConceptModule for HydrogenSanctum {
                     scene.point(*p, 1.15, with_alpha(hue, 0.42), 0.9);
                 }
                 let ax = (n * n) as f32 * 2.0 + 6.0;
-                scene.line(LineLayer::Overlay, Vec3::new(0.0, -ax, 0.0), Vec3::new(0.0, ax, 0.0), 1.0, [0.5, 0.55, 0.7, 0.18]);
+                scene.line(
+                    LineLayer::Overlay,
+                    Vec3::new(0.0, -ax, 0.0),
+                    Vec3::new(0.0, ax, 0.0),
+                    1.0,
+                    [0.5, 0.55, 0.7, 0.18],
+                );
                 scene.point(Vec3::ZERO, 3.0, [1.0, 0.9, 0.75, 1.0], 2.0);
             }
             3 => {
                 let r_max = (n * n) as f64 * 2.4 + 6.0;
                 let sx = 32.0 / r_max; // fit into view width
-                // P(r) curve.
+                                       // P(r) curve.
                 let pts: Vec<Vec3> = (0..=400)
                     .map(|i| {
                         let r = r_max * i as f64 / 400.0;
@@ -397,7 +434,13 @@ impl ConceptModule for HydrogenSanctum {
                     })
                     .collect();
                 scene.glow_polyline(&pts, 2.2, H_BETA, 2.8);
-                scene.line(LineLayer::World, Vec3::ZERO, Vec3::new(33.0, 0.0, 0.0), 1.2, [0.45, 0.5, 0.6, 0.4]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::ZERO,
+                    Vec3::new(33.0, 0.0, 0.0),
+                    1.2,
+                    [0.45, 0.5, 0.6, 0.4],
+                );
                 // <r> = (1/2)[3n^2 - l(l+1)].
                 let mean_r = 0.5 * (3.0 * (n * n) as f64 - (l * (l + 1)) as f64);
                 scene.line(
@@ -410,7 +453,12 @@ impl ConceptModule for HydrogenSanctum {
                 // Bohr-shell ghost rings on the axis for comparison.
                 for shell in 1..=n {
                     let rb = (shell * shell) as f64;
-                    scene.point(Vec3::new((rb * sx) as f32, -0.7, 0.0), 2.5, with_alpha(H_ALPHA, 0.5), 1.2);
+                    scene.point(
+                        Vec3::new((rb * sx) as f32, -0.7, 0.0),
+                        2.5,
+                        with_alpha(H_ALPHA, 0.5),
+                        1.2,
+                    );
                 }
             }
             _ => {
@@ -421,7 +469,13 @@ impl ConceptModule for HydrogenSanctum {
                     scene.point(*p, 1.6, with_alpha(hue, 0.75), 1.2);
                 }
                 let ax = (n * n) as f32 * 2.0 + 6.0;
-                scene.line(LineLayer::Overlay, Vec3::new(0.0, -ax, 0.0), Vec3::new(0.0, ax, 0.0), 1.0, [0.5, 0.55, 0.7, 0.18]);
+                scene.line(
+                    LineLayer::Overlay,
+                    Vec3::new(0.0, -ax, 0.0),
+                    Vec3::new(0.0, ax, 0.0),
+                    1.0,
+                    [0.5, 0.55, 0.7, 0.18],
+                );
                 scene.point(Vec3::ZERO, 3.0, [1.0, 0.9, 0.75, 1.0], 2.0);
             }
         }

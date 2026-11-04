@@ -16,7 +16,12 @@ const WORLD: f32 = 8.0; // simulation spans [-4, 4]^2
 const DX: f64 = (WORLD as f64) / N as f64;
 const DT: f64 = 0.010;
 
-const PRESETS: [&str; 4] = ["Gaussian pluck", "Point oscillator", "Double slit", "Two sources"];
+const PRESETS: [&str; 4] = [
+    "Gaussian pluck",
+    "Point oscillator",
+    "Double slit",
+    "Two sources",
+];
 
 /// Chladni figure of a square plate: nodal lines of a two-mode superposition.
 const CHLADNI_SHADE: &str = r#"
@@ -208,7 +213,8 @@ impl WaveTable {
                 if self.barrier[idx] {
                     continue;
                 }
-                let lap = self.u[idx - 1] + self.u[idx + 1] + self.u[idx - N] + self.u[idx + N] - 4.0 * self.u[idx];
+                let lap = self.u[idx - 1] + self.u[idx + 1] + self.u[idx - N] + self.u[idx + N]
+                    - 4.0 * self.u[idx];
                 un[idx] = (2.0 * self.u[idx] - self.up[idx] + r2 * lap) * (1.0 - damp);
             }
         }
@@ -271,7 +277,11 @@ impl WaveTable {
                     bytes_per_row: Some((N * 4) as u32),
                     rows_per_image: Some(N as u32),
                 },
-                wgpu::Extent3d { width: N as u32, height: N as u32, depth_or_array_layers: 1 },
+                wgpu::Extent3d {
+                    width: N as u32,
+                    height: N as u32,
+                    depth_or_array_layers: 1,
+                },
             );
         }
     }
@@ -291,12 +301,44 @@ impl ConceptModule for WaveTable {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("amplitude", "Amplitude Field", "u(x,y,t): gold crests, indigo troughs", 4.2),
-            RenderMode::orbit("relief", "Standing Relief", "The membrane in the round; height = u", 11.0, 0.55, 0.9),
-            RenderMode::plane("energy", "Energy Density", "\u{00BD}(u\u{209C}\u{00B2} + c\u{00B2}|\u{2207}u|\u{00B2})", 4.2),
-            RenderMode::plane("fronts", "Wavefronts", "Ridge bands of |u|: the geometry of Huygens", 4.2),
-            RenderMode::plane("chladni", "Chladni Plate", "Sand settles where the plate never moves: the nodal figures of 1787", 3.6),
-            RenderMode::plane("doppler", "Doppler Wake", "Wavefronts crowd ahead of the source; past Mach 1, they pile into a cone", 3.6),
+            RenderMode::plane(
+                "amplitude",
+                "Amplitude Field",
+                "u(x,y,t): gold crests, indigo troughs",
+                4.2,
+            ),
+            RenderMode::orbit(
+                "relief",
+                "Standing Relief",
+                "The membrane in the round; height = u",
+                11.0,
+                0.55,
+                0.9,
+            ),
+            RenderMode::plane(
+                "energy",
+                "Energy Density",
+                "\u{00BD}(u\u{209C}\u{00B2} + c\u{00B2}|\u{2207}u|\u{00B2})",
+                4.2,
+            ),
+            RenderMode::plane(
+                "fronts",
+                "Wavefronts",
+                "Ridge bands of |u|: the geometry of Huygens",
+                4.2,
+            ),
+            RenderMode::plane(
+                "chladni",
+                "Chladni Plate",
+                "Sand settles where the plate never moves: the nodal figures of 1787",
+                3.6,
+            ),
+            RenderMode::plane(
+                "doppler",
+                "Doppler Wake",
+                "Wavefronts crowd ahead of the source; past Mach 1, they pile into a cone",
+                3.6,
+            ),
         ]
     }
 
@@ -315,7 +357,11 @@ impl ConceptModule for WaveTable {
         rend.register_field(gpu, "wave.chladni", CHLADNI_SHADE, false);
         let tex = gpu.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("wave-state"),
-            size: wgpu::Extent3d { width: N as u32, height: N as u32, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: N as u32,
+                height: N as u32,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -378,7 +424,14 @@ impl ConceptModule for WaveTable {
         }
     }
 
-    fn render(&mut self, _gpu: &GpuContext, mode: usize, _t: f64, _cam: &Camera, scene: &mut Scene) {
+    fn render(
+        &mut self,
+        _gpu: &GpuContext,
+        mode: usize,
+        _t: f64,
+        _cam: &Camera,
+        scene: &mut Scene,
+    ) {
         let preset = self.params.c("preset");
         match mode {
             4 => {
@@ -403,7 +456,11 @@ impl ConceptModule for WaveTable {
                             Vec3::new(center.x + a.cos() * r, center.y + a.sin() * r, 0.0)
                         })
                         .collect();
-                    let col = if mach > 1.0 { [0.95f32, 0.55, 0.25, fade] } else { [0.40, 0.78, 0.98, fade] };
+                    let col = if mach > 1.0 {
+                        [0.95f32, 0.55, 0.25, fade]
+                    } else {
+                        [0.40, 0.78, 0.98, fade]
+                    };
                     scene.polyline(LineLayer::WorldAdd, &ring, 1.9, col);
                 }
                 // The source, its wake, and (supersonic) the Mach cone.
@@ -428,7 +485,12 @@ impl ConceptModule for WaveTable {
                         );
                     }
                 }
-                scene.point(Vec3::new(src.x, src.y, 0.03), 6.0, [0.98, 0.92, 0.78, 1.0], 2.6);
+                scene.point(
+                    Vec3::new(src.x, src.y, 0.03),
+                    6.0,
+                    [0.98, 0.92, 0.78, 1.0],
+                    2.6,
+                );
             }
             1 => {
                 scene.clear = [0.006, 0.007, 0.011, 1.0];
@@ -438,26 +500,46 @@ impl ConceptModule for WaveTable {
                 // Rim of the membrane.
                 let rim: Vec<Vec3> = (0..=4)
                     .map(|i| {
-                        let c = [(-4.0, -4.0), (4.0, -4.0), (4.0, 4.0), (-4.0, 4.0), (-4.0, -4.0)][i];
+                        let c = [
+                            (-4.0, -4.0),
+                            (4.0, -4.0),
+                            (4.0, 4.0),
+                            (-4.0, 4.0),
+                            (-4.0, -4.0),
+                        ][i];
                         Vec3::new(c.0, 0.0, c.1)
                     })
                     .collect();
-                scene.polyline(LineLayer::World, &rim, 1.2, with_alpha([0.5, 0.55, 0.7, 1.0], 0.35));
+                scene.polyline(
+                    LineLayer::World,
+                    &rim,
+                    1.2,
+                    with_alpha([0.5, 0.55, 0.7, 1.0], 0.35),
+                );
                 if preset == 2 {
                     // The double-slit barrier, standing.
                     for (y0, y1) in [(-4.0f32, -0.77f32), (-0.33, 0.33), (0.77, 4.0)] {
-                        scene.line(LineLayer::World, Vec3::new(0.0, 0.35, y0), Vec3::new(0.0, 0.35, y1), 4.0, with_alpha([0.55, 0.5, 0.45, 1.0], 0.8));
+                        scene.line(
+                            LineLayer::World,
+                            Vec3::new(0.0, 0.35, y0),
+                            Vec3::new(0.0, 0.35, y1),
+                            4.0,
+                            with_alpha([0.55, 0.5, 0.45, 1.0], 0.8),
+                        );
                     }
                 }
             }
             m => {
                 scene.field = Some("wave.field");
                 scene.field_tex = self.tex_view.clone();
-                scene.p(0, match m {
-                    0 => 0.0,
-                    2 => 1.0,
-                    _ => 2.0,
-                });
+                scene.p(
+                    0,
+                    match m {
+                        0 => 0.0,
+                        2 => 1.0,
+                        _ => 2.0,
+                    },
+                );
                 scene.p(1, if preset == 2 { 1.0 } else { 0.0 });
             }
         }

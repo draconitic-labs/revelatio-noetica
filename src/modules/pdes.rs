@@ -79,10 +79,32 @@ pub struct PdeHall {
 impl PdeHall {
     pub fn new() -> Self {
         let mut p = Params::new();
-        p.slider("alpha", "Diffusivity \u{03B1}", "Physics", 0.2, 2.0, 1.0, "");
-        p.slider("nu", "Burgers viscosity \u{03BD}", "Physics", 0.001, 0.02, 0.004, "");
+        p.slider(
+            "alpha",
+            "Diffusivity \u{03B1}",
+            "Physics",
+            0.2,
+            2.0,
+            1.0,
+            "",
+        );
+        p.slider(
+            "nu",
+            "Burgers viscosity \u{03BD}",
+            "Physics",
+            0.001,
+            0.02,
+            0.004,
+            "",
+        );
         p.int("modes", "String modes N", "Physics", 1, 24, 8);
-        p.choice("gs", "Gray\u{2013}Scott regime", "Symbolic", vec!["Spots (mitosis)", "Stripes (coral)", "Waves (U-skate)"], 0);
+        p.choice(
+            "gs",
+            "Gray\u{2013}Scott regime",
+            "Symbolic",
+            vec!["Spots (mitosis)", "Stripes (coral)", "Waves (U-skate)"],
+            0,
+        );
         Self {
             params: p,
             heat: Vec::new(),
@@ -129,8 +151,11 @@ impl PdeHall {
                 let fx = i as f32 / (NG - 1) as f32;
                 let fy = j as f32 / (NG - 1) as f32;
                 let left = 1.0 * (1.0 - fx);
-                let top = ((i as f32 / NG as f32 * std::f32::consts::TAU * 1.5).sin() * 0.5 + 0.5) * (1.0 - fy);
-                let bot = (1.0 - ((i as f32 / NG as f32 * std::f32::consts::TAU * 1.5).sin() * 0.5 + 0.5)) * fy;
+                let top = ((i as f32 / NG as f32 * std::f32::consts::TAU * 1.5).sin() * 0.5 + 0.5)
+                    * (1.0 - fy);
+                let bot = (1.0
+                    - ((i as f32 / NG as f32 * std::f32::consts::TAU * 1.5).sin() * 0.5 + 0.5))
+                    * fy;
                 (left + top + bot) * 0.5
             })
             .collect();
@@ -208,7 +233,11 @@ impl PdeHall {
                 bytes_per_row: Some((NG * 4) as u32),
                 rows_per_image: Some(NG as u32),
             },
-            wgpu::Extent3d { width: NG as u32, height: NG as u32, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width: NG as u32,
+                height: NG as u32,
+                depth_or_array_layers: 1,
+            },
         );
     }
 
@@ -257,7 +286,10 @@ impl PdeHall {
                 for i in 1..NG - 1 {
                     let idx = j * NG + i;
                     self.lap[idx] = 0.25
-                        * (self.lap[idx - 1] + self.lap[idx + 1] + self.lap[idx - NG] + self.lap[idx + NG]);
+                        * (self.lap[idx - 1]
+                            + self.lap[idx + 1]
+                            + self.lap[idx - NG]
+                            + self.lap[idx + NG]);
                 }
             }
         }
@@ -307,7 +339,11 @@ impl ConceptModule for PdeHall {
         rend.register_field(gpu, "pde.field2d", FIELD2D_SHADE, true);
         let tex = gpu.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("pde-field"),
-            size: wgpu::Extent3d { width: NG as u32, height: NG as u32, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: NG as u32,
+                height: NG as u32,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -354,7 +390,11 @@ impl ConceptModule for PdeHall {
                 let im = (i + NX1 - 1) % NX1;
                 let ip = (i + 1) % NX1;
                 let u = u0[i];
-                let dudx = if u >= 0.0 { (u - u0[im]) / dx } else { (u0[ip] - u) / dx };
+                let dudx = if u >= 0.0 {
+                    (u - u0[im]) / dx
+                } else {
+                    (u0[ip] - u) / dx
+                };
                 let visc = nu * (u0[ip] - 2.0 * u + u0[im]) / (dx * dx);
                 self.burgers[i] = u + dtb * (-u * dudx + visc);
             }
@@ -365,7 +405,13 @@ impl ConceptModule for PdeHall {
         match mode {
             0 => {
                 scene.clear = [0.008, 0.009, 0.012, 1.0];
-                scene.line(LineLayer::World, Vec3::ZERO, Vec3::new(4.0, 0.0, 0.0), 1.2, [0.5, 0.5, 0.55, 0.5]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::ZERO,
+                    Vec3::new(4.0, 0.0, 0.0),
+                    1.2,
+                    [0.5, 0.5, 0.55, 0.5],
+                );
                 for (si, snap) in self.heat_snaps.iter().enumerate() {
                     let a = 0.10 + 0.03 * si as f32;
                     let pts: Vec<Vec3> = snap
@@ -392,7 +438,13 @@ impl ConceptModule for PdeHall {
             }
             2 => {
                 scene.clear = [0.008, 0.009, 0.012, 1.0];
-                scene.line(LineLayer::World, Vec3::new(0.0, 0.0, 0.0), Vec3::new(4.0, 0.0, 0.0), 1.1, [0.5, 0.5, 0.55, 0.5]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(0.0, 0.0, 0.0),
+                    Vec3::new(4.0, 0.0, 0.0),
+                    1.1,
+                    [0.5, 0.5, 0.55, 0.5],
+                );
                 // Colored by initial position: watch the fast catch the slow.
                 for i in 1..NX1 {
                     let x0 = 4.0 * (i - 1) as f32 / NX1 as f32;
@@ -423,7 +475,9 @@ impl ConceptModule for PdeHall {
                     let pts: Vec<Vec3> = (0..220)
                         .map(|i| {
                             let x = l * i as f64 / 219.0;
-                            let y = bn * (n as f64 * std::f64::consts::PI * x / l).sin() * (om * t).cos();
+                            let y = bn
+                                * (n as f64 * std::f64::consts::PI * x / l).sin()
+                                * (om * t).cos();
                             sum[i] += y;
                             Vec3::new(x as f32, (y * 0.8) as f32 - 1.1, 0.0)
                         })
@@ -434,10 +488,18 @@ impl ConceptModule for PdeHall {
                 let spts: Vec<Vec3> = sum
                     .iter()
                     .enumerate()
-                    .map(|(i, &y)| Vec3::new(l as f32 * i as f32 / 219.0, (y * 0.8) as f32 + 0.7, 0.0))
+                    .map(|(i, &y)| {
+                        Vec3::new(l as f32 * i as f32 / 219.0, (y * 0.8) as f32 + 0.7, 0.0)
+                    })
                     .collect();
                 scene.glow_polyline(&spts, 2.2, TEAL_P, 2.6);
-                scene.line(LineLayer::World, Vec3::new(0.0, 0.7, 0.0), Vec3::new(4.0, 0.7, 0.0), 0.9, [0.5, 0.5, 0.55, 0.3]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(0.0, 0.7, 0.0),
+                    Vec3::new(4.0, 0.7, 0.0),
+                    0.9,
+                    [0.5, 0.5, 0.55, 0.3],
+                );
             }
             5 => {
                 self.step_fhn(6);

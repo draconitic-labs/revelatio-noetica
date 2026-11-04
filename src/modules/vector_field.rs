@@ -14,7 +14,14 @@ const GREEN: [f32; 4] = [0.30, 0.85, 0.55, 1.0];
 const BLUE: [f32; 4] = [0.40, 0.60, 0.98, 1.0];
 const WHITE: [f32; 4] = [0.92, 0.96, 1.0, 1.0];
 
-const FIELD_NAMES: [&str; 6] = ["Vortex", "Source & sink", "Saddle", "Shear", "Spiral sink", "Dipole"];
+const FIELD_NAMES: [&str; 6] = [
+    "Vortex",
+    "Source & sink",
+    "Saddle",
+    "Shear",
+    "Spiral sink",
+    "Dipole",
+];
 const FIELD_EQNS: [&str; 6] = [
     "F = (\u{2212}y, x)",
     "F = ((x\u{2212}1)/r\u{2081}\u{00B2} \u{2212} (x+1)/r\u{2082}\u{00B2}, y/r\u{2081}\u{00B2} \u{2212} y/r\u{2082}\u{00B2})",
@@ -40,7 +47,10 @@ fn field(k: usize, p: Vec2) -> Vec2 {
         _ => {
             let r2 = p.length_squared().max(0.03);
             // 2D dipole oriented along +x.
-            Vec2::new((p.x * p.x - p.y * p.y) / (r2 * r2), 2.0 * p.x * p.y / (r2 * r2)) * 0.5
+            Vec2::new(
+                (p.x * p.x - p.y * p.y) / (r2 * r2),
+                2.0 * p.x * p.y / (r2 * r2),
+            ) * 0.5
         }
     }
 }
@@ -125,11 +135,19 @@ impl VectorField {
         p.slider("probe_y", "Probe center y", "Observer", -2.5, 2.5, 0.4, "");
         p.slider("probe_r", "Probe radius", "Observer", 0.3, 1.8, 0.9, "");
         p.slider("flow", "Flow speed", "Physics", 0.0, 2.5, 1.0, "");
-        Self { params: p, particles: Vec::new(), seed: 0x9E3779B97F4A7C15, last_k: usize::MAX }
+        Self {
+            params: p,
+            particles: Vec::new(),
+            seed: 0x9E3779B97F4A7C15,
+            last_k: usize::MAX,
+        }
     }
 
     fn rand(&mut self) -> f32 {
-        self.seed = self.seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.seed = self
+            .seed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         ((self.seed >> 33) as u32 as f32 / u32::MAX as f32) * 2.0 - 1.0
     }
 
@@ -142,7 +160,10 @@ impl VectorField {
     /// area integrals of div and curl inside it (midpoint quadrature).
     fn probe_integrals(&self) -> (f64, f64, f64, f64) {
         let k = self.params.c("field");
-        let c = Vec2::new(self.params.f("probe_x") as f32, self.params.f("probe_y") as f32);
+        let c = Vec2::new(
+            self.params.f("probe_x") as f32,
+            self.params.f("probe_y") as f32,
+        );
         let r = self.params.f("probe_r") as f32;
         let n = 720;
         let (mut flux, mut circ) = (0.0f64, 0.0f64);
@@ -193,10 +214,30 @@ impl ConceptModule for VectorField {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("flow", "Field & Flow", "Comet arrows on the lattice; tracer particles ride the flow", 3.4),
-            RenderMode::plane("heat", "Divergence \u{00B7} Curl Heat", "Sources burn orange, sinks glow blue; rotation likewise", 3.4),
-            RenderMode::plane("probe", "Flux & Circulation Probe", "A circle interrogates the field: \u{222E}F\u{00B7}n ds and \u{222E}F\u{00B7}T ds", 3.4),
-            RenderMode::plane("weave", "Streamline Weave", "Hundreds of integral curves woven into the field's fabric", 3.4),
+            RenderMode::plane(
+                "flow",
+                "Field & Flow",
+                "Comet arrows on the lattice; tracer particles ride the flow",
+                3.4,
+            ),
+            RenderMode::plane(
+                "heat",
+                "Divergence \u{00B7} Curl Heat",
+                "Sources burn orange, sinks glow blue; rotation likewise",
+                3.4,
+            ),
+            RenderMode::plane(
+                "probe",
+                "Flux & Circulation Probe",
+                "A circle interrogates the field: \u{222E}F\u{00B7}n ds and \u{222E}F\u{00B7}T ds",
+                3.4,
+            ),
+            RenderMode::plane(
+                "weave",
+                "Streamline Weave",
+                "Hundreds of integral curves woven into the field's fabric",
+                3.4,
+            ),
         ]
     }
 
@@ -258,7 +299,10 @@ impl ConceptModule for VectorField {
             let n = 15;
             for i in 0..=n {
                 for j in 0..=n {
-                    let p = Vec2::new(-3.2 + 6.4 * i as f32 / n as f32, -3.2 + 6.4 * j as f32 / n as f32);
+                    let p = Vec2::new(
+                        -3.2 + 6.4 * i as f32 / n as f32,
+                        -3.2 + 6.4 * j as f32 / n as f32,
+                    );
                     let f = field(k, p);
                     let mag = f.length();
                     if mag < 1e-4 {
@@ -342,7 +386,11 @@ impl ConceptModule for VectorField {
             _ => {
                 scene.field = Some("vector.paper");
                 arrows(scene, 0.35);
-                let c = Vec3::new(self.params.f("probe_x") as f32, self.params.f("probe_y") as f32, 0.0);
+                let c = Vec3::new(
+                    self.params.f("probe_x") as f32,
+                    self.params.f("probe_y") as f32,
+                    0.0,
+                );
                 let r = self.params.f("probe_r") as f32;
                 let ring: Vec<Vec3> = (0..=96)
                     .map(|i| {
@@ -360,7 +408,11 @@ impl ConceptModule for VectorField {
                     let f = field(k, pos);
                     let fn_ = f.dot(nrm);
                     let ft = f.dot(tan);
-                    let ncol = if fn_ >= 0.0 { [0.95, 0.55, 0.15, 0.9] } else { [0.25, 0.5, 0.95, 0.9] };
+                    let ncol = if fn_ >= 0.0 {
+                        [0.95, 0.55, 0.15, 0.9]
+                    } else {
+                        [0.25, 0.5, 0.95, 0.9]
+                    };
                     scene.vector(
                         Vec3::new(pos.x, pos.y, 0.08),
                         Vec3::new(nrm.x * fn_ * 0.30, nrm.y * fn_ * 0.30, 0.0),

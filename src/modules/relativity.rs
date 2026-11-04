@@ -67,7 +67,15 @@ pub struct RelativityTheatre {
 impl RelativityTheatre {
     pub fn new() -> Self {
         let mut p = Params::new();
-        p.slider("beta", "Boost velocity \u{03B2}", "Observer", -0.9, 0.9, 0.6, "c");
+        p.slider(
+            "beta",
+            "Boost velocity \u{03B2}",
+            "Observer",
+            -0.9,
+            0.9,
+            0.6,
+            "c",
+        );
         p.toggle("animate", "Sweep \u{03B2} with time", "Observer", true);
         p.toggle("grid", "Boosted coordinate grid", "Display", true);
         Self {
@@ -142,11 +150,29 @@ impl ConceptModule for RelativityTheatre {
             0 => {
                 scene.field = Some("sr.paper");
                 // Rest axes.
-                scene.line(LineLayer::World, Vec3::new(-3.6, 0.0, 0.0), Vec3::new(3.6, 0.0, 0.0), 1.4, with_alpha(REST_GREY, 0.7));
-                scene.line(LineLayer::World, Vec3::new(0.0, -3.6, 0.0), Vec3::new(0.0, 3.6, 0.0), 1.4, with_alpha(REST_GREY, 0.7));
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-3.6, 0.0, 0.0),
+                    Vec3::new(3.6, 0.0, 0.0),
+                    1.4,
+                    with_alpha(REST_GREY, 0.7),
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(0.0, -3.6, 0.0),
+                    Vec3::new(0.0, 3.6, 0.0),
+                    1.4,
+                    with_alpha(REST_GREY, 0.7),
+                );
                 // The cone.
                 for s in [-1.0f32, 1.0] {
-                    scene.line_soft(LineLayer::WorldAdd, Vec3::new(-3.8, -3.8 * s, 0.0), Vec3::new(3.8, 3.8 * s, 0.0), 2.6, with_alpha(CONE_GOLD, 0.5));
+                    scene.line_soft(
+                        LineLayer::WorldAdd,
+                        Vec3::new(-3.8, -3.8 * s, 0.0),
+                        Vec3::new(3.8, 3.8 * s, 0.0),
+                        2.6,
+                        with_alpha(CONE_GOLD, 0.5),
+                    );
                 }
                 // Boosted frame: x' axis slope beta, t' axis slope 1/beta.
                 let b = beta as f32;
@@ -158,15 +184,39 @@ impl ConceptModule for RelativityTheatre {
                         let g = gamma as f32;
                         let p0 = Vec3::new(g * (-4.0 + b * kf), g * (kf + b * -4.0), 0.0);
                         let p1 = Vec3::new(g * (4.0 + b * kf), g * (kf + b * 4.0), 0.0);
-                        scene.line(LineLayer::World, p0, p1, 1.0, with_alpha(FRAME_BLUE, if k == 0 { 0.0 } else { 0.20 }));
+                        scene.line(
+                            LineLayer::World,
+                            p0,
+                            p1,
+                            1.0,
+                            with_alpha(FRAME_BLUE, if k == 0 { 0.0 } else { 0.20 }),
+                        );
                         let q0 = Vec3::new(g * (kf + b * -4.0), g * (-4.0 + b * kf), 0.0);
                         let q1 = Vec3::new(g * (kf + b * 4.0), g * (4.0 + b * kf), 0.0);
-                        scene.line(LineLayer::World, q0, q1, 1.0, with_alpha(FRAME_BLUE, if k == 0 { 0.0 } else { 0.20 }));
+                        scene.line(
+                            LineLayer::World,
+                            q0,
+                            q1,
+                            1.0,
+                            with_alpha(FRAME_BLUE, if k == 0 { 0.0 } else { 0.20 }),
+                        );
                     }
                 }
                 // Primed axes bright.
-                scene.line(LineLayer::WorldAdd, Vec3::new(-3.6, -3.6 * b, 0.0), Vec3::new(3.6, 3.6 * b, 0.0), 2.0, with_alpha(FRAME_BLUE, 0.85));
-                scene.line(LineLayer::WorldAdd, Vec3::new(-3.6 * b, -3.6, 0.0), Vec3::new(3.6 * b, 3.6, 0.0), 2.0, with_alpha(FRAME_BLUE, 0.85));
+                scene.line(
+                    LineLayer::WorldAdd,
+                    Vec3::new(-3.6, -3.6 * b, 0.0),
+                    Vec3::new(3.6, 3.6 * b, 0.0),
+                    2.0,
+                    with_alpha(FRAME_BLUE, 0.85),
+                );
+                scene.line(
+                    LineLayer::WorldAdd,
+                    Vec3::new(-3.6 * b, -3.6, 0.0),
+                    Vec3::new(3.6 * b, 3.6, 0.0),
+                    2.0,
+                    with_alpha(FRAME_BLUE, 0.85),
+                );
                 // Invariant hyperbolae s^2 = +-1: calibration curves.
                 for sign in [1.0f32, -1.0] {
                     let hyp: Vec<Vec3> = (-60..=60)
@@ -192,11 +242,21 @@ impl ConceptModule for RelativityTheatre {
                 // The chord between them, tinted by its causal character.
                 let d = self.ev_b - self.ev_a;
                 let spacelike = d.x.abs() > d.y.abs();
-                let chord_c = if spacelike { with_alpha(SPACELIKE, 0.35) } else { with_alpha(CONE_GOLD, 0.35) };
+                let chord_c = if spacelike {
+                    with_alpha(SPACELIKE, 0.35)
+                } else {
+                    with_alpha(CONE_GOLD, 0.35)
+                };
                 scene.line(LineLayer::World, ea, eb, 1.2, chord_c);
                 // Simultaneity slice through A in the moving frame.
                 let dir = Vec3::new(1.0, b, 0.0).normalize();
-                scene.line_soft(LineLayer::WorldAdd, ea - dir * 6.0, ea + dir * 6.0, 2.0, with_alpha(FRAME_BLUE, 0.30));
+                scene.line_soft(
+                    LineLayer::WorldAdd,
+                    ea - dir * 6.0,
+                    ea + dir * 6.0,
+                    2.0,
+                    with_alpha(FRAME_BLUE, 0.30),
+                );
             }
             1 => {
                 scene.field = Some("sr.plain");
@@ -205,12 +265,34 @@ impl ConceptModule for RelativityTheatre {
                 let h = 1.8f32;
                 // Rest clock at left: photon bounces vertically.
                 let phase = ((t * 1.4) % 2.0) as f32;
-                let yb = if phase < 1.0 { phase * h } else { (2.0 - phase) * h };
+                let yb = if phase < 1.0 {
+                    phase * h
+                } else {
+                    (2.0 - phase) * h
+                };
                 let x_rest = -2.6f32;
-                scene.line(LineLayer::World, Vec3::new(x_rest - 0.5, 0.0, 0.0), Vec3::new(x_rest + 0.5, 0.0, 0.0), 2.4, with_alpha(REST_GREY, 0.9));
-                scene.line(LineLayer::World, Vec3::new(x_rest - 0.5, h, 0.0), Vec3::new(x_rest + 0.5, h, 0.0), 2.4, with_alpha(REST_GREY, 0.9));
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(x_rest - 0.5, 0.0, 0.0),
+                    Vec3::new(x_rest + 0.5, 0.0, 0.0),
+                    2.4,
+                    with_alpha(REST_GREY, 0.9),
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(x_rest - 0.5, h, 0.0),
+                    Vec3::new(x_rest + 0.5, h, 0.0),
+                    2.4,
+                    with_alpha(REST_GREY, 0.9),
+                );
                 scene.point(Vec3::new(x_rest, yb, 0.0), 4.0, CONE_GOLD, 2.2);
-                scene.line_soft(LineLayer::WorldAdd, Vec3::new(x_rest, 0.0, 0.0), Vec3::new(x_rest, yb, 0.0), 1.6, with_alpha(CONE_GOLD, 0.25));
+                scene.line_soft(
+                    LineLayer::WorldAdd,
+                    Vec3::new(x_rest, 0.0, 0.0),
+                    Vec3::new(x_rest, yb, 0.0),
+                    1.6,
+                    with_alpha(CONE_GOLD, 0.25),
+                );
                 // Moving clock: mirrors glide right; photon zigzags, its period dilated by gamma.
                 let x0 = -0.8f32;
                 let speed = 1.1f32 * b;
@@ -218,8 +300,20 @@ impl ConceptModule for RelativityTheatre {
                 let frac = if tt < 1.0 { tt } else { 2.0 - tt };
                 let mx = x0 + speed * (t as f32 * 1.4);
                 let mx_wrapped = x0 + ((mx - x0) % 4.2 + 4.2) % 4.2;
-                scene.line(LineLayer::World, Vec3::new(mx_wrapped - 0.5, 0.0, 0.0), Vec3::new(mx_wrapped + 0.5, 0.0, 0.0), 2.4, with_alpha(FRAME_BLUE, 0.9));
-                scene.line(LineLayer::World, Vec3::new(mx_wrapped - 0.5, h, 0.0), Vec3::new(mx_wrapped + 0.5, h, 0.0), 2.4, with_alpha(FRAME_BLUE, 0.9));
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(mx_wrapped - 0.5, 0.0, 0.0),
+                    Vec3::new(mx_wrapped + 0.5, 0.0, 0.0),
+                    2.4,
+                    with_alpha(FRAME_BLUE, 0.9),
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(mx_wrapped - 0.5, h, 0.0),
+                    Vec3::new(mx_wrapped + 0.5, h, 0.0),
+                    2.4,
+                    with_alpha(FRAME_BLUE, 0.9),
+                );
                 let py = frac * h;
                 scene.point(Vec3::new(mx_wrapped, py, 0.0), 4.0, CONE_GOLD, 2.2);
                 // The zigzag path ghost (one period).
@@ -233,28 +327,69 @@ impl ConceptModule for RelativityTheatre {
                 scene.polyline(LineLayer::World, &zig, 1.0, with_alpha(CONE_GOLD, 0.28));
                 // Contracted rod beneath.
                 let rod_l = 1.6f32 / g;
-                scene.line(LineLayer::WorldAdd, Vec3::new(mx_wrapped - rod_l / 2.0, -0.8, 0.0), Vec3::new(mx_wrapped + rod_l / 2.0, -0.8, 0.0), 4.0, FRAME_BLUE);
-                scene.line(LineLayer::World, Vec3::new(x_rest - 0.8, -0.8, 0.0), Vec3::new(x_rest + 0.8, -0.8, 0.0), 4.0, with_alpha(REST_GREY, 0.9));
+                scene.line(
+                    LineLayer::WorldAdd,
+                    Vec3::new(mx_wrapped - rod_l / 2.0, -0.8, 0.0),
+                    Vec3::new(mx_wrapped + rod_l / 2.0, -0.8, 0.0),
+                    4.0,
+                    FRAME_BLUE,
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(x_rest - 0.8, -0.8, 0.0),
+                    Vec3::new(x_rest + 0.8, -0.8, 0.0),
+                    4.0,
+                    with_alpha(REST_GREY, 0.9),
+                );
             }
             3 => {
                 scene.field = Some("sr.paper");
                 let b = beta.abs().max(0.25) as f32;
                 let g = 1.0 / (1.0 - b * b).sqrt();
                 let turn = 2.6f32; // ct at turnaround
-                // Stay-home twin: straight up. Traveler: out and back.
-                scene.line(LineLayer::WorldAdd, Vec3::ZERO, Vec3::new(0.0, 2.0 * turn, 0.0), 2.4, with_alpha(REST_GREY, 0.9));
-                scene.line(LineLayer::WorldAdd, Vec3::ZERO, Vec3::new(b * turn, turn, 0.0), 2.4, with_alpha(FRAME_BLUE, 0.95));
-                scene.line(LineLayer::WorldAdd, Vec3::new(b * turn, turn, 0.0), Vec3::new(0.0, 2.0 * turn, 0.0), 2.4, with_alpha(FRAME_BLUE, 0.95));
+                                   // Stay-home twin: straight up. Traveler: out and back.
+                scene.line(
+                    LineLayer::WorldAdd,
+                    Vec3::ZERO,
+                    Vec3::new(0.0, 2.0 * turn, 0.0),
+                    2.4,
+                    with_alpha(REST_GREY, 0.9),
+                );
+                scene.line(
+                    LineLayer::WorldAdd,
+                    Vec3::ZERO,
+                    Vec3::new(b * turn, turn, 0.0),
+                    2.4,
+                    with_alpha(FRAME_BLUE, 0.95),
+                );
+                scene.line(
+                    LineLayer::WorldAdd,
+                    Vec3::new(b * turn, turn, 0.0),
+                    Vec3::new(0.0, 2.0 * turn, 0.0),
+                    2.4,
+                    with_alpha(FRAME_BLUE, 0.95),
+                );
                 // Light cone from the start, for scale.
                 for s in [-1.0f32, 1.0] {
-                    scene.line_soft(LineLayer::World, Vec3::ZERO, Vec3::new(3.4 * s, 3.4, 0.0), 2.0, with_alpha(CONE_GOLD, 0.25));
+                    scene.line_soft(
+                        LineLayer::World,
+                        Vec3::ZERO,
+                        Vec3::new(3.4 * s, 3.4, 0.0),
+                        2.0,
+                        with_alpha(CONE_GOLD, 0.25),
+                    );
                 }
                 // Proper-time ticks: every Delta-tau = 0.4 along each worldline.
                 let dtau = 0.4f32;
                 let mut tau = 0.0;
                 while tau * dtau < 2.0 * turn {
                     let y = tau * dtau;
-                    scene.point(Vec3::new(0.0, y, 0.02), 2.6, with_alpha(REST_GREY, 0.95), 1.2);
+                    scene.point(
+                        Vec3::new(0.0, y, 0.02),
+                        2.6,
+                        with_alpha(REST_GREY, 0.95),
+                        1.2,
+                    );
                     tau += 1.0;
                 }
                 // Traveler ticks are dilated: coordinate spacing g*dtau.
@@ -264,12 +399,21 @@ impl ConceptModule for RelativityTheatre {
                     if y > 2.0 * turn {
                         break;
                     }
-                    let x = if y <= turn { b * y } else { b * (2.0 * turn - y) };
+                    let x = if y <= turn {
+                        b * y
+                    } else {
+                        b * (2.0 * turn - y)
+                    };
                     scene.point(Vec3::new(x, y, 0.03), 2.6, with_alpha(CONE_GOLD, 0.95), 1.4);
                     k += 1;
                 }
                 // The reunion.
-                scene.point(Vec3::new(0.0, 2.0 * turn, 0.03), 5.0, [0.95, 0.95, 1.0, 1.0], 2.2);
+                scene.point(
+                    Vec3::new(0.0, 2.0 * turn, 0.03),
+                    5.0,
+                    [0.95, 0.95, 1.0, 1.0],
+                    2.2,
+                );
             }
             _ => {
                 scene.field = Some("sr.charge");
@@ -287,7 +431,8 @@ impl ConceptModule for RelativityTheatre {
                         psi_lab
                     };
                     for mirror in [1.0f64, -1.0] {
-                        let dir = Vec3::new(psi_lab.cos() as f32, (psi_lab.sin() * mirror) as f32, 0.0);
+                        let dir =
+                            Vec3::new(psi_lab.cos() as f32, (psi_lab.sin() * mirror) as f32, 0.0);
                         scene.line_soft(
                             LineLayer::WorldAdd,
                             Vec3::ZERO + dir * 0.14,
@@ -299,7 +444,12 @@ impl ConceptModule for RelativityTheatre {
                 }
                 // The charge, running.
                 scene.point(Vec3::ZERO, 4.2, [1.0, 0.92, 0.7, 1.0], 1.8);
-                scene.vector(Vec3::ZERO, Vec3::new(beta as f32 * 2.2, 0.0, 0.0), 4.0, FRAME_BLUE);
+                scene.vector(
+                    Vec3::ZERO,
+                    Vec3::new(beta as f32 * 2.2, 0.0, 0.0),
+                    4.0,
+                    FRAME_BLUE,
+                );
             }
         }
     }
@@ -317,7 +467,11 @@ impl ConceptModule for RelativityTheatre {
         if let PE::Down(w) | PE::Drag(w) = ev {
             let da = (w - self.ev_a).length_squared();
             let db = (w - self.ev_b).length_squared();
-            let target = if da <= db { &mut self.ev_a } else { &mut self.ev_b };
+            let target = if da <= db {
+                &mut self.ev_a
+            } else {
+                &mut self.ev_b
+            };
             *target = w.clamp(glam::vec2(-3.4, -3.4), glam::vec2(3.4, 3.4));
         }
     }
@@ -350,37 +504,98 @@ impl ConceptModule for RelativityTheatre {
         }
     }
 
-    fn overlay(&self, painter: &egui::Painter, rect: egui::Rect, cam: &Camera, mode: usize, _t: f64) {
+    fn overlay(
+        &self,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+        cam: &Camera,
+        mode: usize,
+        _t: f64,
+    ) {
         if mode == 1 {
             let gamma = 1.0 / (1.0 - self.beta() * self.beta()).sqrt();
             let gold = egui::Color32::from_rgb(235, 195, 110);
             if let Some(p) = to_screen(cam, rect, Vec3::new(-2.6, 2.5, 0.0)) {
-                painter.text(p, egui::Align2::CENTER_BOTTOM, "at rest", crate::theme::math_font(12.0), crate::theme::OVERLAY_DIM);
-                painter.text(p + egui::vec2(0.0, -16.0), egui::Align2::CENTER_BOTTOM, format!("ticks \u{00D7} 1.000"), crate::theme::math_font(11.0), gold);
+                painter.text(
+                    p,
+                    egui::Align2::CENTER_BOTTOM,
+                    "at rest",
+                    crate::theme::math_font(12.0),
+                    crate::theme::OVERLAY_DIM,
+                );
+                painter.text(
+                    p + egui::vec2(0.0, -16.0),
+                    egui::Align2::CENTER_BOTTOM,
+                    format!("ticks \u{00D7} 1.000"),
+                    crate::theme::math_font(11.0),
+                    gold,
+                );
             }
             if let Some(p) = to_screen(cam, rect, Vec3::new(1.6, 2.5, 0.0)) {
-                painter.text(p, egui::Align2::CENTER_BOTTOM, "moving", crate::theme::math_font(12.0), crate::theme::OVERLAY_DIM);
-                painter.text(p + egui::vec2(0.0, -16.0), egui::Align2::CENTER_BOTTOM, format!("ticks \u{00D7} 1/\u{03B3} = {:.3}", 1.0 / gamma), crate::theme::math_font(11.0), gold);
+                painter.text(
+                    p,
+                    egui::Align2::CENTER_BOTTOM,
+                    "moving",
+                    crate::theme::math_font(12.0),
+                    crate::theme::OVERLAY_DIM,
+                );
+                painter.text(
+                    p + egui::vec2(0.0, -16.0),
+                    egui::Align2::CENTER_BOTTOM,
+                    format!("ticks \u{00D7} 1/\u{03B3} = {:.3}", 1.0 / gamma),
+                    crate::theme::math_font(11.0),
+                    gold,
+                );
             }
         }
         if mode == 0 {
             let gold = egui::Color32::from_rgb(235, 195, 110);
             let blue = egui::Color32::from_rgb(130, 175, 240);
             if let Some(p) = to_screen(cam, rect, Vec3::new(3.3, 0.15, 0.0)) {
-                painter.text(p, egui::Align2::LEFT_BOTTOM, "x", crate::theme::math_font(14.0), egui::Color32::from_rgb(160, 168, 185));
+                painter.text(
+                    p,
+                    egui::Align2::LEFT_BOTTOM,
+                    "x",
+                    crate::theme::math_font(14.0),
+                    egui::Color32::from_rgb(160, 168, 185),
+                );
             }
             if let Some(p) = to_screen(cam, rect, Vec3::new(0.12, 3.3, 0.0)) {
-                painter.text(p, egui::Align2::LEFT_BOTTOM, "ct", crate::theme::math_font(14.0), egui::Color32::from_rgb(160, 168, 185));
+                painter.text(
+                    p,
+                    egui::Align2::LEFT_BOTTOM,
+                    "ct",
+                    crate::theme::math_font(14.0),
+                    egui::Color32::from_rgb(160, 168, 185),
+                );
             }
             let b = self.beta() as f32;
             if let Some(p) = to_screen(cam, rect, Vec3::new(3.2, 3.2 * b + 0.15, 0.0)) {
-                painter.text(p, egui::Align2::LEFT_BOTTOM, "x\u{2032}", crate::theme::math_font(14.0), blue);
+                painter.text(
+                    p,
+                    egui::Align2::LEFT_BOTTOM,
+                    "x\u{2032}",
+                    crate::theme::math_font(14.0),
+                    blue,
+                );
             }
             if let Some(p) = to_screen(cam, rect, Vec3::new(3.2 * b + 0.12, 3.2, 0.0)) {
-                painter.text(p, egui::Align2::LEFT_BOTTOM, "ct\u{2032}", crate::theme::math_font(14.0), blue);
+                painter.text(
+                    p,
+                    egui::Align2::LEFT_BOTTOM,
+                    "ct\u{2032}",
+                    crate::theme::math_font(14.0),
+                    blue,
+                );
             }
             if let Some(p) = to_screen(cam, rect, Vec3::new(2.9, 2.9, 0.0)) {
-                painter.text(p, egui::Align2::RIGHT_BOTTOM, "light", crate::theme::math_font(11.0), gold.gamma_multiply(0.7));
+                painter.text(
+                    p,
+                    egui::Align2::RIGHT_BOTTOM,
+                    "light",
+                    crate::theme::math_font(11.0),
+                    gold.gamma_multiply(0.7),
+                );
             }
         }
     }

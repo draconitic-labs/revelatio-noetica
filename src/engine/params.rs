@@ -5,8 +5,15 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub enum ParamKind {
-    Slider { min: f64, max: f64, unit: &'static str },
-    IntSlider { min: i64, max: i64 },
+    Slider {
+        min: f64,
+        max: f64,
+        unit: &'static str,
+    },
+    IntSlider {
+        min: i64,
+        max: i64,
+    },
     Toggle,
     Choice(Vec<&'static str>),
 }
@@ -89,7 +96,13 @@ impl Params {
         group: &'static str,
         value: bool,
     ) -> &mut Self {
-        self.push(Param { key, label, group, kind: ParamKind::Toggle, value: PValue::B(value) })
+        self.push(Param {
+            key,
+            label,
+            group,
+            kind: ParamKind::Toggle,
+            value: PValue::B(value),
+        })
     }
 
     pub fn choice(

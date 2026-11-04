@@ -50,10 +50,16 @@ impl C {
         r
     }
     pub fn sin(self) -> C {
-        c(self.re.sin() * self.im.cosh(), self.re.cos() * self.im.sinh())
+        c(
+            self.re.sin() * self.im.cosh(),
+            self.re.cos() * self.im.sinh(),
+        )
     }
     pub fn cos(self) -> C {
-        c(self.re.cos() * self.im.cosh(), -self.re.sin() * self.im.sinh())
+        c(
+            self.re.cos() * self.im.cosh(),
+            -self.re.sin() * self.im.sinh(),
+        )
     }
     pub fn from_polar(r: f64, th: f64) -> C {
         c(r * th.cos(), r * th.sin())
@@ -75,7 +81,10 @@ impl std::ops::Sub for C {
 impl std::ops::Mul for C {
     type Output = C;
     fn mul(self, o: C) -> C {
-        c(self.re * o.re - self.im * o.im, self.re * o.im + self.im * o.re)
+        c(
+            self.re * o.re - self.im * o.im,
+            self.re * o.im + self.im * o.re,
+        )
     }
 }
 impl std::ops::Mul<f64> for C {
@@ -105,7 +114,12 @@ pub fn phase_color(theta: f32) -> [f32; 4] {
     let r = 4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3;
     let g = -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3;
     let bl = -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3;
-    [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), bl.clamp(0.0, 1.0), 1.0]
+    [
+        r.clamp(0.0, 1.0),
+        g.clamp(0.0, 1.0),
+        bl.clamp(0.0, 1.0),
+        1.0,
+    ]
 }
 
 pub fn with_alpha(mut col: [f32; 4], a: f32) -> [f32; 4] {

@@ -54,7 +54,10 @@ pub struct MeshData {
 
 impl MeshData {
     pub fn new() -> Self {
-        Self { vertices: Vec::new(), indices: Vec::new() }
+        Self {
+            vertices: Vec::new(),
+            indices: Vec::new(),
+        }
     }
 
     /// Build a parametric surface grid: `f(u,v) -> (pos, color)`, u,v in [0,1].
@@ -76,7 +79,11 @@ impl MeshData {
                 let (pv1, _) = f(u, (v + dv * 0.5).min(1.0));
                 let (pv0, _) = f(u, (v - dv * 0.5).max(0.0));
                 let n = (pu1 - pu0).cross(pv1 - pv0).normalize_or_zero();
-                m.vertices.push(MeshVertex { pos: p.to_array(), normal: n.to_array(), color: c });
+                m.vertices.push(MeshVertex {
+                    pos: p.to_array(),
+                    normal: n.to_array(),
+                    color: c,
+                });
             }
         }
         for i in 0..nu - 1 {
@@ -92,7 +99,12 @@ impl MeshData {
     }
 
     /// Sweep a circular tube along a polyline (parallel-transport frame).
-    pub fn tube(path: &[Vec3], radius: f32, sides: usize, color_at: impl Fn(usize) -> [f32; 4]) -> Self {
+    pub fn tube(
+        path: &[Vec3],
+        radius: f32,
+        sides: usize,
+        color_at: impl Fn(usize) -> [f32; 4],
+    ) -> Self {
         let mut m = Self::new();
         if path.len() < 2 {
             return m;
@@ -150,28 +162,44 @@ impl MeshData {
 
     pub fn upload(&self, gpu: &GpuContext, layout: &wgpu::BindGroupLayout) -> GpuMesh {
         use wgpu::util::DeviceExt;
-        let vbuf = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("mesh-vb"),
-            contents: bytemuck::cast_slice(&self.vertices),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
-        let ibuf = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("mesh-ib"),
-            contents: bytemuck::cast_slice(&self.indices),
-            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-        });
+        let vbuf = gpu
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("mesh-vb"),
+                contents: bytemuck::cast_slice(&self.vertices),
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            });
+        let ibuf = gpu
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("mesh-ib"),
+                contents: bytemuck::cast_slice(&self.indices),
+                usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+            });
         let u = ModelUniform::default();
-        let ubuf = gpu.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("mesh-ub"),
-            contents: bytemuck::bytes_of(&u),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
+        let ubuf = gpu
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("mesh-ub"),
+                contents: bytemuck::bytes_of(&u),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            });
         let bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("mesh-bg"),
             layout,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() }],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: ubuf.as_entire_binding(),
+            }],
         });
-        GpuMesh { vbuf, ibuf, n_idx: self.indices.len() as u32, ubuf, bind_group, alpha: 1.0 }
+        GpuMesh {
+            vbuf,
+            ibuf,
+            n_idx: self.indices.len() as u32,
+            ubuf,
+            bind_group,
+            alpha: 1.0,
+        }
     }
 }
 
@@ -179,12 +207,18 @@ impl GpuMesh {
     /// Update per-mesh transform/material. Call from `update`, once per frame.
     pub fn set_model(&mut self, gpu: &GpuContext, model: Mat4, tint: [f32; 4], material: [f32; 4]) {
         self.alpha = material[2] * tint[3];
-        let u = ModelUniform { model: model.to_cols_array_2d(), tint, material };
-        gpu.queue.write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&u));
+        let u = ModelUniform {
+            model: model.to_cols_array_2d(),
+            tint,
+            material,
+        };
+        gpu.queue
+            .write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&u));
     }
 
     /// Replace vertex data in-place (same layout/size or smaller).
     pub fn update_vertices(&self, gpu: &GpuContext, vertices: &[MeshVertex]) {
-        gpu.queue.write_buffer(&self.vbuf, 0, bytemuck::cast_slice(vertices));
+        gpu.queue
+            .write_buffer(&self.vbuf, 0, bytemuck::cast_slice(vertices));
     }
 }

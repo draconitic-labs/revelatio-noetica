@@ -11,8 +11,7 @@ pub fn save_png(path: &Path, w: u32, h: u32, rgba: &[u8]) -> Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let img = image::RgbaImage::from_raw(w, h, rgba.to_vec())
-        .context("bad pixel buffer size")?;
+    let img = image::RgbaImage::from_raw(w, h, rgba.to_vec()).context("bad pixel buffer size")?;
     img.save(path)?;
     Ok(())
 }

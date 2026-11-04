@@ -120,8 +120,24 @@ impl SchwarzschildCourt {
         let mut p = Params::new();
         p.choice("preset", "Orbit", "Symbolic", PRESET_NAMES.to_vec(), 0);
         p.slider("ll", "Angular momentum L", "Physics", 3.5, 4.6, 3.9, "M");
-        p.slider("r0", "Start radius r\u{2080}", "Physics", 7.0, 26.0, 13.0, "M");
-        p.slider("rate", "Proper-time rate", "Observer", 2.0, 80.0, 28.0, "\u{00D7}");
+        p.slider(
+            "r0",
+            "Start radius r\u{2080}",
+            "Physics",
+            7.0,
+            26.0,
+            13.0,
+            "M",
+        );
+        p.slider(
+            "rate",
+            "Proper-time rate",
+            "Observer",
+            2.0,
+            80.0,
+            28.0,
+            "\u{00D7}",
+        );
         Self {
             params: p,
             state: [13.0, 0.0, 0.0, 0.0],
@@ -258,10 +274,21 @@ impl ConceptModule for SchwarzschildCourt {
         }
     }
 
-    fn render(&mut self, _gpu: &GpuContext, mode: usize, _t: f64, _cam: &Camera, scene: &mut Scene) {
+    fn render(
+        &mut self,
+        _gpu: &GpuContext,
+        mode: usize,
+        _t: f64,
+        _cam: &Camera,
+        scene: &mut Scene,
+    ) {
         scene.clear = [0.004, 0.004, 0.007, 1.0];
         let (r_now, phi_now) = (self.state[0], self.state[2]);
-        let pos = Vec3::new((r_now * phi_now.cos()) as f32, (r_now * phi_now.sin()) as f32, 0.0);
+        let pos = Vec3::new(
+            (r_now * phi_now.cos()) as f32,
+            (r_now * phi_now.sin()) as f32,
+            0.0,
+        );
 
         match mode {
             0 => {
@@ -277,9 +304,24 @@ impl ConceptModule for SchwarzschildCourt {
                         })
                         .collect()
                 };
-                scene.polyline(LineLayer::World, &circle(2.0, 0.0), 2.2, with_alpha(EMBER, 0.9));
-                scene.polyline(LineLayer::World, &circle(6.0, 0.0), 1.1, with_alpha(ICE, 0.30));
-                scene.polyline(LineLayer::World, &circle(3.0, 0.0), 1.0, with_alpha([1.0, 0.85, 0.5, 1.0], 0.22));
+                scene.polyline(
+                    LineLayer::World,
+                    &circle(2.0, 0.0),
+                    2.2,
+                    with_alpha(EMBER, 0.9),
+                );
+                scene.polyline(
+                    LineLayer::World,
+                    &circle(6.0, 0.0),
+                    1.1,
+                    with_alpha(ICE, 0.30),
+                );
+                scene.polyline(
+                    LineLayer::World,
+                    &circle(3.0, 0.0),
+                    1.0,
+                    with_alpha([1.0, 0.85, 0.5, 1.0], 0.22),
+                );
                 // Trail with age gradient.
                 let n = self.trail.len();
                 for i in 1..n {
@@ -290,14 +332,21 @@ impl ConceptModule for SchwarzschildCourt {
                         0.95 - 0.35 * age,
                         0.10 + 0.85 * age * age,
                     ];
-                    scene.line(LineLayer::WorldAdd, self.trail[i - 1], self.trail[i], 1.7, c);
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        self.trail[i - 1],
+                        self.trail[i],
+                        1.7,
+                        c,
+                    );
                 }
                 scene.point(pos, 5.0, [0.9, 0.95, 1.0, 1.0], 2.2);
             }
             2 => {
                 let l = self.l_now();
                 // Plot transform: x = r/5, y = (V - 0.90) * 14.
-                let px_of = |r: f64, v: f64| Vec3::new((r / 5.0) as f32, ((v - 0.90) * 14.0) as f32, 0.0);
+                let px_of =
+                    |r: f64, v: f64| Vec3::new((r / 5.0) as f32, ((v - 0.90) * 14.0) as f32, 0.0);
                 let pts: Vec<Vec3> = (0..=400)
                     .map(|i| {
                         let r = 2.05 + 26.0 * i as f64 / 400.0;
@@ -313,12 +362,35 @@ impl ConceptModule for SchwarzschildCourt {
                     1.3,
                     with_alpha(EMBER, 0.65),
                 );
-                scene.point(px_of(r_now, self.veff(r_now)), 5.0, [0.9, 0.95, 1.0, 1.0], 2.2);
+                scene.point(
+                    px_of(r_now, self.veff(r_now)),
+                    5.0,
+                    [0.9, 0.95, 1.0, 1.0],
+                    2.2,
+                );
                 // Horizon wall and ISCO mast.
-                scene.line(LineLayer::World, px_of(2.0, 0.845), px_of(2.0, 1.06), 2.0, with_alpha(EMBER, 0.8));
-                scene.line(LineLayer::World, px_of(6.0, 0.85), px_of(6.0, 1.05), 1.1, with_alpha([1.0, 0.85, 0.5, 1.0], 0.45));
+                scene.line(
+                    LineLayer::World,
+                    px_of(2.0, 0.845),
+                    px_of(2.0, 1.06),
+                    2.0,
+                    with_alpha(EMBER, 0.8),
+                );
+                scene.line(
+                    LineLayer::World,
+                    px_of(6.0, 0.85),
+                    px_of(6.0, 1.05),
+                    1.1,
+                    with_alpha([1.0, 0.85, 0.5, 1.0], 0.45),
+                );
                 // Baseline V = 1 (rest energy at infinity).
-                scene.line(LineLayer::World, px_of(2.05, 1.0), px_of(28.0, 1.0), 0.9, [0.55, 0.6, 0.7, 0.30]);
+                scene.line(
+                    LineLayer::World,
+                    px_of(2.05, 1.0),
+                    px_of(28.0, 1.0),
+                    0.9,
+                    [0.55, 0.6, 0.7, 0.30],
+                );
                 let _ = l;
             }
             _ => {
@@ -365,7 +437,12 @@ impl ConceptModule for SchwarzschildCourt {
                     );
                 }
                 let zp = -2.0 * (2.0f64 * (r_now - 2.0).max(0.0)).sqrt();
-                scene.point(Vec3::new(pos.x, zp as f32, pos.y), 5.0, [0.95, 0.9, 0.8, 1.0], 2.2);
+                scene.point(
+                    Vec3::new(pos.x, zp as f32, pos.y),
+                    5.0,
+                    [0.95, 0.9, 0.8, 1.0],
+                    2.2,
+                );
                 // The throat ring.
                 let throat: Vec<Vec3> = (0..=96)
                     .map(|i| {

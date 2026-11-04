@@ -54,10 +54,26 @@ pub struct DynamicsHall {
 impl DynamicsHall {
     pub fn new() -> Self {
         let mut p = Params::new();
-        p.slider("k", "Gravity stiffness g/\u{2113}", "Physics", 0.4, 3.0, 1.2, "");
+        p.slider(
+            "k",
+            "Gravity stiffness g/\u{2113}",
+            "Physics",
+            0.4,
+            3.0,
+            1.2,
+            "",
+        );
         p.slider("damp", "Damping", "Physics", 0.0, 0.30, 0.0, "");
         p.slider("rate", "Flow rate", "Observer", 0.2, 4.0, 1.4, "\u{00D7}");
-        p.slider("spread", "Fan spread \u{03B4}\u{2080}", "Physics", -7.0, -2.0, -4.0, "10^");
+        p.slider(
+            "spread",
+            "Fan spread \u{03B4}\u{2080}",
+            "Physics",
+            -7.0,
+            -2.0,
+            -4.0,
+            "10^",
+        );
         Self {
             params: p,
             orbits: Vec::new(),
@@ -112,7 +128,10 @@ fn surface_data(k: f64) -> MeshData {
             (0.03 + hn.powi(2) * 0.13) * band,
             1.0,
         ];
-        (Vec3::new(th as f32 * 0.55, h as f32 * 0.42, w as f32 * 0.55), base)
+        (
+            Vec3::new(th as f32 * 0.55, h as f32 * 0.42, w as f32 * 0.55),
+            base,
+        )
     })
 }
 
@@ -124,8 +143,7 @@ fn dp_deriv(g: f64, y: &[f64; 4]) -> [f64; 4] {
     let a1 = (-w1 * w1 * d.sin() * d.cos() - w2 * w2 * d.sin() - 2.0 * g * t1.sin()
         + g * t2.sin() * d.cos())
         / den;
-    let a2 = (w1 * w1 * d.sin() * 2.0 + w2 * w2 * d.sin() * d.cos()
-        + 2.0 * g * t1.sin() * d.cos()
+    let a2 = (w1 * w1 * d.sin() * 2.0 + w2 * w2 * d.sin() * d.cos() + 2.0 * g * t1.sin() * d.cos()
         - 2.0 * g * t2.sin())
         / den;
     [w1, a1, w2, a2]
@@ -148,15 +166,37 @@ impl ConceptModule for DynamicsHall {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::plane("portrait", "Phase Portrait", "(\u{03B8}, \u{03C9})-space: librations inside the separatrix, rotations beyond", 4.4),
+            RenderMode::plane(
+                "portrait",
+                "Phase Portrait",
+                "(\u{03B8}, \u{03C9})-space: librations inside the separatrix, rotations beyond",
+                4.4,
+            ),
             RenderMode::plane("swing", "The Swing", "The first trajectory, embodied", 2.1)
                 .look_at(0.0, 0.55, 0.0),
-            RenderMode::orbit("energy", "Energy Landscape", "H(\u{03B8},\u{03C9}); trajectories are its contour lines", 9.0, 0.55, 0.9)
-                .look_at(0.0, 0.6, 0.0),
-            RenderMode::plane("fan", "Double-Pendulum Fan", "150 pendulums, 10\u{207B}\u{2074} apart: the butterfly in slow motion", 2.7)
-                .look_at(0.0, -0.6, 0.0),
-            RenderMode::plane("wave", "The Infinite Pendulum Wave", "Lengths tuned so the pattern cycles through every phase, forever", 1.55)
-                .look_at(0.0, 0.75, 0.0),
+            RenderMode::orbit(
+                "energy",
+                "Energy Landscape",
+                "H(\u{03B8},\u{03C9}); trajectories are its contour lines",
+                9.0,
+                0.55,
+                0.9,
+            )
+            .look_at(0.0, 0.6, 0.0),
+            RenderMode::plane(
+                "fan",
+                "Double-Pendulum Fan",
+                "150 pendulums, 10\u{207B}\u{2074} apart: the butterfly in slow motion",
+                2.7,
+            )
+            .look_at(0.0, -0.6, 0.0),
+            RenderMode::plane(
+                "wave",
+                "The Infinite Pendulum Wave",
+                "Lengths tuned so the pattern cycles through every phase, forever",
+                1.55,
+            )
+            .look_at(0.0, 0.75, 0.0),
         ]
     }
 
@@ -256,19 +296,43 @@ impl ConceptModule for DynamicsHall {
         }
     }
 
-    fn render(&mut self, _gpu: &GpuContext, mode: usize, _t: f64, _cam: &Camera, scene: &mut Scene) {
+    fn render(
+        &mut self,
+        _gpu: &GpuContext,
+        mode: usize,
+        _t: f64,
+        _cam: &Camera,
+        scene: &mut Scene,
+    ) {
         let k = self.params.f("k") as f32;
         match mode {
             0 => {
                 scene.field = Some("dyn.phase");
                 scene.p(0, k);
                 // Axes.
-                scene.line(LineLayer::World, Vec3::new(-7.0, 0.0, 0.0), Vec3::new(7.0, 0.0, 0.0), 1.1, [0.5, 0.5, 0.55, 0.4]);
-                scene.line(LineLayer::World, Vec3::new(0.0, -4.4, 0.0), Vec3::new(0.0, 4.4, 0.0), 1.1, [0.5, 0.5, 0.55, 0.4]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-7.0, 0.0, 0.0),
+                    Vec3::new(7.0, 0.0, 0.0),
+                    1.1,
+                    [0.5, 0.5, 0.55, 0.4],
+                );
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(0.0, -4.4, 0.0),
+                    Vec3::new(0.0, 4.4, 0.0),
+                    1.1,
+                    [0.5, 0.5, 0.55, 0.4],
+                );
                 // Fixed points.
                 scene.point(Vec3::ZERO, 3.0, with_alpha(SEA, 0.9), 1.5);
                 for s in [-1.0f32, 1.0] {
-                    scene.point(Vec3::new(s * std::f32::consts::PI, 0.0, 0.0), 3.0, with_alpha(CORAL, 0.9), 1.5);
+                    scene.point(
+                        Vec3::new(s * std::f32::consts::PI, 0.0, 0.0),
+                        3.0,
+                        with_alpha(CORAL, 0.9),
+                        1.5,
+                    );
                 }
                 for (i, ((th, w), trail)) in self.orbits.iter().enumerate() {
                     let hue = phase_color(i as f32 * 0.7 + 0.4);
@@ -282,7 +346,8 @@ impl ConceptModule for DynamicsHall {
                 if let Some(((th, w), trail)) = self.orbits.first() {
                     let pivot = Vec3::new(0.0, 1.0, 0.0);
                     let arm = 1.45f32;
-                    let bob_of = |theta: f32| pivot + Vec3::new(theta.sin(), -theta.cos(), 0.0) * arm;
+                    let bob_of =
+                        |theta: f32| pivot + Vec3::new(theta.sin(), -theta.cos(), 0.0) * arm;
                     let bob = bob_of(*th as f32);
                     // The full swing circle, engraved.
                     let ring: Vec<Vec3> = (0..=96)
@@ -296,13 +361,24 @@ impl ConceptModule for DynamicsHall {
                         scene.point(bob_of(ph.x), 2.4, with_alpha(CORAL, fade), 0.9);
                     }
                     let _ = n;
-                    scene.line(LineLayer::World, Vec3::new(-1.2, 1.0, 0.0), Vec3::new(1.2, 1.0, 0.0), 2.2, [0.4, 0.38, 0.35, 0.85]);
+                    scene.line(
+                        LineLayer::World,
+                        Vec3::new(-1.2, 1.0, 0.0),
+                        Vec3::new(1.2, 1.0, 0.0),
+                        2.2,
+                        [0.4, 0.38, 0.35, 0.85],
+                    );
                     scene.line_soft(LineLayer::WorldAdd, pivot, bob, 3.0, with_alpha(BONE, 0.85));
                     scene.point(bob, 8.0, CORAL, 2.6);
                     scene.point(pivot, 2.5, with_alpha(BONE, 0.8), 1.0);
                     // Velocity, tangent to the swing.
                     let tangent = Vec3::new(th.cos() as f32, th.sin() as f32, 0.0);
-                    scene.vector(bob, tangent * (*w as f32) * 0.35, 3.4, with_alpha(SEA, 0.95));
+                    scene.vector(
+                        bob,
+                        tangent * (*w as f32) * 0.35,
+                        3.4,
+                        with_alpha(SEA, 0.95),
+                    );
                 }
             }
             2 => {
@@ -335,7 +411,13 @@ impl ConceptModule for DynamicsHall {
                 let base = 50.0f64;
                 let amp = 0.55f64;
                 let pivot_y = 1.9f32;
-                scene.line(LineLayer::World, Vec3::new(-3.4, pivot_y, 0.0), Vec3::new(3.4, pivot_y, 0.0), 2.2, [0.45, 0.42, 0.38, 0.8]);
+                scene.line(
+                    LineLayer::World,
+                    Vec3::new(-3.4, pivot_y, 0.0),
+                    Vec3::new(3.4, pivot_y, 0.0),
+                    2.2,
+                    [0.45, 0.42, 0.38, 0.8],
+                );
                 for k_i in 0..n_p {
                     let f = (base + k_i as f64) / t_cycle;
                     let phase = (std::f64::consts::TAU * f * _t).cos();
@@ -380,10 +462,19 @@ impl ConceptModule for DynamicsHall {
                     let j1 = pivot + Vec3::new(s[0].sin() as f32, -s[0].cos() as f32, 0.0) * 0.85;
                     let j2 = j1 + Vec3::new(s[2].sin() as f32, -s[2].cos() as f32, 0.0) * 0.85;
                     scene.line(LineLayer::WorldAdd, pivot, j1, 1.2, with_alpha(hue, alpha));
-                    scene.line(LineLayer::WorldAdd, j1, j2, 1.2, with_alpha(hue, alpha + 0.05));
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        j1,
+                        j2,
+                        1.2,
+                        with_alpha(hue, alpha + 0.05),
+                    );
                     let tr = &self.dp_trails[i];
                     if tr.len() > 2 && i % 3 == 0 {
-                        let pts: Vec<Vec3> = tr.iter().map(|p| pivot + Vec3::new(p.x, p.y, 0.0) * 0.85).collect();
+                        let pts: Vec<Vec3> = tr
+                            .iter()
+                            .map(|p| pivot + Vec3::new(p.x, p.y, 0.0) * 0.85)
+                            .collect();
                         scene.polyline(LineLayer::WorldAdd, &pts, 1.0, with_alpha(hue, 0.10));
                     }
                 }

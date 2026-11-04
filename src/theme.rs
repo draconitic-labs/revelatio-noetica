@@ -92,7 +92,8 @@ pub fn brushed_texture(ctx: &egui::Context) -> egui::TextureHandle {
             // Gold veins: a sparser, independent branching system.
             let d2 = (fbm(pu * 0.95 + 91.0, pv * 0.95 - 17.0, 57, 5) - 0.5).abs();
             let gold_mask = fbm(pu * 0.4 + 33.0, pv * 0.4, 61, 3);
-            let vein2 = (1.0 - (d2 / 0.035).min(1.0)).powi(2) * (gold_mask * 1.4 - 0.25).clamp(0.0, 1.0);
+            let vein2 =
+                (1.0 - (d2 / 0.035).min(1.0)).powi(2) * (gold_mask * 1.4 - 0.25).clamp(0.0, 1.0);
             let core = (1.0 - (d2 / 0.012).min(1.0)).max(0.0) * vein2;
             r = r + vein2 * (188.0 - r) + core * 62.0;
             g = g + vein2 * (146.0 - g) + core * 52.0;
@@ -159,7 +160,8 @@ pub fn paint_brushed(painter: &egui::Painter, rect: egui::Rect, tex: &egui::Text
             color: c,
         });
     }
-    mesh.indices.extend_from_slice(&[idx, idx + 1, idx + 2, idx, idx + 2, idx + 3]);
+    mesh.indices
+        .extend_from_slice(&[idx, idx + 1, idx + 2, idx, idx + 2, idx + 3]);
     painter.add(egui::Shape::mesh(mesh));
 }
 
@@ -307,9 +309,23 @@ impl Branch {
     pub fn all() -> &'static [Branch] {
         use Branch::*;
         &[
-            Fluxions, ComplexAnalysis, Analysis, VectorCalculus, DifferentialForms,
-            Geometry, Topology, LinearAlgebra, DiffEq, Dynamics, Waves,
-            Electromagnetism, Quantum, StatMech, Relativity, Gravitation, NumberTheory,
+            Fluxions,
+            ComplexAnalysis,
+            Analysis,
+            VectorCalculus,
+            DifferentialForms,
+            Geometry,
+            Topology,
+            LinearAlgebra,
+            DiffEq,
+            Dynamics,
+            Waves,
+            Electromagnetism,
+            Quantum,
+            StatMech,
+            Relativity,
+            Gravitation,
+            NumberTheory,
         ]
     }
 }
@@ -407,7 +423,8 @@ pub fn install_style(ctx: &egui::Context) {
     visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, TEXT_BODY);
     visuals.widgets.inactive.bg_fill = Color32::from_rgb(144, 147, 154);
     visuals.widgets.inactive.weak_bg_fill = Color32::from_rgb(136, 139, 146);
-    visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, Color32::from_rgba_unmultiplied(20, 23, 32, 70));
+    visuals.widgets.inactive.bg_stroke =
+        Stroke::new(1.0, Color32::from_rgba_unmultiplied(20, 23, 32, 70));
     visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, TEXT_BODY);
     visuals.widgets.hovered.bg_fill = Color32::from_rgb(154, 157, 164);
     visuals.widgets.hovered.weak_bg_fill = Color32::from_rgb(148, 151, 158);
@@ -466,7 +483,10 @@ pub fn paint_ribbons(painter: &egui::Painter, rect: egui::Rect, tint: Color32, t
                 + (x * 6.9 + ph + fi * 0.55).sin() * 0.16 * env
                 + (x * 3.1 - ph * 0.7 + fi * 1.35).sin() * 0.22 * env
                 + (fi - 0.5) * 0.30 * env;
-            pts.push(egui::pos2(rect.left() + x * w, rect.top() + y.clamp(0.04, 0.96) * h));
+            pts.push(egui::pos2(
+                rect.left() + x * w,
+                rect.top() + y.clamp(0.04, 0.96) * h,
+            ));
         }
         painter.add(egui::Shape::line(pts, Stroke::new(1.0, color)));
     }
@@ -476,7 +496,11 @@ pub fn paint_ribbons(painter: &egui::Painter, rect: egui::Rect, tint: Color32, t
 pub fn to_linear(c: Color32) -> [f32; 4] {
     let f = |u: u8| {
         let s = u as f32 / 255.0;
-        if s <= 0.04045 { s / 12.92 } else { ((s + 0.055) / 1.055).powf(2.4) }
+        if s <= 0.04045 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
     };
     [f(c.r()), f(c.g()), f(c.b()), c.a() as f32 / 255.0]
 }

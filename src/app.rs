@@ -73,7 +73,9 @@ pub struct AtlasApp {
 impl AtlasApp {
     fn brush(&mut self, ui: &egui::Ui) {
         let ctx = ui.ctx().clone();
-        let tex = self.brushed.get_or_insert_with(|| theme::brushed_texture(&ctx));
+        let tex = self
+            .brushed
+            .get_or_insert_with(|| theme::brushed_texture(&ctx));
         theme::paint_brushed(ui.painter(), ui.max_rect().expand(12.0), tex);
     }
 }
@@ -123,11 +125,19 @@ impl AtlasApp {
     // ---------- panels ----------
 
     fn top_bar(&mut self, ctx: &egui::Context) {
-        let accent = self.engine.modules[self.engine.active].info().branch.style().accent;
+        let accent = self.engine.modules[self.engine.active]
+            .info()
+            .branch
+            .style()
+            .accent;
         let t = self.engine.timeline.t;
         egui::TopBottomPanel::top("brand")
             .exact_height(52.0)
-            .frame(egui::Frame::new().fill(theme::BG_VOID).inner_margin(egui::Margin::symmetric(16, 8)))
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG_VOID)
+                    .inner_margin(egui::Margin::symmetric(16, 8)),
+            )
             .show(ctx, |ui| {
                 self.brush(ui);
                 // The flowing motif behind the brand, in the active branch light.
@@ -169,7 +179,11 @@ impl AtlasApp {
     fn concept_browser(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("browser")
             .default_width(252.0)
-            .frame(egui::Frame::new().fill(theme::BG_PANEL).inner_margin(egui::Margin::same(10)))
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG_PANEL)
+                    .inner_margin(egui::Margin::same(10)),
+            )
             .show(ctx, |ui| {
                 self.brush(ui);
                 ui.horizontal(|ui| {
@@ -179,7 +193,9 @@ impl AtlasApp {
                             .color(theme::GOLD_DIM),
                     );
                     let n_mod = self.engine.modules.len();
-                    let n_rep: usize = (0..n_mod).map(|i| self.engine.modules[i].modes().len()).sum();
+                    let n_rep: usize = (0..n_mod)
+                        .map(|i| self.engine.modules[i].modes().len())
+                        .sum();
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
                             RichText::new(format!("{n_mod} chambers \u{00B7} {n_rep} views"))
@@ -226,15 +242,29 @@ impl AtlasApp {
                         let acc = theme::ink(st.accent);
                         ui.add_space(9.0);
                         ui.horizontal(|ui| {
-                            let (r, _) = ui.allocate_exact_size(Vec2::splat(7.0), egui::Sense::hover());
+                            let (r, _) =
+                                ui.allocate_exact_size(Vec2::splat(7.0), egui::Sense::hover());
                             ui.painter().circle_filled(r.center(), 2.6, acc);
-                            ui.painter().circle_stroke(r.center(), 4.6, Stroke::new(0.8, acc.gamma_multiply(0.4)));
-                            ui.label(
-                                RichText::new(st.name).font(theme::heading_font(15.5)).color(theme::TEXT_BRIGHT),
+                            ui.painter().circle_stroke(
+                                r.center(),
+                                4.6,
+                                Stroke::new(0.8, acc.gamma_multiply(0.4)),
                             );
-                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                ui.label(RichText::new(format!("{n_in_branch}")).size(9.0).color(theme::TEXT_DIM));
-                            });
+                            ui.label(
+                                RichText::new(st.name)
+                                    .font(theme::heading_font(15.5))
+                                    .color(theme::TEXT_BRIGHT),
+                            );
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    ui.label(
+                                        RichText::new(format!("{n_in_branch}"))
+                                            .size(9.0)
+                                            .color(theme::TEXT_DIM),
+                                    );
+                                },
+                            );
                         });
                         ui.label(RichText::new(st.motto).size(9.5).color(theme::TEXT_DIM));
                         ui.add_space(2.0);
@@ -253,11 +283,16 @@ impl AtlasApp {
                                             .color(theme::TEXT_DIM),
                                     );
                                     if info.id == "newton.fluxions" {
-                                        ui.label(RichText::new("FLAGSHIP").size(7.5).color(theme::GOLD_DIM));
+                                        ui.label(
+                                            RichText::new("FLAGSHIP")
+                                                .size(7.5)
+                                                .color(theme::GOLD_DIM),
+                                        );
                                     }
                                 });
                             }
-                            let selected = idx == self.engine.active && self.engine.active_modes.contains(&mi);
+                            let selected =
+                                idx == self.engine.active && self.engine.active_modes.contains(&mi);
                             let (rect, resp) = ui.allocate_exact_size(
                                 Vec2::new(ui.available_width(), 20.0),
                                 egui::Sense::click(),
@@ -277,7 +312,10 @@ impl AtlasApp {
                             }
                             if selected {
                                 p.line_segment(
-                                    [rect.left_top() + Vec2::new(1.5, 3.0), rect.left_bottom() + Vec2::new(1.5, -3.0)],
+                                    [
+                                        rect.left_top() + Vec2::new(1.5, 3.0),
+                                        rect.left_bottom() + Vec2::new(1.5, -3.0),
+                                    ],
                                     Stroke::new(2.0, acc),
                                 );
                             }
@@ -286,7 +324,13 @@ impl AtlasApp {
                                 Align2::LEFT_CENTER,
                                 &name,
                                 FontId::proportional(12.0),
-                                if selected { acc } else if hover { theme::TEXT_BRIGHT } else { theme::TEXT_BODY },
+                                if selected {
+                                    acc
+                                } else if hover {
+                                    theme::TEXT_BRIGHT
+                                } else {
+                                    theme::TEXT_BODY
+                                },
                             );
                             let resp = resp.on_hover_text(desc);
                             if resp.clicked() {
@@ -309,7 +353,11 @@ impl AtlasApp {
     fn inspector_panel(&mut self, ctx: &egui::Context) {
         egui::SidePanel::right("inspector")
             .default_width(310.0)
-            .frame(egui::Frame::new().fill(theme::BG_PANEL).inner_margin(egui::Margin::same(12)))
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG_PANEL)
+                    .inner_margin(egui::Margin::same(12)),
+            )
             .show(ctx, |ui| {
                 self.brush(ui);
                 egui::ScrollArea::vertical().show(ui, |ui| {
@@ -317,8 +365,16 @@ impl AtlasApp {
                     let info = self.engine.modules[active].info();
                     let accent = theme::ink(info.branch.style().accent);
 
-                    ui.label(RichText::new(info.name).font(theme::heading_font(24.0)).color(accent));
-                    ui.label(RichText::new(info.tagline).size(11.5).color(theme::TEXT_DIM));
+                    ui.label(
+                        RichText::new(info.name)
+                            .font(theme::heading_font(24.0))
+                            .color(accent),
+                    );
+                    ui.label(
+                        RichText::new(info.tagline)
+                            .size(11.5)
+                            .color(theme::TEXT_DIM),
+                    );
                     if let Some((quote, who)) = info.epigraph {
                         ui.add_space(6.0);
                         egui::Frame::new()
@@ -331,11 +387,19 @@ impl AtlasApp {
                                         .font(theme::heading_font(14.5))
                                         .color(theme::TEXT_BODY),
                                 );
-                                ui.label(RichText::new(format!("\u{2014} {who}")).size(10.0).color(theme::TEXT_DIM));
+                                ui.label(
+                                    RichText::new(format!("\u{2014} {who}"))
+                                        .size(10.0)
+                                        .color(theme::TEXT_DIM),
+                                );
                             });
                     }
                     ui.add_space(4.0);
-                    ui.label(RichText::new(info.description).size(12.0).color(theme::TEXT_BODY));
+                    ui.label(
+                        RichText::new(info.description)
+                            .size(12.0)
+                            .color(theme::TEXT_BODY),
+                    );
 
                     ui.add_space(10.0);
                     section(ui, "SYMBOLIC INSPECTOR");
@@ -349,7 +413,11 @@ impl AtlasApp {
                             for l in lines {
                                 match l.role {
                                     InsRole::Title => {
-                                        ui.label(RichText::new(l.text).font(theme::heading_font(15.5)).color(accent));
+                                        ui.label(
+                                            RichText::new(l.text)
+                                                .font(theme::heading_font(15.5))
+                                                .color(accent),
+                                        );
                                         ui.add_space(2.0);
                                     }
                                     InsRole::Formula => {
@@ -382,7 +450,11 @@ impl AtlasApp {
                                         }
                                     }
                                     InsRole::Def => {
-                                        ui.label(RichText::new(l.text).font(theme::math_font(12.0)).color(theme::TEXT_BODY));
+                                        ui.label(
+                                            RichText::new(l.text)
+                                                .font(theme::math_font(12.0))
+                                                .color(theme::TEXT_BODY),
+                                        );
                                     }
                                     InsRole::Value => {
                                         ui.label(
@@ -393,7 +465,9 @@ impl AtlasApp {
                                     }
                                     InsRole::Note => {
                                         ui.add_space(2.0);
-                                        ui.label(RichText::new(l.text).size(10.5).color(theme::TEXT_DIM));
+                                        ui.label(
+                                            RichText::new(l.text).size(10.5).color(theme::TEXT_DIM),
+                                        );
                                     }
                                 }
                             }
@@ -411,7 +485,13 @@ impl AtlasApp {
                                 self.engine.reset_camera(active, m);
                             }
                         }
-                        ui.label(RichText::new("drag: orbit/pan \u{00B7} wheel: zoom \u{00B7} right-drag: pan").size(9.5).color(theme::TEXT_DIM));
+                        ui.label(
+                            RichText::new(
+                                "drag: orbit/pan \u{00B7} wheel: zoom \u{00B7} right-drag: pan",
+                            )
+                            .size(9.5)
+                            .color(theme::TEXT_DIM),
+                        );
                     });
 
                     ui.add_space(10.0);
@@ -427,8 +507,14 @@ impl AtlasApp {
         let params = self.engine.modules[active].params();
         for group in params.groups() {
             ui.add_space(4.0);
-            ui.label(RichText::new(group.to_uppercase()).size(9.5).color(theme::TEXT_DIM));
-            let items: Vec<usize> = (0..params.items.len()).filter(|&i| params.items[i].group == group).collect();
+            ui.label(
+                RichText::new(group.to_uppercase())
+                    .size(9.5)
+                    .color(theme::TEXT_DIM),
+            );
+            let items: Vec<usize> = (0..params.items.len())
+                .filter(|&i| params.items[i].group == group)
+                .collect();
             for i in items {
                 let p = &mut params.items[i];
                 match (&p.kind, &mut p.value) {
@@ -504,7 +590,10 @@ impl AtlasApp {
                 let mode = self.engine.active_modes.first().copied().unwrap_or(0);
                 let dir = std::path::PathBuf::from(format!("exports/frames_{id}_{}", stamp()));
                 match self.engine.export_frames(mode, 1920, 1080, 240, 30, &dir) {
-                    Ok(()) => self.set_status(format!("wrote 240 frames + ffmpeg cmd to {}", dir.display())),
+                    Ok(()) => self.set_status(format!(
+                        "wrote 240 frames + ffmpeg cmd to {}",
+                        dir.display()
+                    )),
                     Err(e) => self.set_status(format!("frames failed: {e}")),
                 }
             }
@@ -538,7 +627,11 @@ impl AtlasApp {
     fn timeline_panel(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("timeline")
             .exact_height(74.0)
-            .frame(egui::Frame::new().fill(theme::BG_PANEL).inner_margin(egui::Margin::symmetric(14, 6)))
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG_PANEL)
+                    .inner_margin(egui::Margin::symmetric(14, 6)),
+            )
             .show(ctx, |ui| {
                 self.brush(ui);
                 // Representation deck.
@@ -546,7 +639,11 @@ impl AtlasApp {
                 let modes = self.engine.modules[active].modes();
                 let accent = theme::ink(self.engine.modules[active].info().branch.style().accent);
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("REPRESENTATIONS").size(9.5).color(theme::TEXT_DIM));
+                    ui.label(
+                        RichText::new("REPRESENTATIONS")
+                            .size(9.5)
+                            .color(theme::TEXT_DIM),
+                    );
                     let mut changed = false;
                     let mut act = self.engine.active_modes.clone();
                     for (i, m) in modes.iter().enumerate() {
@@ -596,7 +693,14 @@ impl AtlasApp {
                         .add(
                             egui::Button::new(RichText::new(label).size(12.0).color(fg))
                                 .fill(fill)
-                                .stroke(Stroke::new(1.0, if tl.playing { theme::HAIRLINE_LIT } else { theme::GOLD }))
+                                .stroke(Stroke::new(
+                                    1.0,
+                                    if tl.playing {
+                                        theme::HAIRLINE_LIT
+                                    } else {
+                                        theme::GOLD
+                                    },
+                                ))
                                 .corner_radius(CornerRadius::same(12))
                                 .min_size(Vec2::new(64.0, 22.0)),
                         )
@@ -607,7 +711,11 @@ impl AtlasApp {
                     if ui.button("\u{21BA} 0").on_hover_text("rewind").clicked() {
                         tl.t = 0.0;
                     }
-                    ui.label(RichText::new("t").font(theme::math_font(13.0)).color(theme::GOLD));
+                    ui.label(
+                        RichText::new("t")
+                            .font(theme::math_font(13.0))
+                            .color(theme::GOLD),
+                    );
                     let span = tl.span;
                     ui.style_mut().spacing.slider_width = (ui.available_width() - 420.0).max(160.0);
                     ui.add(egui::Slider::new(&mut tl.t, 0.0..=span).show_value(false));
@@ -618,26 +726,41 @@ impl AtlasApp {
                     );
                     ui.add_space(8.0);
                     ui.label(RichText::new("speed").size(10.0).color(theme::TEXT_DIM));
-                    ui.add(egui::Slider::new(&mut tl.speed, 0.05..=4.0).show_value(true).fixed_decimals(2));
+                    ui.add(
+                        egui::Slider::new(&mut tl.speed, 0.05..=4.0)
+                            .show_value(true)
+                            .fixed_decimals(2),
+                    );
                     ui.label(RichText::new("span").size(10.0).color(theme::TEXT_DIM));
-                    ui.add(egui::DragValue::new(&mut tl.span).range(1.0..=120.0).speed(0.5).suffix("s"));
+                    ui.add(
+                        egui::DragValue::new(&mut tl.span)
+                            .range(1.0..=120.0)
+                            .speed(0.5)
+                            .suffix("s"),
+                    );
                     let mode_label = match tl.loop_mode {
                         LoopMode::Loop => "loop",
                         LoopMode::PingPong => "pingpong",
                         LoopMode::Once => "once",
                     };
-                    egui::ComboBox::from_id_salt("loopmode").selected_text(mode_label).show_ui(ui, |ui| {
-                        ui.selectable_value(&mut tl.loop_mode, LoopMode::Loop, "loop");
-                        ui.selectable_value(&mut tl.loop_mode, LoopMode::PingPong, "pingpong");
-                        ui.selectable_value(&mut tl.loop_mode, LoopMode::Once, "once");
-                    });
+                    egui::ComboBox::from_id_salt("loopmode")
+                        .selected_text(mode_label)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut tl.loop_mode, LoopMode::Loop, "loop");
+                            ui.selectable_value(&mut tl.loop_mode, LoopMode::PingPong, "pingpong");
+                            ui.selectable_value(&mut tl.loop_mode, LoopMode::Once, "once");
+                        });
                 });
             });
     }
 
     fn canvas(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(theme::BG_VOID).inner_margin(egui::Margin::same(6)))
+            .frame(
+                egui::Frame::new()
+                    .fill(theme::BG_VOID)
+                    .inner_margin(egui::Margin::same(6)),
+            )
             .show(ctx, |ui| {
                 self.brush(ui);
                 let full = ui.available_rect_before_wrap();
@@ -676,7 +799,11 @@ impl AtlasApp {
 
         // Interaction: modules may claim the primary button on plane views;
         // the camera then moves via shift-drag / right-drag.
-        let resp = ui.interact(rect, egui::Id::new(("canvas", mode)), egui::Sense::click_and_drag());
+        let resp = ui.interact(
+            rect,
+            egui::Id::new(("canvas", mode)),
+            egui::Sense::click_and_drag(),
+        );
         let shift = ui.input(|i| i.modifiers.shift);
         let module_claims = {
             let plane = matches!(
@@ -756,7 +883,12 @@ impl AtlasApp {
         // Instrument chrome: frame, corner ticks, mode chip, honesty label.
         let info = self.engine.modules[active].info();
         let accent = info.branch.style().accent;
-        painter.rect_stroke(rect, CornerRadius::same(3), Stroke::new(1.0, theme::HAIRLINE), egui::StrokeKind::Inside);
+        painter.rect_stroke(
+            rect,
+            CornerRadius::same(3),
+            Stroke::new(1.0, theme::HAIRLINE),
+            egui::StrokeKind::Inside,
+        );
         let tick = 9.0;
         let tc = theme::OVERLAY_DIM.gamma_multiply(0.7);
         for (corner, dx, dy) in [
@@ -815,7 +947,10 @@ fn section(ui: &mut egui::Ui, name: &str) {
         let where_to = ui.available_rect_before_wrap();
         let y = where_to.center().y;
         ui.painter().line_segment(
-            [egui::pos2(where_to.left() + 4.0, y), egui::pos2(where_to.right() - 2.0, y)],
+            [
+                egui::pos2(where_to.left() + 4.0, y),
+                egui::pos2(where_to.right() - 2.0, y),
+            ],
             Stroke::new(1.0, theme::HAIRLINE),
         );
     });

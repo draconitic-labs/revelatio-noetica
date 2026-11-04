@@ -11,7 +11,13 @@ use crate::engine::params::Params;
 use crate::modules::util::{phase_color, with_alpha};
 use crate::theme::Branch;
 
-const KNOT_NAMES: [&str; 5] = ["Trefoil (2,3)", "Cinquefoil (2,5)", "(3,4) torus knot", "Figure-eight", "Hopf link"];
+const KNOT_NAMES: [&str; 5] = [
+    "Trefoil (2,3)",
+    "Cinquefoil (2,5)",
+    "(3,4) torus knot",
+    "Figure-eight",
+    "Hopf link",
+];
 
 /// Sample knot k at parameter s in [0,1); component 0 or 1 (links only).
 fn knot_pt(k: usize, comp: usize, s: f32, breathe: f32) -> Vec3 {
@@ -25,7 +31,11 @@ fn knot_pt(k: usize, comp: usize, s: f32, breathe: f32) -> Vec3 {
                 _ => (3.0, 4.0),
             };
             let r = (q * t).cos() * 0.55 * b + 1.15;
-            Vec3::new(r * (p * t).cos(), -(q * t).sin() * 0.55 * b, r * (p * t).sin())
+            Vec3::new(
+                r * (p * t).cos(),
+                -(q * t).sin() * 0.55 * b,
+                r * (p * t).sin(),
+            )
         }
         3 => {
             // Figure-eight knot standard parametrization.
@@ -69,17 +79,27 @@ impl KnotReliquary {
         p.slider("thick", "Tube radius", "Display", 0.03, 0.16, 0.085, "");
         p.toggle("breathe", "Isotopy breathing", "Observer", true);
         p.toggle("spin", "Slow tumble", "Observer", true);
-        Self { params: p, tubes: Vec::new(), mesh_bgl: None, last_key: (usize::MAX, 0), linking: 0.0 }
+        Self {
+            params: p,
+            tubes: Vec::new(),
+            mesh_bgl: None,
+            last_key: (usize::MAX, 0),
+            linking: 0.0,
+        }
     }
 
     fn rebuild(&mut self, gpu: &GpuContext, breathe: f32) {
-        let Some(bgl) = self.mesh_bgl.clone() else { return };
+        let Some(bgl) = self.mesh_bgl.clone() else {
+            return;
+        };
         let k = self.params.c("knot");
         let radius = self.params.f("thick") as f32;
         self.tubes.clear();
         for comp in 0..components(k) {
             let n = 340;
-            let path: Vec<Vec3> = (0..=n).map(|i| knot_pt(k, comp, i as f32 / n as f32, breathe)).collect();
+            let path: Vec<Vec3> = (0..=n)
+                .map(|i| knot_pt(k, comp, i as f32 / n as f32, breathe))
+                .collect();
             let d = MeshData::tube(&path, radius, 14, |i| {
                 let s = i as f32 / n as f32;
                 let mut c = phase_color(s * std::f32::consts::TAU + comp as f32 * 2.5);
@@ -135,9 +155,28 @@ impl ConceptModule for KnotReliquary {
 
     fn modes(&self) -> Vec<RenderMode> {
         vec![
-            RenderMode::orbit("gallery", "Tube Gallery", "The knot as an iridescent solid tube, breathing through isotopies", 6.0, 0.35, 0.6),
-            RenderMode::plane("diagram", "Crossing Diagram", "The projection with honest over/under gaps", 2.4),
-            RenderMode::orbit("winding", "The Winding Loom", "Slope p/q closes into a knot; irrational slope never closes at all", 6.0, 0.45, 0.7),
+            RenderMode::orbit(
+                "gallery",
+                "Tube Gallery",
+                "The knot as an iridescent solid tube, breathing through isotopies",
+                6.0,
+                0.35,
+                0.6,
+            ),
+            RenderMode::plane(
+                "diagram",
+                "Crossing Diagram",
+                "The projection with honest over/under gaps",
+                2.4,
+            ),
+            RenderMode::orbit(
+                "winding",
+                "The Winding Loom",
+                "Slope p/q closes into a knot; irrational slope never closes at all",
+                6.0,
+                0.45,
+                0.7,
+            ),
         ]
     }
 
@@ -177,13 +216,27 @@ impl ConceptModule for KnotReliquary {
         scene.clear = [0.008, 0.006, 0.012, 1.0];
         match mode {
             0 => {
-                let spin = if self.params.b("spin") { (t * 0.25) as f32 } else { 0.0 };
+                let spin = if self.params.b("spin") {
+                    (t * 0.25) as f32
+                } else {
+                    0.0
+                };
                 for m in &mut self.tubes {
-                    m.set_model(gpu, Mat4::from_rotation_y(spin), [1.0; 4], [0.0, 0.55, 1.0, 0.0]);
+                    m.set_model(
+                        gpu,
+                        Mat4::from_rotation_y(spin),
+                        [1.0; 4],
+                        [0.0, 0.55, 1.0, 0.0],
+                    );
                     scene.meshes.push(m.clone());
                 }
                 // A faint floor glow disc.
-                scene.point(Vec3::new(0.0, -2.4, 0.0), 60.0, [0.10, 0.06, 0.16, 0.5], 3.0);
+                scene.point(
+                    Vec3::new(0.0, -2.4, 0.0),
+                    60.0,
+                    [0.10, 0.06, 0.16, 0.5],
+                    3.0,
+                );
             }
             2 => {
                 // The torus, as a ghost lattice.
@@ -216,7 +269,13 @@ impl ConceptModule for KnotReliquary {
                 for i in 1..pts.len() {
                     let age = i as f32 / pts.len() as f32;
                     let hue = phase_color(age * 5.0);
-                    scene.line(LineLayer::WorldAdd, pts[i - 1], pts[i], 1.2, with_alpha(hue, 0.16 + 0.24 * age));
+                    scene.line(
+                        LineLayer::WorldAdd,
+                        pts[i - 1],
+                        pts[i],
+                        1.2,
+                        with_alpha(hue, 0.16 + 0.24 * age),
+                    );
                 }
             }
             _ => {
@@ -229,7 +288,9 @@ impl ConceptModule for KnotReliquary {
                 };
                 let n = 620;
                 for comp in 0..components(k) {
-                    let pts: Vec<Vec3> = (0..=n).map(|i| knot_pt(k, comp, i as f32 / n as f32, breathe)).collect();
+                    let pts: Vec<Vec3> = (0..=n)
+                        .map(|i| knot_pt(k, comp, i as f32 / n as f32, breathe))
+                        .collect();
                     // Find crossing neighborhoods: compare all segment pairs in 2D.
                     let mut gap = vec![false; n + 1];
                     for i in 0..n {
@@ -237,7 +298,9 @@ impl ConceptModule for KnotReliquary {
                             let pts2: Vec<Vec3> = if comp2 == comp {
                                 pts.clone()
                             } else {
-                                (0..=n).map(|j| knot_pt(k, comp2, j as f32 / n as f32, breathe)).collect()
+                                (0..=n)
+                                    .map(|j| knot_pt(k, comp2, j as f32 / n as f32, breathe))
+                                    .collect()
                             };
                             for j in 0..n {
                                 if comp == comp2 && (i as i32 - j as i32).abs() < 22 {
@@ -260,7 +323,10 @@ impl ConceptModule for KnotReliquary {
                             continue;
                         }
                         let s = i as f32 / n as f32;
-                        let c = with_alpha(phase_color(s * std::f32::consts::TAU + comp as f32 * 2.5), 0.95);
+                        let c = with_alpha(
+                            phase_color(s * std::f32::consts::TAU + comp as f32 * 2.5),
+                            0.95,
+                        );
                         let a = Vec3::new(pts[i].x, pts[i].y, 0.0);
                         let b = Vec3::new(pts[i + 1].x, pts[i + 1].y, 0.0);
                         scene.line(LineLayer::World, a, b, 3.2, c);
@@ -275,12 +341,16 @@ impl ConceptModule for KnotReliquary {
         let mut out = vec![title(format!("{}", KNOT_NAMES[k]))];
         match k {
             0 => {
-                out.push(formula("(p,q) = (2,3):   t \u{21A6} torus winding, 2 around, 3 through"));
+                out.push(formula(
+                    "(p,q) = (2,3):   t \u{21A6} torus winding, 2 around, 3 through",
+                ));
                 out.push(value("crossing number 3 \u{00B7} genus 1 \u{00B7} chiral \u{00B7} Alexander \u{0394}(t) = t \u{2212} 1 + t\u{207B}\u{00B9}"));
             }
             1 => {
                 out.push(formula("(p,q) = (2,5)"));
-                out.push(value("crossing number 5 \u{00B7} genus 2 \u{00B7} the (2,5) torus knot"));
+                out.push(value(
+                    "crossing number 5 \u{00B7} genus 2 \u{00B7} the (2,5) torus knot",
+                ));
             }
             2 => {
                 out.push(formula("(p,q) = (3,4)"));
@@ -288,11 +358,18 @@ impl ConceptModule for KnotReliquary {
             }
             3 => {
                 out.push(formula("figure-eight: the simplest amphichiral knot"));
-                out.push(value("crossing number 4 \u{00B7} genus 1 \u{00B7} equals its own mirror"));
+                out.push(value(
+                    "crossing number 4 \u{00B7} genus 1 \u{00B7} equals its own mirror",
+                ));
             }
             _ => {
-                out.push(formula("Hopf link: two circles, each threading the other once"));
-                out.push(value(format!("Gauss linking integral \u{2248} {:+.3}  (exact: \u{00B1}1)", self.linking)));
+                out.push(formula(
+                    "Hopf link: two circles, each threading the other once",
+                ));
+                out.push(value(format!(
+                    "Gauss linking integral \u{2248} {:+.3}  (exact: \u{00B1}1)",
+                    self.linking
+                )));
             }
         }
         out.push(def("Isotopy: deformation without tearing or crossing \u{2014} the breathing changes nothing that matters."));
