@@ -595,14 +595,14 @@ ViewGuide {
     module: "gr.schwarzschild",
     view: "orbit",
     read: "The white dot is the test mass; its trail runs from faint blue (old) to warm (new). Circles mark the horizon r = 2M (orange), photon sphere 3M (pale gold) and ISCO 6M (pale blue).",
-    try_this: "Lower \"Angular momentum L\" from 3.9 to 3.6: the orbit restarts, dips to r ≈ 5, and each radial cycle winds nearly three times.",
+    try_this: "On the Precessing rosette, lower \"Angular momentum L\" from 3.9 to 3.6: the orbit restarts, dips to r ≈ 5, and each radial cycle winds nearly three times.",
     params: &["preset", "ll", "r0", "rate"],
 },
 ViewGuide {
     module: "gr.schwarzschild",
     view: "veff",
     read: "The blue curve is V(r) = √((1 − 2M/r)(1 + L²/r²)); the orange line is the energy, meeting it at turning points. The white marker sits at the current r. Masts mark horizon (orange) and ISCO (pale gold); the grey line is V = 1.",
-    try_this: "Lower \"Angular momentum L\" to 3.5: the well and barrier of the blue curve nearly merge, close to the ISCO value √12 M ≈ 3.46.",
+    try_this: "On the Precessing rosette, lower \"Angular momentum L\" to 3.5: well and barrier nearly merge, close to the ISCO value √12 M ≈ 3.46.",
     params: &["preset", "ll", "r0", "rate"],
 },
 ViewGuide {
