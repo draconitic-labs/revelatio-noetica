@@ -136,7 +136,8 @@ pub enum PointerEvent {
 pub trait ConceptModule {
     fn info(&self) -> ModuleInfo;
     fn modes(&self) -> Vec<RenderMode>;
-    /// Which representations open by default (indices into `modes`).
+    /// Which representations suit this chamber best (indices into `modes`).
+    /// The first opens on entry; the next is offered first when comparing.
     fn default_modes(&self) -> Vec<usize> {
         vec![0]
     }
@@ -146,6 +147,9 @@ pub trait ConceptModule {
     fn init(&mut self, gpu: &GpuContext, rend: &mut Renderers);
     /// Advance simulation / dynamic geometry to time `t`.
     fn update(&mut self, gpu: &GpuContext, t: f64, dt: f64);
+    /// The viewer sent time backward or restarted it: begin simulations again.
+    /// A loop wrapping on its own does not call this.
+    fn rewind(&mut self) {}
     /// Describe the frame for one representation.
     fn render(&mut self, gpu: &GpuContext, mode: usize, t: f64, cam: &Camera, scene: &mut Scene);
     /// Symbolic inspector content.
@@ -189,47 +193,149 @@ pub fn to_screen(cam: &Camera, rect: egui::Rect, p: glam::Vec3) -> Option<egui::
     ))
 }
 
+/// One open view: a representation of a chamber.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct ViewRef {
+    pub module: usize,
+    pub mode: usize,
+}
+
+/// A parameter being swept back and forth across its whole range.
+pub struct Sweep {
+    pub module: usize,
+    pub key: &'static str,
+    /// Seconds for one trip from minimum to maximum and back.
+    pub period: f64,
+    phase: f64,
+}
+
+pub const MAX_PANES: usize = 4;
+
 pub struct Engine {
     pub gpu: GpuContext,
     pub rend: Renderers,
     pub modules: Vec<Box<dyn ConceptModule>>,
     pub timeline: Timeline,
-    pub active: usize,
-    /// Active representation indices for the active module (1..=4 views).
-    pub active_modes: Vec<usize>,
+    /// The open views, 1..=MAX_PANES of them, possibly from different chambers.
+    pub panes: Vec<ViewRef>,
+    /// Index into `panes` of the view the side panel and filmstrip follow.
+    pub focus: usize,
+    pub sweeps: Vec<Sweep>,
     cameras: HashMap<(usize, usize), Camera>,
     initialized: Vec<bool>,
+    defaults: Vec<serde_json::Value>,
 }
 
 impl Engine {
     pub fn new(gpu: GpuContext, modules: Vec<Box<dyn ConceptModule>>) -> Self {
         let rend = Renderers::new(&gpu);
         let n = modules.len();
+        let defaults = modules.iter().map(|m| m.params_ref().to_json()).collect();
         let mut e = Self {
             gpu,
             rend,
             modules,
             timeline: Timeline::new(),
-            active: 0,
-            active_modes: vec![0],
+            panes: vec![ViewRef { module: 0, mode: 0 }],
+            focus: 0,
+            sweeps: Vec::new(),
             cameras: HashMap::new(),
             initialized: vec![false; n],
+            defaults,
         };
         e.set_active(0);
         e
     }
 
-    pub fn set_active(&mut self, idx: usize) {
-        if idx >= self.modules.len() {
-            return;
-        }
-        self.active = idx;
+    /// The chamber of the focused view.
+    pub fn active(&self) -> usize {
+        self.focused().module
+    }
+
+    pub fn focused(&self) -> ViewRef {
+        self.panes[self.focus]
+    }
+
+    /// Create a chamber's GPU resources the first time it is needed.
+    pub fn ensure_init(&mut self, idx: usize) {
         if !self.initialized[idx] {
             self.modules[idx].init(&self.gpu, &mut self.rend);
             self.initialized[idx] = true;
         }
-        self.active_modes = self.modules[idx].default_modes();
+    }
+
+    /// Enter a chamber at its opening view, alone, with time back at zero.
+    pub fn set_active(&mut self, idx: usize) {
+        if idx >= self.modules.len() {
+            return;
+        }
+        self.ensure_init(idx);
+        let mode = self.modules[idx]
+            .default_modes()
+            .first()
+            .copied()
+            .unwrap_or(0);
+        self.panes = vec![ViewRef { module: idx, mode }];
+        self.focus = 0;
         self.timeline.reset();
+    }
+
+    /// Show `view` in the focused pane. A view already open elsewhere just
+    /// takes the focus. Moving a lone pane to another chamber restarts time,
+    /// as entering a chamber does; side-by-side views keep their shared clock.
+    pub fn open_view(&mut self, view: ViewRef) {
+        if view.module >= self.modules.len() {
+            return;
+        }
+        self.ensure_init(view.module);
+        if let Some(i) = self.panes.iter().position(|&p| p == view) {
+            self.focus = i;
+            return;
+        }
+        let changes_chamber = self.focused().module != view.module;
+        self.panes[self.focus] = view;
+        if changes_chamber && self.panes.len() == 1 {
+            self.timeline.reset();
+        }
+    }
+
+    /// Open `view` beside the others. Returns false if there is no room.
+    pub fn add_pane(&mut self, view: ViewRef) -> bool {
+        if view.module >= self.modules.len() {
+            return false;
+        }
+        self.ensure_init(view.module);
+        if let Some(i) = self.panes.iter().position(|&p| p == view) {
+            self.focus = i;
+            return true;
+        }
+        if self.panes.len() >= MAX_PANES {
+            return false;
+        }
+        self.panes.push(view);
+        self.focus = self.panes.len() - 1;
+        true
+    }
+
+    /// Close a pane, keeping at least one open.
+    pub fn close_pane(&mut self, i: usize) {
+        if self.panes.len() > 1 && i < self.panes.len() {
+            self.panes.remove(i);
+            if self.focus >= i && self.focus > 0 {
+                self.focus -= 1;
+            }
+        }
+    }
+
+    /// The distinct chambers on screen, each once.
+    pub fn open_modules(&self) -> Vec<usize> {
+        let mut out = Vec::with_capacity(self.panes.len());
+        for p in &self.panes {
+            if !out.contains(&p.module) {
+                out.push(p.module);
+            }
+        }
+        out
     }
 
     pub fn camera(&mut self, module: usize, mode: usize) -> &mut Camera {
@@ -249,24 +355,81 @@ impl Engine {
         self.cameras.remove(&(module, mode));
     }
 
-    /// Step simulation time and let the active module integrate.
+    /// True once the viewer has moved this camera away from where it starts.
+    pub fn camera_moved(&self, module: usize, mode: usize) -> bool {
+        let Some(c) = self.cameras.get(&(module, mode)) else {
+            return false;
+        };
+        let modes = self.modules[module].modes();
+        let Some(m) = modes.get(mode) else {
+            return false;
+        };
+        c.kind != m.cam || c.target != m.target
+    }
+
+    /// Put a chamber's parameters back to their declared values.
+    pub fn reset_params(&mut self, module: usize) {
+        let defaults = self.defaults[module].clone();
+        self.modules[module].params().load_json(&defaults);
+        self.sweeps.retain(|s| s.module != module);
+    }
+
+    pub fn is_sweeping(&self, module: usize, key: &str) -> bool {
+        self.sweeps
+            .iter()
+            .any(|s| s.module == module && s.key == key)
+    }
+
+    /// Start sweeping a slider from where it is now, or stop if it is running.
+    pub fn toggle_sweep(&mut self, module: usize, key: &'static str) {
+        if self.is_sweeping(module, key) {
+            self.sweeps
+                .retain(|s| !(s.module == module && s.key == key));
+            return;
+        }
+        if let Some(fraction) = self.modules[module].params_ref().fraction(key) {
+            self.sweeps.push(Sweep {
+                module,
+                key,
+                period: 16.0,
+                phase: fraction * 0.5,
+            });
+        }
+    }
+
+    /// Step simulation time and let every open chamber integrate.
     pub fn tick(&mut self, real_dt: f64) {
+        let on_screen = self.open_modules();
+        self.sweeps.retain(|s| on_screen.contains(&s.module));
+        for s in &mut self.sweeps {
+            s.phase = (s.phase + real_dt / s.period).rem_euclid(1.0);
+            let triangle = 1.0 - (2.0 * s.phase - 1.0).abs();
+            self.modules[s.module]
+                .params()
+                .set_fraction(s.key, triangle);
+        }
+        if std::mem::take(&mut self.timeline.rewound) {
+            for &m in &on_screen {
+                self.modules[m].rewind();
+            }
+        }
         let dt = self.timeline.advance(real_dt);
         let t = self.timeline.t;
         let gpu = self.gpu.clone();
-        self.modules[self.active].update(&gpu, t, dt);
+        for m in on_screen {
+            self.modules[m].update(&gpu, t, dt);
+        }
     }
 
-    /// Render one representation of the active module into a target.
-    pub fn render_view(&mut self, mode: usize, target: &ViewTarget) {
+    /// Render one view into a target.
+    pub fn render_view(&mut self, view: ViewRef, target: &ViewTarget) {
         let t = self.timeline.t;
-        let active = self.active;
-        let mut cam = *self.camera(active, mode);
+        let mut cam = *self.camera(view.module, view.mode);
         cam.aspect = target.width as f32 / target.height.max(1) as f32;
 
         let mut scene = Scene::new();
         let gpu = self.gpu.clone();
-        self.modules[active].render(&gpu, mode, t, &cam, &mut scene);
+        self.modules[view.module].render(&gpu, view.mode, t, &cam, &mut scene);
 
         let vp = cam.view_proj();
         let u = ViewUniforms {

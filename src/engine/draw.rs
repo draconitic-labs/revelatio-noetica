@@ -49,7 +49,6 @@ pub const LINE_LAYERS: [LineLayer; 4] = [
 
 /// What a module wants drawn this frame in one view.
 pub struct Scene {
-    pub clear: [f64; 4],
     /// Key of a registered fullscreen shader drawn behind everything.
     pub field: Option<&'static str>,
     /// Extra texture bound at group(1) for the field shader.
@@ -64,7 +63,6 @@ pub struct Scene {
 impl Scene {
     pub fn new() -> Self {
         Self {
-            clear: [0.012, 0.014, 0.022, 1.0],
             field: None,
             field_tex: None,
             params: [[0.0; 4]; 12],
@@ -694,13 +692,7 @@ fn fs_main(in: FsOut) -> @location(0) vec4<f32> {{
             pre(&mut encoder);
         }
         {
-            let clear = wgpu::Color {
-                r: scene.clear[0],
-                g: scene.clear[1],
-                b: scene.clear[2],
-                a: scene.clear[3],
-            };
-            let mut pass = target.begin(&mut encoder, clear);
+            let mut pass = target.begin(&mut encoder, wgpu::Color::BLACK);
             pass.set_bind_group(0, &target.bind_group, &[]);
 
             if let Some((key, tex_bg)) = &field_bg {
