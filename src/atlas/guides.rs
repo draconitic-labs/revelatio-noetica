@@ -900,6 +900,25 @@ mod tests {
         }
     }
 
+    /// The README sends people to this word, and the palette adds it only to views
+    /// that take the pointer. Text elsewhere using it would spoil that search.
+    #[test]
+    fn searching_hands_on_finds_only_views_you_can_touch() {
+        let word = "hands-on";
+        for g in GUIDES {
+            assert!(!g.read.contains(word) && !g.try_this.contains(word));
+        }
+        for m in modules::all() {
+            let info = m.info();
+            assert!(!info.description.contains(word) && !info.tagline.contains(word));
+            assert!(!m
+                .modes()
+                .iter()
+                .any(|r| r.desc.contains(word) || r.name.contains(word)));
+            assert!(!m.params_ref().items.iter().any(|p| p.label.contains(word)));
+        }
+    }
+
     #[test]
     fn suggestions_quote_real_control_names() {
         let all = modules::all();

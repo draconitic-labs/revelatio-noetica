@@ -17,11 +17,11 @@ You need [Rust](https://rustup.rs), a Vulkan driver, and the usual windowing hea
 
 ```sh
 # Fedora
-sudo dnf install gtk3-devel vulkan-loader-devel libxkbcommon-devel wayland-devel \
+sudo dnf install vulkan-loader-devel libxkbcommon-devel wayland-devel \
     libX11-devel libXcursor-devel libXi-devel libXrandr-devel
 
 # Debian, Ubuntu
-sudo apt install libgtk-3-dev libvulkan-dev libxkbcommon-dev libwayland-dev \
+sudo apt install libvulkan-dev libxkbcommon-dev libwayland-dev \
     libx11-dev libxcursor-dev libxi-dev libxrandr-dev
 
 cargo build --release
@@ -30,8 +30,10 @@ cargo build --release
 
 To add it to your application menu, run `scripts/install-desktop.sh`. It builds in
 release mode and installs the binary, icon, and menu entry under `~/.local`, and
-registers `revelatio:` scene links. `scripts/install-desktop.sh --uninstall` removes
-exactly those files and leaves your session and exports alone.
+registers `revelatio:` scene links. It will not overwrite an existing
+`~/.local/bin/revelatio` it did not install. `scripts/install-desktop.sh --uninstall`
+removes only what the install recorded, and only if unchanged, and leaves your session
+and exports alone.
 
 The project was first built on Windows and still should be, with
 `cargo build --release`, though Linux is what is tested now.
@@ -72,7 +74,7 @@ The window is one black field, with the visual as the largest thing in it.
 - **Direct manipulation**: views you can touch show a hand, in the filmstrip and
   under the canvas, with the gesture spelled out. Strike the membrane, drag charges and
   spacetime events, sculpt a matrix by its basis vectors, paint Ising spins, thread
-  solutions through a slope field, fire measurement bursts. Search for `drag` to list them.
+  solutions through a slope field, fire measurement bursts. Search for `hands-on` to list them.
 - **Saved views** (`B`) and **back and forward** (`Alt+Left`, `Alt+Right`). Your place,
   saved views, and which views you have seen persist between runs.
 - **Scene links**: Export, then Copy link. Paste it into any window with `Ctrl V`, or
