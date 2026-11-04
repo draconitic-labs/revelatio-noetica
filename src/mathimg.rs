@@ -1,5 +1,5 @@
 //! LaTeX-rendered formula images, baked into the binary.
-//! Regenerate with `tools/render_math.ps1` after editing assets/math/manifest.txt.
+//! Regenerate with `tools/render_math.sh` (or `tools/render_math.ps1` on Windows) after editing assets/math/manifest.txt.
 
 include!("mathimg_gen.rs");
 
