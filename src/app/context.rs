@@ -130,30 +130,13 @@ impl AtlasApp {
         let accent = chamber.accent;
 
         let view_id = chamber.view_id(f.mode);
-        let suits = |view: Option<&str>| view.is_none_or(|v| v == view_id);
-        let mut any_preset = false;
-        ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing = vec2(5.0, 5.0);
-            for (i, p) in presets::for_chamber(id) {
-                any_preset = true;
-                let active =
-                    suits(p.view) && p.is_active(self.engine.modules[f.module].params_ref());
-                let hint = match p
-                    .view
-                    .and_then(|v| chamber.modes.iter().find(|m| m.id == v))
-                {
-                    Some(m) if !suits(p.view) => format!("{} Opens {}.", p.note, m.name),
-                    _ => p.note.to_string(),
-                };
-                if widgets::chip(ui, p.name, active, accent)
-                    .on_hover_text(hint)
-                    .clicked()
-                {
-                    self.act(Action::Preset(i));
-                }
-            }
-        });
-        if any_preset {
+        // Chips that change this view come first. Chips that open another view wait below the
+        // parameters under their own label, so none of them looks like an edit to what is on
+        // screen and then navigates away.
+        let (here, elsewhere): (Vec<_>, Vec<_>) =
+            presets::for_chamber(id).partition(|(_, p)| p.view.is_none_or(|v| v == view_id));
+        if !here.is_empty() {
+            self.preset_chips(ui, &here, f.module);
             ui.add_space(8.0);
         }
 
@@ -207,6 +190,13 @@ impl AtlasApp {
             self.param_list(ui, &relevant, f.module, accent);
         }
 
+        if !elsewhere.is_empty() {
+            ui.add_space(8.0);
+            ui.label(RichText::new("Opens another view").size(12.0).color(DUSK));
+            ui.add_space(3.0);
+            self.preset_chips(ui, &elsewhere, f.module);
+        }
+
         if !other.is_empty() {
             ui.add_space(6.0);
             let open = self.show_other_params;
@@ -243,6 +233,38 @@ impl AtlasApp {
                 self.param_list(ui, &other, f.module, accent);
             }
         }
+    }
+
+    fn preset_chips(
+        &mut self,
+        ui: &mut egui::Ui,
+        group: &[(usize, &presets::Preset)],
+        module: usize,
+    ) {
+        let catalog = self.catalog.clone();
+        let chamber = &catalog[module];
+        let view_id = chamber.view_id(self.engine.focused().mode);
+        ui.horizontal_wrapped(|ui| {
+            ui.spacing_mut().item_spacing = vec2(5.0, 5.0);
+            for &(i, p) in group {
+                let here = p.view.is_none_or(|v| v == view_id);
+                let active = here && p.is_active(self.engine.modules[module].params_ref());
+                let opens = p
+                    .view
+                    .filter(|_| !here)
+                    .and_then(|v| chamber.modes.iter().find(|m| m.id == v));
+                let hint = match opens {
+                    Some(m) => format!("{} Opens {}.", p.note, m.name),
+                    None => p.note.to_string(),
+                };
+                if widgets::chip(ui, p.name, active, chamber.accent)
+                    .on_hover_text(hint)
+                    .clicked()
+                {
+                    self.act(Action::Preset(i));
+                }
+            }
+        });
     }
 
     fn param_list(&mut self, ui: &mut egui::Ui, items: &[usize], module: usize, accent: Color32) {
