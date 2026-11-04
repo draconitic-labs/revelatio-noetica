@@ -1,28 +1,48 @@
 mod app;
+mod atlas;
 mod engine;
 mod mathimg;
 mod modules;
+mod session;
 mod theme;
+mod widgets;
 
 use std::path::PathBuf;
 
 use engine::gpu::GpuContext;
-use engine::module::Engine;
+use engine::module::{Engine, ViewRef};
 
 fn main() {
     env_logger::init();
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.is_empty() {
-        if let Err(e) = app::run() {
-            eprintln!("error: {e}");
-            std::process::exit(1);
-        }
-        return;
-    }
-    if let Err(e) = run_cli(&args) {
-        eprintln!("error: {e}");
+    let result = match opening_scene(&args) {
+        Some(Ok(scene)) => app::run(Some(scene)),
+        Some(Err(e)) => Err(e),
+        None if args.is_empty() => app::run(None),
+        None => run_cli(&args),
+    };
+    if let Err(e) = result {
+        eprintln!("error: {e:#}");
         std::process::exit(1);
     }
+}
+
+/// `revelatio <link>` and `revelatio <file.scene.json>` open the window at that
+/// scene, so links work from a shell or a desktop launcher.
+fn opening_scene(args: &[String]) -> Option<anyhow::Result<serde_json::Value>> {
+    let first = args.first()?;
+    if first.starts_with("--") {
+        return None;
+    }
+    if session::is_link(first) {
+        return Some(session::decode_link(first));
+    }
+    Some(
+        std::fs::read_to_string(first)
+            .map_err(anyhow::Error::from)
+            .and_then(|text| serde_json::from_str(&text).map_err(anyhow::Error::from))
+            .map_err(|e| e.context(format!("could not open scene {first}"))),
+    )
 }
 
 fn flag(args: &[String], name: &str) -> Option<String> {
@@ -49,7 +69,9 @@ fn warmup(e: &mut Engine, t: f64) {
         let tt = t * i as f64 / steps as f64;
         e.timeline.t = tt;
         let gpu = e.gpu.clone();
-        e.modules[e.active].update(&gpu, tt, t / steps as f64);
+        for m in e.open_modules() {
+            e.modules[m].update(&gpu, tt, t / steps as f64);
+        }
     }
 }
 
@@ -90,7 +112,7 @@ fn run_cli(args: &[String]) -> anyhow::Result<()> {
                     }
                     let mode_id = e.modules[idx].modes()[m].id;
                     let path = out.join(format!("{}_{}.png", id.replace('.', "_"), mode_id));
-                    e.export_png(m, w, h, &path)?;
+                    e.export_png(ViewRef { module: idx, mode: m }, w, h, &path)?;
                     println!("wrote {}", path.display());
                 }
             }
@@ -110,7 +132,7 @@ fn run_cli(args: &[String]) -> anyhow::Result<()> {
                 .find(|&i| e.modules[i].info().id == which)
                 .ok_or_else(|| anyhow::anyhow!("unknown module '{which}' (try --list)"))?;
             e.set_active(idx);
-            e.export_frames(mode, w, h, n, fps, &out)?;
+            e.export_frames(ViewRef { module: idx, mode }, (w, h), n, fps, &out)?;
             println!("wrote {n} frames to {}", out.display());
             Ok(())
         }
@@ -123,13 +145,12 @@ fn run_cli(args: &[String]) -> anyhow::Result<()> {
             let t = e.timeline.t;
             warmup(&mut e, t.max(0.01));
             e.timeline.t = t;
-            let mode = e.active_modes.first().copied().unwrap_or(0);
-            e.export_png(mode, w, h, &out)?;
+            e.export_png(e.focused(), w, h, &out)?;
             println!("wrote {}", out.display());
             Ok(())
         }
         other => anyhow::bail!(
-            "unknown command '{other}'. Usage:\n  revelatio                      launch the atlas\n  revelatio --list               list modules & representations\n  revelatio --export <id|all> [--mode N] [--size WxH] [--t sec] [--out dir]\n  revelatio --frames <id> [--mode N] [--n 150] [--fps 30] [--size WxH] [--out dir]\n  revelatio --scene <file.json> [--size WxH] [--out png]"
+            "unknown command '{other}'. Usage:\n  revelatio                      launch the atlas\n  revelatio <file.scene.json>    launch at a saved scene\n  revelatio '<revelatio:scene?...>'  launch at a copied scene link\n  revelatio --list               list modules & representations\n  revelatio --export <id|all> [--mode N] [--size WxH] [--t sec] [--out dir]\n  revelatio --frames <id> [--mode N] [--n 150] [--fps 30] [--size WxH] [--out dir]\n  revelatio --scene <file.json> [--size WxH] [--out png]"
         ),
     }
 }
