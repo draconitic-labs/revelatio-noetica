@@ -23,7 +23,9 @@ const PRESETS: [&str; 4] = [
     "Two sources",
 ];
 
-/// Chladni figure of a square plate: nodal lines of a two-mode superposition.
+/// Nodal lines of a two-mode superposition on a fixed-edge square, drawn as
+/// sand in the manner of Chladni's figures. These are membrane modes; a free
+/// plate's modes are different functions.
 const CHLADNI_SHADE: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
@@ -81,8 +83,9 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
         let ut = (s.r - s.g) / 0.01;
         let gx = (sx1 - sx0) / (2.0 * e * 8.0);
         let gy = (sy1 - sy0) / (2.0 * e * 8.0);
-        let dens = 0.5 * (ut * ut * 0.02 + (gx * gx + gy * gy) * 2.0);
-        color = inferno(clamp(log(1.0 + dens * 6.0) * 0.30, 0.0, 1.0));
+        let c = U.p[0].z;
+        let dens = 0.5 * (ut * ut + c * c * (gx * gx + gy * gy));
+        color = inferno(clamp(log(1.0 + dens * 1.5) * 0.30, 0.0, 1.0));
     } else {
         // Wavefront bands: |u| contour ridges.
         let a = abs(u);
@@ -129,18 +132,63 @@ pub struct WaveTable {
     tex_view: Option<wgpu::TextureView>,
     relief: Option<GpuMesh>,
     sim_t: f64,
-    last_reset_key: (usize, i64),
-    last_timeline_t: f64,
-    /// Doppler wavefronts: (emission point, emission time).
-    rings: Vec<(glam::Vec2, f64)>,
-    last_emit: f64,
+    last_scenario: usize,
+    /// Timeline seconds not yet turned into lattice steps.
+    step_debt: f64,
+    /// The field changed outside a step and has yet to reach the GPU.
+    dirty: bool,
 }
+
+/// Speed of the Doppler wavefronts, how often the source emits one, and the
+/// radius at which they have faded out.
+const DOPPLER_C: f64 = 1.1;
+const DOPPLER_EVERY: f64 = 0.14;
+const DOPPLER_MAX_R: f64 = 7.0;
 
 fn doppler_src(t: f64, mach: f64) -> glam::Vec2 {
     // The source sweeps left-to-right and wraps.
-    let c_wave = 1.1;
-    let x = -3.4 + ((t * mach * c_wave) % 6.8);
+    let x = -3.4 + ((t * mach * DOPPLER_C) % 6.8);
     glam::Vec2::new(x as f32, 0.0)
+}
+
+/// Every wavefront alive at time `t`, as (center, radius). A pure function of
+/// time, so any view can draw it at any moment and the scrubber just works.
+fn doppler_rings(t: f64, mach: f64) -> Vec<(glam::Vec2, f32)> {
+    let newest = (t / DOPPLER_EVERY).floor() as i64;
+    let oldest = (((t - DOPPLER_MAX_R / DOPPLER_C) / DOPPLER_EVERY).ceil() as i64).max(0);
+    (oldest..=newest)
+        .map(|k| {
+            let birth = k as f64 * DOPPLER_EVERY;
+            (doppler_src(birth, mach), ((t - birth) * DOPPLER_C) as f32)
+        })
+        .filter(|&(_, r)| r > 0.0)
+        .collect()
+}
+
+/// The source's recent track, newest first, split where it wrapped around.
+fn doppler_trail(t: f64, mach: f64) -> Vec<Vec<Vec3>> {
+    let mut runs = vec![Vec::new()];
+    let mut last: Option<glam::Vec2> = None;
+    for i in 0..40 {
+        let ti = t - i as f64 * 0.03;
+        if ti < 0.0 {
+            break;
+        }
+        let p = doppler_src(ti, mach);
+        if last.is_some_and(|q| (q.x - p.x).abs() > 3.0) {
+            runs.push(Vec::new());
+        }
+        if let Some(run) = runs.last_mut() {
+            run.push(Vec3::new(p.x, p.y, 0.01));
+        }
+        last = Some(p);
+    }
+    runs
+}
+
+/// Half-angle of the Mach cone for a supersonic source.
+fn cone_half_angle(mach: f64) -> f64 {
+    (1.0 / mach).asin()
 }
 
 impl WaveTable {
@@ -162,10 +210,9 @@ impl WaveTable {
             tex_view: None,
             relief: None,
             sim_t: 0.0,
-            last_reset_key: (usize::MAX, 0),
-            last_timeline_t: 0.0,
-            rings: Vec::new(),
-            last_emit: -1.0,
+            last_scenario: usize::MAX,
+            step_debt: 0.0,
+            dirty: true,
         }
     }
 
@@ -174,6 +221,8 @@ impl WaveTable {
         self.up.iter_mut().for_each(|v| *v = 0.0);
         self.barrier.iter_mut().for_each(|v| *v = false);
         self.sim_t = 0.0;
+        self.step_debt = 0.0;
+        self.dirty = true;
         let preset = self.params.c("preset");
         if preset == 0 {
             // Gaussian pluck, off-center.
@@ -215,7 +264,9 @@ impl WaveTable {
                 }
                 let lap = self.u[idx - 1] + self.u[idx + 1] + self.u[idx - N] + self.u[idx + N]
                     - 4.0 * self.u[idx];
-                un[idx] = (2.0 * self.u[idx] - self.up[idx] + r2 * lap) * (1.0 - damp);
+                // Damping acts on the velocity alone. Scaling the whole update
+                // would add a restoring term and block low frequencies.
+                un[idx] = self.u[idx] + (1.0 - damp) * (self.u[idx] - self.up[idx]) + r2 * lap;
             }
         }
         // Sponge margins to approximate open boundaries.
@@ -253,6 +304,31 @@ impl WaveTable {
         self.up.copy_from_slice(&self.u);
         self.u = un;
         self.sim_t += DT;
+    }
+
+    /// A new scenario needs a new membrane. Wave speed does not: the field
+    /// carries on under the new c, so the slider can be swept.
+    fn sync_scenario(&mut self) {
+        let scenario = self.params.c("preset");
+        if scenario != self.last_scenario {
+            self.last_scenario = scenario;
+            self.reset();
+        }
+    }
+
+    /// How many lattice steps this much timeline is worth. The remainder
+    /// carries over, so slow playback still advances and the lattice keeps
+    /// pace at any frame rate. Reversed time still marches forward.
+    fn steps_due(&mut self, dt: f64) -> usize {
+        self.step_debt += dt.abs();
+        let steps = (self.step_debt / DT).floor();
+        self.step_debt -= steps * DT;
+        if steps > 24.0 {
+            self.step_debt = 0.0;
+            24
+        } else {
+            steps as usize
+        }
     }
 
     fn upload(&mut self, gpu: &GpuContext) {
@@ -304,7 +380,7 @@ impl ConceptModule for WaveTable {
             RenderMode::plane(
                 "amplitude",
                 "Amplitude Field",
-                "u(x,y,t): gold crests, indigo troughs",
+                "u(x,y,t): gold crests, blue troughs",
                 4.2,
             ),
             RenderMode::orbit(
@@ -329,8 +405,8 @@ impl ConceptModule for WaveTable {
             ),
             RenderMode::plane(
                 "chladni",
-                "Chladni Plate",
-                "Sand settles where the plate never moves: the nodal figures of 1787",
+                "Chladni Figure",
+                "Nodal lines of a fixed-edge square, drawn as sand after Chladni's figures of 1787",
                 3.6,
             ),
             RenderMode::plane(
@@ -381,28 +457,19 @@ impl ConceptModule for WaveTable {
         self.reset();
     }
 
-    fn update(&mut self, gpu: &GpuContext, t: f64, dt: f64) {
-        let key = (self.params.c("preset"), (self.params.f("c") * 100.0) as i64);
-        if key != self.last_reset_key || t < self.last_timeline_t - 0.5 {
-            self.last_reset_key = key;
-            self.reset();
-        }
-        self.last_timeline_t = t;
-        // Doppler emissions.
-        let mach = self.params.f("mach");
-        if t - self.last_emit > 0.14 || t < self.last_emit {
-            self.last_emit = t;
-            self.rings.push((doppler_src(t, mach), t));
-            if self.rings.len() > 60 {
-                self.rings.remove(0);
-            }
-        }
+    fn rewind(&mut self) {
+        self.reset();
+    }
+
+    fn update(&mut self, gpu: &GpuContext, _t: f64, dt: f64) {
+        self.sync_scenario();
         // March the lattice to keep pace with the timeline (cap per frame).
-        let steps = ((dt / DT).round() as usize).min(24);
+        let steps = self.steps_due(dt);
         for _ in 0..steps {
             self.step();
         }
-        if steps > 0 || self.sim_t == 0.0 {
+        if steps > 0 || self.dirty {
+            self.dirty = false;
             self.upload(gpu);
             // Relief vertices from the current field.
             if let Some(mesh) = &self.relief {
@@ -441,14 +508,9 @@ impl ConceptModule for WaveTable {
             }
             5 => {
                 let mach = self.params.f("mach");
-                let c_wave = 1.1;
                 let src = doppler_src(_t, mach);
-                for &(center, birth) in &self.rings {
-                    let r = ((_t - birth) * c_wave) as f32;
-                    if r <= 0.0 || r > 7.0 {
-                        continue;
-                    }
-                    let fade = (1.0 - r / 7.0).powf(1.5) * 0.85;
+                for (center, r) in doppler_rings(_t, mach) {
+                    let fade = (1.0 - r / DOPPLER_MAX_R as f32).max(0.0).powf(1.5) * 0.85;
                     let ring: Vec<Vec3> = (0..=90)
                         .map(|i| {
                             let a = i as f32 / 90.0 * std::f32::consts::TAU;
@@ -463,15 +525,11 @@ impl ConceptModule for WaveTable {
                     scene.polyline(LineLayer::WorldAdd, &ring, 1.9, col);
                 }
                 // The source, its wake, and (supersonic) the Mach cone.
-                let trail: Vec<Vec3> = (0..40)
-                    .map(|i| {
-                        let p = doppler_src(_t - i as f64 * 0.03, mach);
-                        Vec3::new(p.x, p.y, 0.01)
-                    })
-                    .collect();
-                scene.glow_polyline(&trail, 2.0, [0.95, 0.85, 0.55, 0.6], 2.4);
+                for run in doppler_trail(_t, mach) {
+                    scene.glow_polyline(&run, 2.0, [0.95, 0.85, 0.55, 0.6], 2.4);
+                }
                 if mach > 1.0 {
-                    let half_angle = (1.0 / mach).asin() as f32;
+                    let half_angle = cone_half_angle(mach) as f32;
                     for s in [-1.0f32, 1.0] {
                         let dirc = glam::Vec2::new(-(half_angle.cos()), s * half_angle.sin());
                         let far = src + dirc * 8.0;
@@ -539,6 +597,7 @@ impl ConceptModule for WaveTable {
                     },
                 );
                 scene.p(1, if preset == 2 { 1.0 } else { 0.0 });
+                scene.p(2, self.params.f("c") as f32);
             }
         }
     }
@@ -580,6 +639,7 @@ impl ConceptModule for WaveTable {
                 self.up[idx] += bump;
             }
         }
+        self.dirty = true;
     }
 
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
@@ -588,14 +648,230 @@ impl ConceptModule for WaveTable {
         vec![
             title("The wave equation"),
             ftex("waves.eq", "\u{2202}\u{00B2}u/\u{2202}t\u{00B2} = c\u{00B2}(\u{2202}\u{00B2}u/\u{2202}x\u{00B2} + \u{2202}\u{00B2}u/\u{2202}y\u{00B2})"),
-            def("Leapfrog: u\u{207F}\u{207A}\u{00B9} = 2u\u{207F} \u{2212} u\u{207F}\u{207B}\u{00B9} + (c\u{0394}t/\u{0394}x)\u{00B2}\u{2207}\u{00B2}u\u{207F}"),
+            def("Leapfrog with damping d: u\u{207F}\u{207A}\u{00B9} = u\u{207F} + (1\u{2212}d)(u\u{207F} \u{2212} u\u{207F}\u{207B}\u{00B9}) + (c\u{0394}t/\u{0394}x)\u{00B2}\u{2207}\u{00B2}u\u{207F}"),
             value(format!("lattice 200\u{00B2}   \u{0394}x = {DX:.3}   \u{0394}t = {DT}   sim t = {:.2}", self.sim_t)),
             value(format!("Courant number c\u{0394}t/\u{0394}x = {cfl:.3}  (stable < 0.707)")),
-            note("Two slits, one wave: the fringes on the far side are spaced by \u{03BB}D/d \u{2014} interference, not addition of particles."),
+            note("Two slits, one wave: in the far field at small angles the fringes are spaced by \u{03BB}D/d. That is interference, not addition of particles."),
         ]
     }
 
-    fn approx(&self, _mode: usize) -> Option<&'static str> {
-        Some("2nd-order leapfrog FDTD, reflecting walls with 14-cell sponge margins; not an exact solution.")
+    fn approx(&self, mode: usize) -> Option<&'static str> {
+        match mode {
+            0..=3 => Some("2nd-order leapfrog FDTD, reflecting walls with 14-cell sponge margins; not an exact solution."),
+            4 => Some("Closed-form nodal pattern of a fixed-edge square membrane, not the modes of a free plate; no sand is simulated."),
+            5 => Some("Closed-form circular fronts from a source in uniform motion; not a lattice solution."),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::module::PointerEvent;
+    use crate::engine::params::PValue;
+
+    fn table(scenario: usize, c: f64, freq: f64, damp: f64) -> WaveTable {
+        let mut w = WaveTable::new();
+        w.params.set("preset", PValue::C(scenario));
+        w.params.set("c", PValue::F(c));
+        w.params.set("freq", PValue::F(freq));
+        w.params.set("damp", PValue::F(damp));
+        w.sync_scenario();
+        w
+    }
+
+    /// The discrete energy leapfrog conserves between steps n and n + 1:
+    /// sum of (1/2)((u1 - u0)/dt)^2 + (1/2)c^2 grad(u1).grad(u0).
+    fn lattice_energy(w: &WaveTable, c: f64) -> f64 {
+        let mut e = 0.0;
+        for j in 0..N - 1 {
+            for i in 0..N - 1 {
+                let idx = j * N + i;
+                let ut = (w.u[idx] - w.up[idx]) / DT;
+                let (gx1, gy1) = ((w.u[idx + 1] - w.u[idx]) / DX, (w.u[idx + N] - w.u[idx]) / DX);
+                let (gx0, gy0) = (
+                    (w.up[idx + 1] - w.up[idx]) / DX,
+                    (w.up[idx + N] - w.up[idx]) / DX,
+                );
+                e += 0.5 * ut * ut + 0.5 * c * c * (gx1 * gx0 + gy1 * gy0);
+            }
+        }
+        e * DX * DX
+    }
+
+    #[test]
+    fn undamped_leapfrog_conserves_its_energy() {
+        let mut w = table(0, 1.5, 1.8, 0.0);
+        let start = lattice_energy(&w, 1.5);
+        assert!(start > 1.0);
+        // Before the pluck reaches the sponge, 46 cells away at x = -3.44.
+        for _ in 0..80 {
+            w.step();
+        }
+        let end = lattice_energy(&w, 1.5);
+        assert!((end - start).abs() < 1e-6 * start, "{start} -> {end}");
+    }
+
+    #[test]
+    fn damping_only_removes_energy() {
+        let mut w = table(0, 1.5, 1.8, 0.01);
+        let mut prev = lattice_energy(&w, 1.5);
+        for _ in 0..80 {
+            w.step();
+            let e = lattice_energy(&w, 1.5);
+            assert!(e <= prev * (1.0 + 1e-12), "{prev} -> {e}");
+            prev = e;
+        }
+    }
+
+    #[test]
+    fn damping_does_not_pull_a_displaced_membrane_back() {
+        let mut w = table(0, 1.5, 1.8, 0.02);
+        w.u.fill(1.0);
+        w.up.fill(1.0);
+        // The walls are 86 cells from the center and news travels one per step.
+        for _ in 0..50 {
+            w.step();
+        }
+        let centre = w.u[N / 2 * N + N / 2];
+        assert!((centre - 1.0).abs() < 1e-9, "centre moved to {centre}");
+    }
+
+    #[test]
+    fn pluck_ring_travels_at_the_wave_speed() {
+        for c in [1.0, 2.0] {
+            let mut w = table(0, c, 1.8, 0.0);
+            for _ in 0..100 {
+                w.step();
+            }
+            // Along the +x ray from the pluck at cell (60, 100).
+            let (mut best, mut at) = (0.0, 0);
+            for i in 60..N {
+                let v = w.u[100 * N + i].abs();
+                if v > best {
+                    (best, at) = (v, i);
+                }
+            }
+            let r = (at - 60) as f64 * DX;
+            assert!((r - c).abs() < 0.2, "c = {c}: ring at r = {r}");
+        }
+    }
+
+    /// Time-averaged u^2 along the line x = 3, as (y, value) at its peaks.
+    fn fringes(c: f64, freq: f64) -> Vec<f64> {
+        let mut w = table(2, c, freq, 0.001);
+        let ix = ((3.0 / 8.0 + 0.5) * N as f64) as usize;
+        let mut power = vec![0.0; N];
+        for s in 0..1100 {
+            w.step();
+            if s >= 700 {
+                for (j, p) in power.iter_mut().enumerate() {
+                    *p += w.u[j * N + ix].powi(2);
+                }
+            }
+        }
+        let top = power.iter().cloned().fold(0.0, f64::max);
+        (20..N - 20)
+            .filter(|&j| {
+                power[j] > 0.15 * top && power[j] > power[j - 1] && power[j] >= power[j + 1]
+            })
+            .map(|j| (j as f64 / N as f64 - 0.5) * 8.0)
+            .collect()
+    }
+
+    #[test]
+    fn double_slit_shows_a_central_fringe_and_shorter_waves_crowd_them() {
+        let near = |ys: &[f64], y: f64, tol: f64| ys.iter().any(|v| (v - y).abs() < tol);
+        let short = fringes(1.0, 3.0);
+        assert!(near(&short, 0.0, 0.1), "{short:?}");
+        assert!(near(&short, 0.92, 0.12), "{short:?}");
+        assert!(near(&short, -0.92, 0.12), "{short:?}");
+        // The first side fringe moves inward as the frequency rises.
+        let side = |ys: &[f64]| {
+            ys.iter()
+                .map(|y| y.abs())
+                .filter(|y| *y > 0.3)
+                .fold(f64::MAX, f64::min)
+        };
+        assert!(side(&fringes(1.5, 3.5)) < side(&fringes(1.5, 1.8)));
+    }
+
+    #[test]
+    fn wave_speed_keeps_the_field_but_a_new_scenario_starts_over() {
+        let mut w = table(0, 1.5, 1.8, 0.001);
+        for _ in 0..10 {
+            w.step();
+        }
+        let before = w.u.clone();
+        w.params.set("c", PValue::F(2.0));
+        w.sync_scenario();
+        assert_eq!(w.u, before);
+        w.params.set("preset", PValue::C(1));
+        w.sync_scenario();
+        assert!(w.u.iter().all(|v| *v == 0.0));
+    }
+
+    #[test]
+    fn slow_playback_still_steps_and_fast_playback_is_capped() {
+        let mut w = table(0, 1.5, 1.8, 0.001);
+        let total: usize = (0..250).map(|_| w.steps_due(0.004)).sum();
+        assert!((99..=101).contains(&total), "{total}");
+        // Reversed time still marches forward.
+        let back: usize = (0..250).map(|_| w.steps_due(-0.004)).sum();
+        assert!((99..=101).contains(&back), "{back}");
+        assert_eq!(w.steps_due(10.0), 24);
+        assert_eq!(w.steps_due(0.0), 0, "a capped frame leaves no backlog");
+    }
+
+    #[test]
+    fn a_strike_marks_the_field_for_upload() {
+        let mut w = table(0, 1.5, 1.8, 0.001);
+        w.dirty = false;
+        let before = w.u[N / 2 * N + N / 2];
+        w.pointer(0, PointerEvent::Down(glam::Vec2::ZERO));
+        assert!(w.dirty);
+        assert!(w.u[N / 2 * N + N / 2] > before + 0.5);
+    }
+
+    #[test]
+    fn mach_cone_is_tangent_to_every_ring_of_the_pass() {
+        let mach = 1.5;
+        let t = 3.0; // Still on the first pass: x = -3.4 + 1.65 t.
+        let src = doppler_src(t, mach);
+        let a = cone_half_angle(mach) as f32;
+        let dir = glam::Vec2::new(-a.cos(), a.sin());
+        let rings = doppler_rings(t, mach);
+        assert!(rings.len() > 10);
+        for (center, r) in rings {
+            let d = center - src;
+            let dist = (d.x * dir.y - d.y * dir.x).abs();
+            assert!((dist - r).abs() < 2e-3, "ring r = {r} is {dist} from the cone");
+        }
+    }
+
+    #[test]
+    fn rings_are_gone_at_time_zero_and_fade_out_by_their_limit() {
+        assert!(doppler_rings(0.0, 0.75).is_empty());
+        let rings = doppler_rings(11.0, 0.75);
+        assert!(rings.iter().all(|&(_, r)| r > 0.0 && r <= DOPPLER_MAX_R as f32));
+        // One ring per emission over the time a ring takes to reach the limit.
+        let expected = (DOPPLER_MAX_R / DOPPLER_C / DOPPLER_EVERY) as i64;
+        assert!((rings.len() as i64 - expected).abs() <= 1, "{}", rings.len());
+    }
+
+    #[test]
+    fn the_source_trail_breaks_where_the_source_wraps() {
+        let mach = 1.0;
+        // The source wraps when t * mach * c reaches 6.8.
+        let wrap = 6.8 / (mach * DOPPLER_C);
+        let runs = doppler_trail(wrap + 0.3, mach);
+        assert_eq!(runs.len(), 2);
+        for run in runs {
+            for pair in run.windows(2) {
+                assert!((pair[0].x - pair[1].x).abs() < 0.1);
+            }
+        }
+        assert_eq!(doppler_trail(wrap - 2.0, mach).len(), 1);
     }
 }
