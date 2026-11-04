@@ -3,7 +3,8 @@
 //! Everything lives in one JSON file under the user's config directory. A bad
 //! or missing file means a fresh start, never a crash.
 
-use std::path::PathBuf;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -54,6 +55,9 @@ pub struct Session {
     pub bookmarks: Vec<Bookmark>,
     /// The scene on screen when last saved, to resume from.
     pub last_scene: Option<Value>,
+    /// The file on disk could not be backed up, so it must not be replaced.
+    #[serde(skip)]
+    pub hold_saves: bool,
 }
 
 const MAX_RECENT: usize = 12;
@@ -86,38 +90,147 @@ impl Session {
             .any(|k| k.split_once('/').is_some_and(|(c, _)| c == chamber))
     }
 
-    /// Load from disk. The error string, if any, is shown to the user.
+    /// Load from disk. The message, if any, is shown to the user.
     pub fn load() -> (Self, Option<String>) {
-        let Some(path) = state_path() else {
-            return (Self::default(), None);
-        };
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            return (Self::default(), None);
-        };
-        match serde_json::from_str(&text) {
-            Ok(session) => (session, None),
-            Err(_) => (
-                Self::default(),
-                Some(format!(
-                    "Could not read {}; starting fresh. Saving will replace it.",
-                    path.display()
-                )),
-            ),
+        match state_path() {
+            Some(path) => Self::load_from(&path),
+            None => (Self::default(), None),
         }
     }
 
-    /// Write atomically: a crash mid-save must not lose the old file.
+    /// Read what can be read. If anything has to be dropped, the original bytes are
+    /// first copied aside, because the next save replaces this file. If that copy
+    /// fails, saving stays off for this run so the file is left exactly as it is.
+    fn load_from(path: &Path) -> (Self, Option<String>) {
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            // No file yet: a first run.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return (Self::default(), None);
+            }
+            // It exists but cannot be read, so it cannot be copied either.
+            Err(e) => {
+                let session = Self {
+                    hold_saves: true,
+                    ..Self::default()
+                };
+                let message = format!(
+                    "Could not read {} ({e}). Nothing will be saved this run, so the file stays as it is.",
+                    path.display()
+                );
+                return (session, Some(message));
+            }
+        };
+        let (mut session, dropped) = parse_tolerant(&bytes);
+        if dropped == 0 {
+            return (session, None);
+        }
+        match keep_a_copy(path, &bytes) {
+            Ok(copy) => (
+                session,
+                Some(format!(
+                    "Part of your session could not be read. The original is saved at {}.",
+                    copy.display()
+                )),
+            ),
+            Err(e) => {
+                session.hold_saves = true;
+                (
+                    session,
+                    Some(format!(
+                        "Part of {} could not be read, and no copy could be made ({e}). Nothing will be saved this run, so the file stays as it is.",
+                        path.display()
+                    )),
+                )
+            }
+        }
+    }
+
     pub fn save(&self) -> Result<()> {
         let path = state_path().context("no config directory is known for this user")?;
+        self.save_to(&path)
+    }
+
+    /// Write atomically: a crash mid-save must not lose the old file.
+    fn save_to(&self, path: &Path) -> Result<()> {
+        if self.hold_saves {
+            return Ok(());
+        }
         let dir = path.parent().context("state path has no parent")?;
         std::fs::create_dir_all(dir)
             .with_context(|| format!("creating folder {}", dir.display()))?;
         let tmp = path.with_extension("json.tmp");
         std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)
             .with_context(|| format!("writing {}", tmp.display()))?;
-        std::fs::rename(&tmp, &path).with_context(|| format!("replacing {}", path.display()))?;
+        std::fs::rename(&tmp, path).with_context(|| format!("replacing {}", path.display()))?;
         Ok(())
     }
+}
+
+/// Parse a session field by field, so one bad entry costs only that entry. Returns
+/// the session and how many things had to be dropped.
+fn parse_tolerant(bytes: &[u8]) -> (Session, usize) {
+    let Ok(Value::Object(map)) = serde_json::from_slice::<Value>(bytes) else {
+        return (Session::default(), 1);
+    };
+    let mut dropped = 0;
+    let field = |key: &str| map.get(key).cloned();
+    let mut session = Session::default();
+    if let Some(v) = field("prefs") {
+        match serde_json::from_value::<Prefs>(v) {
+            Ok(prefs) => session.prefs = prefs,
+            Err(_) => dropped += 1,
+        }
+    }
+    if !(0.6..=2.5).contains(&session.prefs.ui_scale) {
+        session.prefs.ui_scale = 1.0;
+    }
+    for (key, list) in [("seen", &mut session.seen), ("recent", &mut session.recent)] {
+        if let Some(v) = field(key) {
+            match serde_json::from_value::<Vec<String>>(v) {
+                Ok(items) => *list = items,
+                Err(_) => dropped += 1,
+            }
+        }
+    }
+    if let Some(v) = field("bookmarks") {
+        match v {
+            Value::Array(items) => {
+                for item in items {
+                    match serde_json::from_value::<Bookmark>(item) {
+                        Ok(b) => session.bookmarks.push(b),
+                        Err(_) => dropped += 1,
+                    }
+                }
+            }
+            _ => dropped += 1,
+        }
+    }
+    session.last_scene = field("last_scene").filter(|v| !v.is_null());
+    (session, dropped)
+}
+
+/// Copy the bytes to a new file beside the original, never replacing an older copy.
+fn keep_a_copy(path: &Path, bytes: &[u8]) -> std::io::Result<PathBuf> {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    for n in 0..1000 {
+        let copy = path.with_file_name(format!("session.damaged-{stamp}-{n}.json"));
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&copy)
+        {
+            Ok(mut file) => {
+                file.write_all(bytes)?;
+                return Ok(copy);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(std::io::ErrorKind::AlreadyExists.into())
 }
 
 fn env_dir(key: &str) -> Option<PathBuf> {
@@ -199,6 +312,97 @@ pub fn decode_link(text: &str) -> Result<Value> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    /// A private folder for one test, removed when the test ends.
+    struct TempDir(PathBuf);
+
+    impl TempDir {
+        fn new(name: &str) -> Self {
+            let dir =
+                std::env::temp_dir().join(format!("revelatio-test-{}-{name}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            Self(dir)
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn copies_in(dir: &Path) -> Vec<PathBuf> {
+        std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.to_string_lossy().contains("session.damaged"))
+            .collect()
+    }
+
+    #[test]
+    fn one_malformed_bookmark_costs_only_that_bookmark() {
+        let (session, dropped) = parse_tolerant(
+            json!({
+                "seen": ["a/b"],
+                "bookmarks": [
+                    { "name": "good", "chamber": "c", "scene": {} },
+                    { "name": 7 },
+                    { "name": "also good", "chamber": "c", "scene": {} },
+                ],
+            })
+            .to_string()
+            .as_bytes(),
+        );
+        assert_eq!(dropped, 1);
+        assert_eq!(session.seen, vec!["a/b"]);
+        let names: Vec<&str> = session.bookmarks.iter().map(|b| b.name.as_str()).collect();
+        assert_eq!(names, vec!["good", "also good"]);
+    }
+
+    #[test]
+    fn a_damaged_file_is_copied_aside_before_any_save_replaces_it() {
+        for original in [&b"{ this is not json"[..], &[0xFF, 0xFE, 0x00][..]] {
+            let dir = TempDir::new(&format!("damaged-{}", original.len()));
+            let path = dir.0.join("session.json");
+            std::fs::write(&path, original).unwrap();
+            let (session, message) = Session::load_from(&path);
+            assert!(message.is_some(), "the user must be told");
+            assert!(!session.hold_saves);
+            session.save_to(&path).unwrap();
+            let copies = copies_in(&dir.0);
+            assert_eq!(copies.len(), 1);
+            assert_eq!(std::fs::read(&copies[0]).unwrap(), original);
+        }
+    }
+
+    #[test]
+    fn a_good_file_makes_no_copy() {
+        let dir = TempDir::new("good");
+        let path = dir.0.join("session.json");
+        Session::default().save_to(&path).unwrap();
+        let (_, message) = Session::load_from(&path);
+        assert!(message.is_none());
+        assert!(copies_in(&dir.0).is_empty());
+    }
+
+    #[test]
+    fn with_no_way_to_copy_the_file_is_never_replaced() {
+        let dir = TempDir::new("nocopy");
+        let path = dir.0.join("session.json");
+        std::fs::write(&path, b"damaged").unwrap();
+        let held = Session {
+            hold_saves: true,
+            ..Session::default()
+        };
+        held.save_to(&path).unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"damaged");
+    }
+
+    #[test]
+    fn an_absurd_interface_scale_is_not_believed() {
+        let (session, _) = parse_tolerant(br#"{ "prefs": { "ui_scale": -3.0 } }"#);
+        assert_eq!(session.prefs.ui_scale, 1.0);
+    }
 
     #[test]
     fn links_round_trip_and_stay_url_safe() {
