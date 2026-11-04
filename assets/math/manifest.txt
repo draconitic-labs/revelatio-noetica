@@ -28,7 +28,7 @@ dynamics.pendulum = H(\theta,\omega) = \tfrac{1}{2}\omega^2 - \frac{g}{\ell}\cos
 dynamics.double = \text{two rods: } \delta(0) = 10^{-4} \;\Rightarrow\; \delta(t) \sim \delta(0)\,e^{\lambda t}
 chaos.lorenz = \dot{x} = \sigma(y{-}x),\quad \dot{y} = x(\rho{-}z)-y,\quad \dot{z} = xy - \beta z
 em.field = \mathbf{E}(\mathbf{r}) = \sum_i \frac{q_i\,\hat{\mathbf{r}}_i}{r_i^{\,2}},\qquad \nabla\times\mathbf{E} = 0
-em.dipole = \psi(r,\theta,t) = \sin^2\!\theta\left[\cos(kr-\omega t) + \frac{\sin(kr-\omega t)}{kr}\right]
+em.dipole = \psi(r,\theta,t) = \sin^2\!\theta\left[\cos(kr-\omega t) - \frac{\sin(kr-\omega t)}{kr}\right]
 statmech.ising = E = -J\!\!\sum_{\langle i,j\rangle}\!\! s_i s_j,\qquad P(s) \propto e^{-E(s)/k_B T}
 statmech.maxwell = f(v) \propto v\,e^{-m v^2 / 2 k_B T}
 statmech.diffusion = \frac{\partial \rho}{\partial t} = D\,\nabla^2 \rho,\qquad \sigma(t) = \sqrt{2Dt}

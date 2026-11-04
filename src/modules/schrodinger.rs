@@ -31,7 +31,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 
 const STATE_NAMES: [&str; 4] = [
     "Coherent packet  \u{03B1}=1.8",
-    "Cat state  (\u{03C6}\u{2080}+\u{03C6}\u{2083})/\u{221A}2",
+    "Fock pair  (\u{03C6}\u{2080}+\u{03C6}\u{2083})/\u{221A}2",
     "Dipole  (\u{03C6}\u{2080}+\u{03C6}\u{2081})/\u{221A}2",
     "Breather  (\u{03C6}\u{2080}+\u{03C6}\u{2082})/\u{221A}2",
 ];
@@ -102,10 +102,14 @@ pub struct SchrodingerHall {
     basis: Vec<[f64; N_STATES]>,
     psi: Vec<C>,
     prob_mesh: Option<GpuMesh>,
-    samples: Vec<(f64, f64)>, // (x, birth time)
+    samples: Vec<(f64, f64)>, // (x, birth on `clock`)
     hist: Vec<u32>,
-    next_sample_t: f64,
-    last_t: f64,
+    /// Measurements owed, carried between frames.
+    sample_debt: f64,
+    /// Time since the last rewind. Unlike t it never wraps, so falling
+    /// samples keep their age across a loop.
+    clock: f64,
+    last_state: usize,
     rng: u64,
 }
 
@@ -128,8 +132,9 @@ impl SchrodingerHall {
             prob_mesh: None,
             samples: Vec::new(),
             hist: vec![0; 64],
-            next_sample_t: 0.0,
-            last_t: 0.0,
+            sample_debt: 0.0,
+            clock: 0.0,
+            last_state: 0,
             rng: 0x853c49e6748fea9b,
         }
     }
@@ -173,6 +178,12 @@ impl SchrodingerHall {
             }
         }
         0.0
+    }
+
+    fn clear_measurements(&mut self) {
+        self.samples.clear();
+        self.hist.iter_mut().for_each(|h| *h = 0);
+        self.sample_debt = 0.0;
     }
 }
 
@@ -261,13 +272,19 @@ impl ConceptModule for SchrodingerHall {
         self.prob_mesh = Some(m);
     }
 
-    fn update(&mut self, gpu: &GpuContext, t: f64, _dt: f64) {
-        if t < self.last_t - 0.5 {
-            self.samples.clear();
-            self.hist.iter_mut().for_each(|h| *h = 0);
-            self.next_sample_t = t;
+    fn rewind(&mut self) {
+        self.clear_measurements();
+        self.clock = 0.0;
+    }
+
+    fn update(&mut self, gpu: &GpuContext, t: f64, dt: f64) {
+        // Samples of one state say nothing about another.
+        let state = self.params.c("state");
+        if state != self.last_state {
+            self.last_state = state;
+            self.clear_measurements();
         }
-        self.last_t = t;
+        self.clock += dt.abs();
         self.recompute_psi(t);
         // Probability fill vertices, phase-colored.
         let verts: Vec<MeshVertex> = (0..=NX)
@@ -297,12 +314,12 @@ impl ConceptModule for SchrodingerHall {
         }
         // Measurement sampling.
         let rate = self.params.f("rate");
-        while self.next_sample_t < t {
-            self.next_sample_t += 1.0 / rate;
+        self.sample_debt += rate * dt.abs();
+        while self.sample_debt >= 1.0 {
+            self.sample_debt -= 1.0;
             let x = self.sample_x();
-            self.samples.push((x, t));
-            let bin = (((x + X_MAX) / (2.0 * X_MAX)) * 63.0).clamp(0.0, 63.0) as usize;
-            self.hist[bin] += 1;
+            self.samples.push((x, self.clock));
+            self.hist[hist_bin(x)] += 1;
             if self.samples.len() > 800 {
                 self.samples.remove(0);
             }
@@ -449,7 +466,7 @@ impl ConceptModule for SchrodingerHall {
                 scene.polyline(LineLayer::World, &curve, 1.6, with_alpha(VIOLET, 0.8));
                 // Falling samples.
                 for &(x, birth) in &self.samples {
-                    let age = (t - birth) as f32;
+                    let age = (self.clock - birth) as f32;
                     let y = (1.9 - age * 2.4).max(-1.4);
                     let fade = if y <= -1.39 { 0.25 } else { 0.9 };
                     scene.point(
@@ -499,9 +516,8 @@ impl ConceptModule for SchrodingerHall {
         if let PE::Down(_) = ev {
             for _ in 0..40 {
                 let x = self.sample_x();
-                self.samples.push((x, self.last_t));
-                let bin = (((x + X_MAX) / (2.0 * X_MAX)) * 63.0).clamp(0.0, 63.0) as usize;
-                self.hist[bin] += 1;
+                self.samples.push((x, self.clock));
+                self.hist[hist_bin(x)] += 1;
                 if self.samples.len() > 800 {
                     self.samples.remove(0);
                 }
@@ -546,4 +562,32 @@ impl ConceptModule for SchrodingerHall {
 
 fn subscript(n: usize) -> char {
     char::from_u32(0x2080 + n as u32 % 10).unwrap_or('\u{2099}')
+}
+
+/// Which of the 64 equal histogram bars over [-X_MAX, X_MAX] a position falls in.
+fn hist_bin(x: f64) -> usize {
+    (((x + X_MAX) / (2.0 * X_MAX) * 64.0).floor().max(0.0) as usize).min(63)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn histogram_bins_are_equal_and_match_their_drawn_centres() {
+        for b in 0..64 {
+            let centre = -X_MAX + 2.0 * X_MAX * (b as f64 + 0.5) / 64.0;
+            assert_eq!(hist_bin(centre), b);
+        }
+        assert_eq!(hist_bin(-X_MAX * 2.0), 0);
+        assert_eq!(hist_bin(X_MAX * 2.0), 63);
+    }
+
+    #[test]
+    fn every_state_is_normalized() {
+        for (state, name) in STATE_NAMES.iter().enumerate() {
+            let sum: f64 = coeffs(state).iter().map(|c| c * c).sum();
+            assert!((sum - 1.0).abs() < 1e-3, "{name}: {sum}");
+        }
+    }
 }

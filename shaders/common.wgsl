@@ -104,7 +104,7 @@ fn inferno(x: f32) -> vec3<f32> {
 /// Black -> amber -> gold -> pale light. The Newtonian ramp.
 fn aurum(x: f32) -> vec3<f32> {
     let t = clamp(x, 0.0, 1.0);
-    let a = vec3<f32>(0.010, 0.008, 0.006);
+    let a = vec3<f32>(0.0);
     let b = vec3<f32>(0.135, 0.055, 0.012);
     let c = vec3<f32>(0.780, 0.430, 0.095);
     let d = vec3<f32>(1.000, 0.905, 0.640);

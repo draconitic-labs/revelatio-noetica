@@ -85,9 +85,6 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let cc = dot(ro, ro) - r_max * r_max;
     let disc = b * b - cc;
     var color = vec3<f32>(0.0);
-    // Backdrop stars.
-    let hs = hash21(floor(ndc * U.res.xy * 0.5));
-    color += vec3<f32>(0.6, 0.7, 1.0) * step(0.9993, hs) * (hs - 0.999) * 250.0 * 0.25;
     if (disc < 0.0) {
         return vec4<f32>(color, 1.0);
     }
@@ -180,6 +177,32 @@ pub struct HydrogenSanctum {
     walkers: Vec<(Vec3, f64)>,
     rng: u64,
     last_key: (i64, i64, i64),
+    /// Largest value of the rejection weight for the current state.
+    peak_weight: f64,
+}
+
+/// The sampling weight |psi|^2 r^2 at (r, cos theta), for a uniform proposal.
+fn sampling_weight(n: u32, l: u32, m: i32, r: f64, ct: f64) -> f64 {
+    let am = m.unsigned_abs();
+    let fact = |k: u32| -> f64 { (1..=k).map(|v| v as f64).product::<f64>().max(1.0) };
+    let ny =
+        ((2 * l + 1) as f64 / (4.0 * std::f64::consts::PI) * fact(l - am) / fact(l + am)).sqrt();
+    (radial(n, l, r) * ny * legendre(l, am, ct)).powi(2) * r * r
+}
+
+/// Scan for the weight's maximum, because a bound below it would clip the
+/// densest lobes and bias the sampled cloud toward a flat one.
+fn find_peak_weight(n: u32, l: u32, m: i32) -> f64 {
+    let r_max = (n * n) as f64 * 2.0 + 8.0;
+    let mut peak = 0.0f64;
+    for i in 1..=400 {
+        let r = r_max * i as f64 / 400.0;
+        for j in 0..=200 {
+            let ct = -1.0 + 2.0 * j as f64 / 200.0;
+            peak = peak.max(sampling_weight(n, l, m, r, ct));
+        }
+    }
+    peak * 1.02
 }
 
 impl HydrogenSanctum {
@@ -196,6 +219,7 @@ impl HydrogenSanctum {
             walkers: Vec::new(),
             rng: 0xda3e39cb94b95bdb,
             last_key: (9, 9, 9),
+            peak_weight: 1.0,
         }
     }
 
@@ -270,22 +294,12 @@ impl HydrogenSanctum {
     fn sample_point(&mut self) -> Option<Vec3> {
         let (n, l, m) = self.nlm();
         let r_max = (n * n) as f64 * 2.0 + 8.0;
-        // Conservative bound for |psi|^2 within the ball.
-        for _ in 0..64 {
+        for _ in 0..200 {
             let r = self.rand() * r_max;
             let ct = self.rand() * 2.0 - 1.0;
             let phi = self.rand() * std::f64::consts::TAU;
-            let rad = radial(n, l, r);
-            let am = m.unsigned_abs();
-            let fact = |k: u32| -> f64 { (1..=k).map(|v| v as f64).product::<f64>().max(1.0) };
-            let ny = ((2 * l + 1) as f64 / (4.0 * std::f64::consts::PI) * fact(l - am)
-                / fact(l + am))
-            .sqrt();
-            let p2 = (rad * ny * legendre(l, am, ct)).powi(2);
-            // Weight by volume element r^2 (uniform-in-ball proposal ~ r^2 missing).
-            let w = p2 * r * r;
-            let bound = 0.06 / (n as f64).powi(3);
-            if self.rand() * bound < w {
+            let w = sampling_weight(n, l, m, r, ct);
+            if self.rand() * self.peak_weight < w {
                 let st = (1.0 - ct * ct).max(0.0).sqrt();
                 return Some(Vec3::new(
                     (r * st * phi.cos()) as f32,
@@ -316,8 +330,8 @@ impl ConceptModule for HydrogenSanctum {
     fn modes(&self) -> Vec<RenderMode> {
         vec![
             RenderMode::orbit("cloud", "Amplitude Cloud", "Volumetric |\u{03C8}|\u{00B2}, hue = arg \u{03C8} (turns m times about the axis)", 42.0, 0.25, 0.6),
-            RenderMode::orbit("walkers", "Electron Cloud (Trembling)", "24,000 Metropolis walkers vibrating in place; their density IS |\u{03C8}|\u{00B2}", 42.0, 0.25, 0.6),
-            RenderMode::orbit("nodal", "Nodal Chambers", "Sign of the real orbital: gold lobes against indigo, dark node walls between", 42.0, 0.25, 0.6),
+            RenderMode::orbit("walkers", "Electron Cloud (Trembling)", "24,000 Metropolis walkers, always moving; their long-run density is |\u{03C8}|\u{00B2}", 42.0, 0.25, 0.6),
+            RenderMode::orbit("nodal", "Nodal Chambers", "Sign of R(r)P(cos \u{03B8}), \u{03C8} without its phase: gold against indigo, dark node walls between", 42.0, 0.25, 0.6),
             RenderMode::plane("radial", "Radial Distribution", "P(r) = r\u{00B2}R\u{2099}\u{2113}\u{00B2}(r): shells, nodes, and \u{27E8}r\u{27E9}", 14.0)
                 .look_at(16.0, 9.0, 0.0),
             RenderMode::orbit("sample", "Born Accumulation", "Measurements pile up one by one into the orbital", 42.0, 0.25, 0.6),
@@ -348,6 +362,7 @@ impl ConceptModule for HydrogenSanctum {
         let key = (n as i64, l as i64, m as i64);
         if key != self.last_key {
             self.last_key = key;
+            self.peak_weight = find_peak_weight(n, l, m);
             self.samples.clear();
             self.seed_walkers();
         }
@@ -429,7 +444,7 @@ impl ConceptModule for HydrogenSanctum {
                     .map(|i| {
                         let r = r_max * i as f64 / 400.0;
                         let p = (r * radial(n, l, r)).powi(2);
-                        Vec3::new((r * sx) as f32, (p * 46.0 * (n as f64).powi(2)) as f32, 0.0)
+                        Vec3::new((r * sx) as f32, (p * 18.0 * (n as f64).powi(2)) as f32, 0.0)
                     })
                     .collect();
                 scene.glow_polyline(&pts, 2.2, H_BETA, 2.8);
@@ -500,8 +515,59 @@ impl ConceptModule for HydrogenSanctum {
         match mode {
             0 | 2 => Some("Exact \u{03C8}\u{2099}\u{2113}\u{2098} in fp32; emission integration, 110 steps; brightness is tuned, geometry is not."),
             1 => Some("24,000 Metropolis\u{2013}Hastings walkers, one sweep per frame; stationary density is exactly |\u{03C8}|\u{00B2}."),
-            4 => Some("Rejection sampling from exact |\u{03C8}|\u{00B2}; every dot is one Born-rule draw."),
+            4 => Some("Rejection sampling from exact |\u{03C8}|\u{00B2} inside a ball of radius 2n\u{00B2} + 8; every dot is one Born-rule draw."),
             _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn set_state(h: &mut HydrogenSanctum, n: i64, l: i64, m: i64) {
+        use crate::engine::params::PValue;
+        h.params.set("n", PValue::I(n));
+        h.params.set("l", PValue::I(l));
+        h.params.set("m", PValue::I(m));
+        let (n, l, m) = h.nlm();
+        h.peak_weight = find_peak_weight(n, l, m);
+    }
+
+    /// <r> = (3n^2 - l(l + 1)) / 2 in atomic units, for every hydrogen state.
+    #[test]
+    fn sampled_mean_radius_matches_the_exact_expectation() {
+        let mut h = HydrogenSanctum::new();
+        for (n, l, m) in [(1, 0, 0), (2, 1, 0), (3, 2, 1), (4, 3, 3), (4, 0, 0)] {
+            set_state(&mut h, n, l, m);
+            let mut sum = 0.0f64;
+            let mut count = 0.0f64;
+            while count < 20_000.0 {
+                if let Some(p) = h.sample_point() {
+                    sum += f64::from(p.length());
+                    count += 1.0;
+                }
+            }
+            let exact = (3 * n * n - l * (l + 1)) as f64 / 2.0;
+            let mean = sum / count;
+            assert!(
+                (mean - exact).abs() < 0.03 * exact,
+                "n={n} l={l} m={m}: mean {mean}, exact {exact}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_radial_plot_stays_inside_its_view() {
+        for (n, l) in [(1, 0), (2, 0), (2, 1), (3, 0), (3, 2), (4, 0), (4, 3)] {
+            let r_max = (n * n) as f64 * 2.0 + 8.0;
+            let peak = (0..=2000)
+                .map(|i| {
+                    let r = r_max * i as f64 / 2000.0;
+                    (r * radial(n, l, r)).powi(2) * 18.0 * (n as f64).powi(2)
+                })
+                .fold(0.0f64, f64::max);
+            assert!(peak < 23.0, "n={n} l={l}: peak height {peak}");
         }
     }
 }

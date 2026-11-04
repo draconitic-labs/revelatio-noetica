@@ -36,8 +36,6 @@ fn stars(rd: vec3<f32>) -> vec3<f32> {
         let tint = mix(vec3<f32>(0.75, 0.82, 1.0), vec3<f32>(1.0, 0.88, 0.70), hash21(cell + 4.7));
         c = tint * mag * core * 1.2;
     }
-    // Faint galactic band.
-    c += vec3<f32>(0.05, 0.055, 0.08) * exp(-rd.y * rd.y * 18.0) * 0.7;
     return c;
 }
 
@@ -104,13 +102,23 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 
 const PRESET_NAMES: [&str; 3] = ["Precessing rosette", "Near-circular", "Plunge"];
 
+/// Where a timelike orbit counts as captured.
+const CAPTURE_R: f64 = 2.15;
+
+/// Height of Flamm's paraboloid for M = 1. The horizon at r = 2 is the throat,
+/// at the bottom of the funnel, and space flattens out above it.
+fn flamm_height(r: f64) -> f64 {
+    2.0 * (2.0f64 * (r - 2.0).max(0.0)).sqrt()
+}
+
 pub struct SchwarzschildCourt {
     params: Params,
     /// Orbit state: (r, pr, phi, tau).
     state: [f64; 4],
     trail: Vec<Vec3>,
     energy: f64,
-    last_t: f64,
+    /// The orbit reached the horizon and has stopped.
+    captured: bool,
     last_key: (usize, i64),
     funnel: Option<GpuMesh>,
 }
@@ -143,7 +151,7 @@ impl SchwarzschildCourt {
             state: [13.0, 0.0, 0.0, 0.0],
             trail: Vec::new(),
             energy: 0.0,
-            last_t: 0.0,
+            captured: false,
             last_key: (usize::MAX, 0),
             funnel: None,
         }
@@ -159,7 +167,7 @@ impl SchwarzschildCourt {
         self.state = [r0, 0.0, 0.0, 0.0];
         self.energy = ((1.0 - 2.0 / r0) * (1.0 + l * l / (r0 * r0))).sqrt();
         self.trail.clear();
-        let _ = l;
+        self.captured = false;
     }
 
     fn l_now(&self) -> f64 {
@@ -197,7 +205,7 @@ impl ConceptModule for SchwarzschildCourt {
             RenderMode::plane("orbit", "Precessing Geodesic", "The rosette Mercury drew first", 17.0),
             RenderMode::plane("veff", "Effective Potential", "V(r) = \u{221A}((1\u{2212}2M/r)(1+L\u{00B2}/r\u{00B2})); turning points bound the orbit", 1.55)
                 .look_at(2.85, 0.55, 0.0),
-            RenderMode::orbit("funnel", "Flamm's Paraboloid", "The spatial slice embedded: the funnel is real geometry", 32.0, 0.55, 0.9),
+            RenderMode::orbit("funnel", "Flamm's Paraboloid", "The spatial slice embedded: the funnel is real geometry", 32.0, 0.55, 0.9).look_at(0.0, 5.0, 0.0),
         ]
     }
 
@@ -213,11 +221,11 @@ impl ConceptModule for SchwarzschildCourt {
 
     fn init(&mut self, gpu: &GpuContext, rend: &mut Renderers) {
         rend.register_field(gpu, "gr.lensing", LENSING_SHADE, false);
-        // Flamm funnel: z = 2 sqrt(2(r-2)), revolved.
+        // Flamm funnel: revolve z = flamm_height(r).
         let d = MeshData::parametric(80, 96, |u, v| {
             let r = 2.0 + (u as f64).powi(2) * 26.0;
             let ang = v as f64 * std::f64::consts::TAU;
-            let z = -2.0 * (2.0f64 * (r - 2.0)).sqrt();
+            let z = flamm_height(r);
             let shade = 0.25 + 0.6 * u;
             (
                 Vec3::new((r * ang.cos()) as f32, z as f32, (r * ang.sin()) as f32),
@@ -230,20 +238,22 @@ impl ConceptModule for SchwarzschildCourt {
         self.reset_orbit();
     }
 
-    fn update(&mut self, _gpu: &GpuContext, t: f64, dt: f64) {
+    fn rewind(&mut self) {
+        self.reset_orbit();
+    }
+
+    fn update(&mut self, _gpu: &GpuContext, _t: f64, dt: f64) {
         let key = (
             self.params.c("preset"),
             ((self.params.f("ll") * 100.0) as i64) ^ ((self.params.f("r0") * 100.0) as i64) << 16,
         );
-        // The rosette accumulates across timeline loops; only parameter
-        // changes restart it.
+        // The rosette accumulates across timeline loops; only parameter changes
+        // and the viewer rewinding restart it.
         if key != self.last_key {
             self.last_key = key;
             self.reset_orbit();
         }
-        self.last_t = t;
         let l = self.l_now();
-        let e2 = self.energy * self.energy;
         // Geodesic ODE in proper time: r'' from the effective potential.
         let f = move |_tau: f64, y: &[f64; 4]| -> [f64; 4] {
             let r = y[0].max(2.05);
@@ -254,14 +264,19 @@ impl ConceptModule for SchwarzschildCourt {
                 1.0,
             ]
         };
-        let _ = e2;
         let h = (dt * self.params.f("rate")).clamp(0.0, 1.0);
+        if self.captured {
+            return;
+        }
         let steps = 6;
         for _ in 0..steps {
             self.state = rk4(&f, 0.0, &self.state, h / steps as f64);
         }
-        if self.state[0] <= 2.15 {
-            // Captured: hold at the horizon until reset.
+        if self.state[0] <= CAPTURE_R {
+            // Captured: this coordinate stops meaning anything at the horizon, so
+            // the orbit stops here until it is restarted.
+            self.captured = true;
+            self.state[0] = CAPTURE_R;
             self.state[1] = 0.0;
         }
         let (r, phi) = (self.state[0], self.state[2]);
@@ -403,14 +418,14 @@ impl ConceptModule for SchwarzschildCourt {
                         .map(|i| {
                             let u = i as f64 / 40.0;
                             let r = 2.0 + u * u * 26.0;
-                            let z = -2.0 * (2.0f64 * (r - 2.0)).sqrt();
+                            let z = flamm_height(r);
                             Vec3::new((r * ang.cos()) as f32, z as f32, (r * ang.sin()) as f32)
                         })
                         .collect();
                     scene.polyline(LineLayer::World, &mer, 0.9, with_alpha(ICE, 0.20));
                 }
                 for kr in [3.0f64, 6.0, 10.0, 16.0, 24.0] {
-                    let z = -2.0 * (2.0f64 * (kr - 2.0)).sqrt();
+                    let z = flamm_height(kr);
                     let ring: Vec<Vec3> = (0..=96)
                         .map(|i| {
                             let a = i as f64 / 96.0 * std::f64::consts::TAU;
@@ -424,8 +439,8 @@ impl ConceptModule for SchwarzschildCourt {
                 for i in 1..n {
                     let a = self.trail[i - 1];
                     let b = self.trail[i];
-                    let za = -2.0 * (2.0f64 * (a.length() as f64 - 2.0).max(0.0)).sqrt();
-                    let zb = -2.0 * (2.0f64 * (b.length() as f64 - 2.0).max(0.0)).sqrt();
+                    let za = flamm_height(a.length() as f64);
+                    let zb = flamm_height(b.length() as f64);
                     let age = i as f32 / n as f32;
                     scene.line(
                         LineLayer::WorldAdd,
@@ -435,7 +450,7 @@ impl ConceptModule for SchwarzschildCourt {
                         [0.95, 0.6 + 0.3 * age, 0.25, 0.10 + 0.8 * age * age],
                     );
                 }
-                let zp = -2.0 * (2.0f64 * (r_now - 2.0).max(0.0)).sqrt();
+                let zp = flamm_height(r_now);
                 scene.point(
                     Vec3::new(pos.x, zp as f32, pos.y),
                     5.0,
@@ -472,9 +487,35 @@ impl ConceptModule for SchwarzschildCourt {
 
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
-            0 => Some("Null geodesics: 320-step adaptive leapfrog per pixel; disk emission stylized, deflection exact."),
-            1 | 3 => Some("Timelike geodesic by RK4 in proper time; energy drift shown in the inspector."),
+            0 => Some("Null geodesics: up to 320 first-order kick-drift steps per pixel, so the capture edge falls near b = 2.53, against the exact 2.598; disk emission stylized."),
+            1 | 3 => Some("Timelike geodesic by RK4 in proper time, stopped at r = 2.15 once captured; energy drift shown in the inspector."),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_funnel_rises_from_its_throat_at_the_horizon() {
+        assert_eq!(flamm_height(2.0), 0.0);
+        assert!(flamm_height(3.0) > 0.0 && flamm_height(10.0) > flamm_height(3.0));
+        // Flamm's paraboloid: z^2 = 8 M (r - 2 M), with M = 1.
+        for r in [2.5f64, 6.0, 20.0] {
+            assert!((flamm_height(r).powi(2) - 8.0 * (r - 2.0)).abs() < 1e-12);
+        }
+    }
+
+    #[test]
+    fn effective_potential_has_its_circular_orbit_where_theory_says() {
+        // For M = 1, circular orbits sit at r = (L^2 + L sqrt(L^2 - 12)) / 2.
+        let l = 4.0f64;
+        let r_c = (l * l + l * (l * l - 12.0).sqrt()) / 2.0;
+        let v2 = |r: f64| (1.0 - 2.0 / r) * (1.0 + l * l / (r * r));
+        let h = 1e-4;
+        let slope = (v2(r_c + h) - v2(r_c - h)) / (2.0 * h);
+        assert!(slope.abs() < 1e-6, "{slope}");
     }
 }

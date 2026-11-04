@@ -53,7 +53,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let r = max(length(w), 0.05);
     let s2 = w.x * w.x / max(dot(w, w), 1e-6);
     let ph = kk * r - 2.2 * t;
-    let psi = s2 * (cos(ph) + sin(ph) / (kk * r));
+    let psi = s2 * (cos(ph) - sin(ph) / (kk * r));
     var color = vec3<f32>(0.0);
     // Field lines: glowing near integer levels of psi.
     let lv = psi * 3.0;
@@ -76,7 +76,6 @@ pub struct FieldForge {
     drag_idx: Option<usize>,
     /// Cyclotron dancers: (pos, vel, charge sign, trail).
     cyc: Vec<(Vec2, Vec2, f32, Vec<Vec2>)>,
-    last_t: f64,
 }
 
 fn seed_cyc() -> Vec<(Vec2, Vec2, f32, Vec<Vec2>)> {
@@ -109,7 +108,6 @@ impl FieldForge {
             ],
             drag_idx: None,
             cyc: seed_cyc(),
-            last_t: 0.0,
         }
     }
 
@@ -131,7 +129,7 @@ impl ConceptModule for FieldForge {
             name: "The Field Forge",
             tagline: "Charge, field, and the birth of light",
             branch: Branch::Electromagnetism,
-            description: "Faraday's great invention was not a device but a picture: the field line. Here charges are things you can hold and drag while their lines re-weave themselves; and when a charge is shaken \u{2014} the Hertzian dipole \u{2014} the lines pinch off and leave as ripples of light, at exactly the rate Larmor demands.",
+            description: "Faraday's great invention was not a device but a picture: the field line. Here charges are things you can hold and drag while their lines re-weave themselves; and when a charge is shaken \u{2014} the Hertzian dipole \u{2014} the lines pinch off and leave as ripples of light.",
             epigraph: Some((
                 "The most fascinating subject at the time I was a student was Maxwell's theory.",
                 "Albert Einstein",
@@ -225,13 +223,16 @@ impl ConceptModule for FieldForge {
         rend.register_field(gpu, "em.dipole", DIPOLE_SHADE, false);
     }
 
-    fn update(&mut self, _gpu: &GpuContext, t: f64, dt: f64) {
-        if t < self.last_t - 0.5 {
-            self.cyc = seed_cyc();
-        }
-        self.last_t = t;
+    fn rewind(&mut self) {
+        self.cyc = seed_cyc();
+    }
+
+    fn update(&mut self, _gpu: &GpuContext, _t: f64, dt: f64) {
         // Lorentz force: B = 1.4 out of plane, E = 0.22 along +x.
-        let h = (dt as f32).clamp(0.0, 0.033);
+        let h = (dt.abs() as f32).min(0.033);
+        if h <= 0.0 {
+            return;
+        }
         let (bz, ex) = (1.4f32, 0.22f32);
         for (p, v, q, trail) in &mut self.cyc {
             for _ in 0..4 {
@@ -448,10 +449,10 @@ impl ConceptModule for FieldForge {
         vec![
             title("Maxwell's electrostatics & radiation"),
             ftex("em.field", "E(r) = \u{03A3} q\u{1D62} r\u{0302}\u{1D62}/r\u{1D62}\u{00B2}     \u{2207}\u{00D7}E = 0 (statics)"),
-            ftex("em.dipole", "\u{03C8}(r,\u{03B8},t) = sin\u{00B2}\u{03B8}[cos(kr\u{2212}\u{03C9}t) + sin(kr\u{2212}\u{03C9}t)/kr]"),
+            ftex("em.dipole", "\u{03C8}(r,\u{03B8},t) = sin\u{00B2}\u{03B8}[cos(kr\u{2212}\u{03C9}t) \u{2212} sin(kr\u{2212}\u{03C9}t)/kr]"),
             def("field lines leave + and land on \u{2212}; equipotentials cross them at right angles"),
             value(format!("charges: {}    p\u{2093} = {dip:+.2}", self.charges.len())),
-            note("In the dipole view the lines detach at r \u{2248} \u{03BB}/2\u{03C0}: inside that radius the field breathes with the source; beyond it, the kinks are photons on their way out."),
+            note("The near zone ends around r \u{2248} \u{03BB}/2\u{03C0}: inside it the field breathes with the source; beyond it, closed loops of field travel outward as radiation."),
             note("E \u{22A5} B \u{22A5} k, |E| = c|B|, in phase: the plane wave carries itself."),
         ]
     }
@@ -462,7 +463,49 @@ impl ConceptModule for FieldForge {
                 "Lines integrated by 340 Euler steps along E\u{0302}; potential exact per pixel.",
             ),
             1 => Some("Exact Hertzian-dipole field-line function; amplitude fade is display only."),
+            2 => Some("Closed-form plane wave, in arbitrary units."),
+            3 => Some("Semi-implicit Euler with 4 substeps per frame under uniform E and B."),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The field-line function the dipole shader contours, as a Rust twin.
+    fn psi(k: f64, wt: f64, r: f64, th: f64) -> f64 {
+        let ph = k * r - wt;
+        th.sin().powi(2) * (ph.cos() - ph.sin() / (k * r))
+    }
+
+    /// The exact field of a Hertzian dipole, p = p0 sin(wt - kr), with c = 1.
+    fn field(k: f64, wt: f64, r: f64, th: f64) -> (f64, f64) {
+        let phi = wt - k * r;
+        let p = phi.sin();
+        let pdot = k * phi.cos();
+        let pddot = -k * k * phi.sin();
+        let near = p / r.powi(3) + pdot / (r * r);
+        (2.0 * th.cos() * near, th.sin() * (near + pddot / r))
+    }
+
+    #[test]
+    fn dipole_field_lines_really_are_level_sets_of_psi() {
+        let (k, h) = (1.3, 1e-5);
+        for (wt, r, th) in [
+            (0.4, 1.5, 0.7),
+            (2.0, 3.0, 1.1),
+            (4.0, 0.9, 2.3),
+            (5.5, 6.0, 0.4),
+        ] {
+            let (er, eth) = field(k, wt, r, th);
+            let dr = (psi(k, wt, r + h, th) - psi(k, wt, r - h, th)) / (2.0 * h);
+            let dth = (psi(k, wt, r, th + h) - psi(k, wt, r, th - h)) / (2.0 * h) / r;
+            let along = er * dr + eth * dth;
+            let size = (er * er + eth * eth).sqrt() * (dr * dr + dth * dth).sqrt();
+            assert!(along.abs() < 1e-6 * size, "E.grad(psi) = {along} of {size}");
+        }
+        assert!(DIPOLE_SHADE.contains("cos(ph) - sin(ph) / (kk * r)"));
     }
 }

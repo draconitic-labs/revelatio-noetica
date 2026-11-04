@@ -49,8 +49,8 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let e_mag = (1.0 - beta * beta) / (r2 * pow(1.0 - beta * beta * sin2, 1.5));
     var color = vec3<f32>(0.0);
     color += aurum(clamp(log(1.0 + e_mag * 0.8) * 0.26, 0.0, 1.0)) * 0.72;
-    // B = beta x E out of/into the page: tint magenta/cyan by sign of B_z ~ beta * E_y-ish.
-    let bz = beta * w.y / (r2 * pow(1.0 - beta * beta * sin2, 1.5));
+    // B = beta x E, so B_z = beta E_y: tint magenta for one sign, teal for the other.
+    let bz = beta * e_mag * w.y / sqrt(r2);
     color += vec3<f32>(0.35, 0.05, 0.30) * clamp(bz * 0.5, 0.0, 1.0) * 0.5;
     color += vec3<f32>(0.05, 0.30, 0.35) * clamp(-bz * 0.5, 0.0, 1.0) * 0.5;
     return vec4<f32>(color * (1.0 - 0.25 * dot(ndc, ndc)), 1.0);
@@ -62,6 +62,25 @@ pub struct RelativityTheatre {
     beta_now: f64,
     ev_a: glam::Vec2,
     ev_b: glam::Vec2,
+    /// Which event the current drag holds: true for the first.
+    grabbed_a: Option<bool>,
+    /// Tick phase and travelled distance of the moving clock. These accumulate,
+    /// because multiplying t by a changing speed would move the clock backward
+    /// and forward as the speed sweeps.
+    tick_phase: f64,
+    glide: f64,
+}
+
+/// Mirror separation of the light clocks; photons cross it in 1/CLOCK_RATE s.
+const MIRROR_GAP: f64 = 1.8;
+const CLOCK_RATE: f64 = 1.4;
+
+/// (tick phase per second, glide distance per second) of the moving clock. Its
+/// photon crosses the mirrors slowly and glides with them, and the two motions
+/// together must make the rest photon's speed.
+fn moving_clock_rates(beta: f64) -> (f64, f64) {
+    let gamma = 1.0 / (1.0 - beta * beta).sqrt();
+    (CLOCK_RATE / gamma, CLOCK_RATE * MIRROR_GAP * beta.abs())
 }
 
 impl RelativityTheatre {
@@ -83,6 +102,9 @@ impl RelativityTheatre {
             beta_now: 0.0,
             ev_a: glam::vec2(-1.6, 0.9),
             ev_b: glam::vec2(1.8, 1.25),
+            grabbed_a: None,
+            tick_phase: 0.0,
+            glide: 0.0,
         }
     }
 
@@ -134,12 +156,20 @@ impl ConceptModule for RelativityTheatre {
         rend.register_field(gpu, "sr.charge", CHARGE_SHADE, false);
     }
 
-    fn update(&mut self, _gpu: &GpuContext, t: f64, _dt: f64) {
+    fn rewind(&mut self) {
+        self.tick_phase = 0.0;
+        self.glide = 0.0;
+    }
+
+    fn update(&mut self, _gpu: &GpuContext, t: f64, dt: f64) {
         self.beta_now = if self.params.b("animate") {
             0.85 * (t * std::f64::consts::TAU / 12.0).sin()
         } else {
             self.params.f("beta")
         };
+        let (ticks, glide) = moving_clock_rates(self.beta_now);
+        self.tick_phase += ticks * dt.abs();
+        self.glide += glide * dt.abs();
     }
 
     fn render(&mut self, _gpu: &GpuContext, mode: usize, t: f64, _cam: &Camera, scene: &mut Scene) {
@@ -262,9 +292,9 @@ impl ConceptModule for RelativityTheatre {
                 scene.field = Some("sr.plain");
                 let g = gamma as f32;
                 let b = beta.abs() as f32;
-                let h = 1.8f32;
+                let h = MIRROR_GAP as f32;
                 // Rest clock at left: photon bounces vertically.
-                let phase = ((t * 1.4) % 2.0) as f32;
+                let phase = ((t * CLOCK_RATE) % 2.0) as f32;
                 let yb = if phase < 1.0 {
                     phase * h
                 } else {
@@ -295,11 +325,9 @@ impl ConceptModule for RelativityTheatre {
                 );
                 // Moving clock: mirrors glide right; photon zigzags, its period dilated by gamma.
                 let x0 = -0.8f32;
-                let speed = 1.1f32 * b;
-                let tt = (t as f32 * 1.4 / g) % 2.0; // proper ticks slowed by gamma
+                let tt = self.tick_phase.rem_euclid(2.0) as f32;
                 let frac = if tt < 1.0 { tt } else { 2.0 - tt };
-                let mx = x0 + speed * (t as f32 * 1.4);
-                let mx_wrapped = x0 + ((mx - x0) % 4.2 + 4.2) % 4.2;
+                let mx_wrapped = x0 + self.glide.rem_euclid(4.2) as f32;
                 scene.line(
                     LineLayer::World,
                     Vec3::new(mx_wrapped - 0.5, 0.0, 0.0),
@@ -319,9 +347,11 @@ impl ConceptModule for RelativityTheatre {
                 // The zigzag path ghost (one period).
                 let zig: Vec<Vec3> = (0..=32)
                     .map(|i| {
-                        let f = i as f32 / 32.0 * 2.0;
+                        // Back along the path to this moment, one full tick.
+                        let back = 2.0 * (1.0 - i as f32 / 32.0);
+                        let f = (tt - back).rem_euclid(2.0);
                         let yy = if f < 1.0 { f * h } else { (2.0 - f) * h };
-                        Vec3::new(mx_wrapped - speed * g * (2.0 - f) * h / 1.1, yy, 0.0)
+                        Vec3::new(mx_wrapped - h * b * g * back, yy, 0.0)
                     })
                     .collect();
                 scene.polyline(LineLayer::World, &zig, 1.0, with_alpha(CONE_GOLD, 0.28));
@@ -464,16 +494,27 @@ impl ConceptModule for RelativityTheatre {
 
     fn pointer(&mut self, _mode: usize, ev: crate::engine::module::PointerEvent) {
         use crate::engine::module::PointerEvent as PE;
-        if let PE::Down(w) | PE::Drag(w) = ev {
-            let da = (w - self.ev_a).length_squared();
-            let db = (w - self.ev_b).length_squared();
-            let target = if da <= db {
-                &mut self.ev_a
-            } else {
-                &mut self.ev_b
-            };
-            *target = w.clamp(glam::vec2(-3.4, -3.4), glam::vec2(3.4, 3.4));
-        }
+        let w = match ev {
+            PE::Down(w) => {
+                let da = (w - self.ev_a).length_squared();
+                let db = (w - self.ev_b).length_squared();
+                self.grabbed_a = Some(da <= db);
+                w
+            }
+            PE::Drag(w) => w,
+            PE::Up => {
+                self.grabbed_a = None;
+                return;
+            }
+        };
+        // Held from press to release, so passing the other event cannot steal it.
+        let Some(first) = self.grabbed_a else { return };
+        let target = if first {
+            &mut self.ev_a
+        } else {
+            &mut self.ev_b
+        };
+        *target = w.clamp(glam::vec2(-3.4, -3.4), glam::vec2(3.4, 3.4));
     }
 
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
@@ -500,7 +541,10 @@ impl ConceptModule for RelativityTheatre {
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
             2 => Some("Exact uniform-velocity field (no radiation term); line directions via tan\u{03C8} = \u{03B3}tan\u{03C8}\u{2080}."),
-            _ => Some("Geometrically exact; hyperbolae are the unit-interval calibration curves."),
+            0 => Some("Exact Lorentz geometry; hyperbolae are the unit-interval calibration curves."),
+            1 => Some("Exact kinematics to scale: both photons move at the same speed; the moving mirrors wrap at the frame edge."),
+            3 => Some("Exact proper times along straight segments; the speed is floored at 0.25 so the two paths stay apart."),
+            _ => None,
         }
     }
 
@@ -598,5 +642,36 @@ impl ConceptModule for RelativityTheatre {
                 );
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::module::PointerEvent as PE;
+
+    #[test]
+    fn both_clocks_photons_move_at_the_same_speed() {
+        for beta in [0.0, 0.3, 0.6, -0.85, 0.99] {
+            let (ticks, glide) = moving_clock_rates(beta);
+            let speed = ((MIRROR_GAP * ticks).powi(2) + glide.powi(2)).sqrt();
+            assert!(
+                (speed - CLOCK_RATE * MIRROR_GAP).abs() < 1e-9,
+                "beta {beta}: {speed}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_drag_keeps_the_event_it_grabbed() {
+        let mut r = RelativityTheatre::new();
+        let (a, b) = (glam::vec2(-1.0, 0.0), glam::vec2(1.0, 0.0));
+        r.ev_a = a;
+        r.ev_b = b;
+        r.pointer(0, PE::Down(a));
+        r.pointer(0, PE::Drag(glam::vec2(2.0, 0.0)));
+        r.pointer(0, PE::Up);
+        assert_eq!(r.ev_a, glam::vec2(2.0, 0.0));
+        assert_eq!(r.ev_b, b, "the other event must not move");
     }
 }
