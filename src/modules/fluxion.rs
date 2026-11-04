@@ -20,6 +20,10 @@ const EMBER: [f32; 4] = [0.75, 0.30, 0.10, 1.0];
 const LEIBNIZ_BLUE: [f32; 4] = [0.35, 0.62, 0.95, 1.0];
 const AXIS: [f32; 4] = [0.42, 0.40, 0.34, 0.55];
 
+/// Centre of the moment lens. Its radius is 1.35 and the view's top edge sits at
+/// y = 4.4, so the ring and its caption both stay inside the frame.
+const LENS: Vec3 = Vec3::new(6.6, 2.75, 0.0);
+
 /// Engraved warm-black graph paper for the 2D chambers.
 const PAPER_SHADE: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
@@ -666,7 +670,7 @@ impl ConceptModule for FluxionChamber {
                 let o = 0.035; // the moment, exaggerated for sight
                 let dx = (f.dx * o) as f32;
                 let dy = (f.dy * o) as f32;
-                let lens = Vec3::new(6.6, 3.1, 0.0);
+                let lens = LENS;
                 let mag = 14.0 / (dx * dx + dy * dy).sqrt().max(1e-4)
                     * (dx * dx + dy * dy).sqrt().max(1e-4);
                 let _ = mag;
@@ -1262,7 +1266,7 @@ impl ConceptModule for FluxionChamber {
                 }
             }
             2 => {
-                if let Some(sp) = to_screen(cam, rect, Vec3::new(6.6, 4.6, 0.0)) {
+                if let Some(sp) = to_screen(cam, rect, LENS + Vec3::new(0.0, 1.37, 0.0)) {
                     painter.text(
                         sp,
                         egui::Align2::CENTER_BOTTOM,
@@ -1271,7 +1275,7 @@ impl ConceptModule for FluxionChamber {
                         crate::theme::OVERLAY_DIM,
                     );
                 }
-                if let Some(sp) = to_screen(cam, rect, Vec3::new(6.6, 3.1, 0.0)) {
+                if let Some(sp) = to_screen(cam, rect, LENS) {
                     painter.text(
                         sp + egui::vec2(0.0, 30.0),
                         egui::Align2::CENTER_TOP,
