@@ -31,13 +31,13 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     if (U.p[0].x < 0.5) {
         color = inferno(clamp(s, 0.0, 1.0));
     } else if (U.p[0].x < 1.5) {
-        // Gray-Scott: v in [0, ~0.4]; teal life on dark bronze.
+        // Gray-Scott: v in [0, ~0.4]; teal life on black.
         let v = clamp(s * 2.6, 0.0, 1.0);
-        color = mix(vec3<f32>(0.04, 0.03, 0.02), vec3<f32>(0.20, 0.85, 0.72), v);
+        color = mix(vec3<f32>(0.0), vec3<f32>(0.20, 0.85, 0.72), v);
         color += aurum(v) * 0.15;
     } else {
         // Potential plot: inferno heat + engraved equipotential rings.
-        color = inferno(clamp(s, 0.0, 1.0)) * 0.88 + vec3<f32>(0.02);
+        color = inferno(clamp(s, 0.0, 1.0)) * 0.88;
         let band = abs(fract(s * 14.0) - 0.5) * 2.0;
         color += vec3<f32>(0.85, 0.70, 0.38) * exp(-(1.0 - band) * (1.0 - band) * 60.0) * 0.35;
     }
@@ -59,6 +59,23 @@ fn f16_bits(x: f32) -> u16 {
     s | ((e as u16) << 10) | ((m >> 13) as u16)
 }
 
+/// Resting state of the FitzHugh-Nagumo cell: the fixed point of its equations.
+/// Starting elsewhere lets the whole sheet relax and kills the wavefront.
+const FHN_REST: (f32, f32) = (-1.08005, -0.6601);
+
+/// Heat mesh ratio per unit of diffusivity, chosen so the slider's top value,
+/// alpha = 2, sits at r = 0.45, inside the explicit scheme's stability limit.
+const HEAT_R_PER_ALPHA: f64 = 0.225;
+
+/// Burgers advances the same time every frame whatever nu is: this returns a step
+/// short enough for both stability limits and how many of them make that time.
+fn burgers_steps(dx: f64, nu: f64) -> (f64, usize) {
+    let per_frame = 6.0 * 0.30 * dx;
+    let limit = (0.30 * dx).min(0.35 * dx * dx / nu.max(1e-6));
+    let n = (per_frame / limit).ceil() as usize;
+    (per_frame / n as f64, n)
+}
+
 pub struct PdeHall {
     params: Params,
     heat: Vec<f64>,
@@ -72,7 +89,9 @@ pub struct PdeHall {
     tex: Option<wgpu::Texture>,
     tex_view: Option<wgpu::TextureView>,
     sim_t: f64,
-    last_t: f64,
+    wants_laplace: bool,
+    wants_fhn: bool,
+    wants_gray_scott: bool,
 }
 
 impl PdeHall {
@@ -101,7 +120,7 @@ impl PdeHall {
             "gs",
             "Gray\u{2013}Scott regime",
             "Symbolic",
-            vec!["Spots (mitosis)", "Stripes (coral)", "Waves (U-skate)"],
+            vec!["Spots (mitosis)", "Stripes (coral)", "U-skate parameters"],
             0,
         );
         Self {
@@ -117,7 +136,9 @@ impl PdeHall {
             tex: None,
             tex_view: None,
             sim_t: 0.0,
-            last_t: 0.0,
+            wants_laplace: false,
+            wants_fhn: false,
+            wants_gray_scott: false,
         }
     }
 
@@ -174,9 +195,9 @@ impl PdeHall {
                 }
             }
         }
-        // FitzHugh-Nagumo: a broken wavefront curls into a spiral.
-        self.fhn_u = vec![-1.0; NG * NG];
-        self.fhn_v = vec![0.0; NG * NG];
+        // FitzHugh-Nagumo: start from rest. A broken wavefront curls into a spiral.
+        self.fhn_u = vec![FHN_REST.0; NG * NG];
+        self.fhn_v = vec![FHN_REST.1; NG * NG];
         for j in 0..NG {
             for i in 0..NG {
                 let idx = j * NG + i;
@@ -354,22 +375,33 @@ impl ConceptModule for PdeHall {
         self.reset();
     }
 
-    fn update(&mut self, _gpu: &GpuContext, t: f64, dt: f64) {
-        if t < self.last_t - 0.5 {
-            self.reset();
-        }
-        self.last_t = t;
-        let h = dt.clamp(0.0, 0.033);
+    fn rewind(&mut self) {
+        self.reset();
+    }
+
+    fn update(&mut self, _gpu: &GpuContext, _t: f64, dt: f64) {
+        let h = dt.abs().min(0.033);
         if h <= 0.0 {
             return;
         }
         self.sim_t += h;
+        // The 2D fields are costly, so each steps only while its view is drawn.
+        // A thumbnail's occasional draw advances it gently, which is enough.
+        if std::mem::take(&mut self.wants_laplace) {
+            self.relax_laplace(26);
+        }
+        if std::mem::take(&mut self.wants_fhn) {
+            self.step_fhn(6);
+        }
+        if std::mem::take(&mut self.wants_gray_scott) {
+            self.step_gray_scott(9);
+        }
         // Heat (explicit, stable: alpha dt/dx^2 < 0.5).
         let alpha = self.params.f("alpha");
         let steps = 6;
         for _ in 0..steps {
             let u0 = self.heat.clone();
-            let r = (alpha * 0.35).min(0.45);
+            let r = alpha * HEAT_R_PER_ALPHA;
             for i in 1..NX1 - 1 {
                 self.heat[i] = u0[i] + r * (u0[i + 1] - 2.0 * u0[i] + u0[i - 1]);
             }
@@ -380,10 +412,10 @@ impl ConceptModule for PdeHall {
         }
         // Burgers (upwind + viscosity; dt capped by BOTH stability limits).
         let nu = self.params.f("nu");
-        for _ in 0..6 {
+        let dx = 1.0 / NX1 as f64;
+        let (dtb, burgers_steps) = burgers_steps(dx, nu);
+        for _ in 0..burgers_steps {
             let u0 = self.burgers.clone();
-            let dx = 1.0 / NX1 as f64;
-            let dtb = (0.30 * dx).min(0.35 * dx * dx / nu.max(1e-6));
             for i in 0..NX1 {
                 let im = (i + NX1 - 1) % NX1;
                 let ip = (i + 1) % NX1;
@@ -427,7 +459,7 @@ impl ConceptModule for PdeHall {
                 scene.glow_polyline(&pts, 2.2, APRICOT_P, 2.6);
             }
             1 => {
-                self.relax_laplace(26);
+                self.wants_laplace = true;
                 self.upload(gpu, &self.lap.clone());
                 scene.field = Some("pde.field2d");
                 scene.field_tex = self.tex_view.clone();
@@ -497,7 +529,7 @@ impl ConceptModule for PdeHall {
                 );
             }
             5 => {
-                self.step_fhn(6);
+                self.wants_fhn = true;
                 let disp: Vec<f32> = self.fhn_u.iter().map(|&u| (u + 2.0) / 4.0).collect();
                 self.upload(gpu, &disp);
                 scene.field = Some("pde.field2d");
@@ -505,7 +537,7 @@ impl ConceptModule for PdeHall {
                 scene.p(0, 0.0);
             }
             _ => {
-                self.step_gray_scott(9);
+                self.wants_gray_scott = true;
                 self.upload(gpu, &self.gs_v.clone());
                 scene.field = Some("pde.field2d");
                 scene.field_tex = self.tex_view.clone();
@@ -530,10 +562,51 @@ impl ConceptModule for PdeHall {
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
             0 => Some("Explicit FTCS, r \u{2264} 0.45; ghost curves are true earlier states."),
-            1 => Some("Jacobi relaxation, 26 sweeps/frame \u{2014} you are watching the solver converge."),
-            2 => Some("Upwind + viscosity \u{03BD}; the near-vertical front is a resolved viscous shock."),
+            1 => Some("In-place Gauss\u{2013}Seidel relaxation, 26 sweeps/frame \u{2014} you are watching the solver converge."),
+            2 => Some("Upwind + viscosity \u{03BD}; at small \u{03BD} the front is a few cells wide, thickened by the scheme's own numerical diffusion."),
             3 => Some("Exact eigenmode superposition of the plucked string \u{2014} no discretization at all."),
-            _ => Some("Gray\u{2013}Scott, periodic 128\u{00B2}, 9 Euler steps/frame."),
+            4 => Some("Gray\u{2013}Scott, periodic 128\u{00B2}, 9 Euler steps/frame."),
+            5 => Some("FitzHugh\u{2013}Nagumo, periodic 128\u{00B2}, 6 Euler steps/frame."),
+            _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fhn_rest_is_a_fixed_point_of_the_cell() {
+        let (eps, beta, gamma) = (0.06f32, 0.75f32, 0.5f32);
+        let (u, v) = FHN_REST;
+        assert!((u - u * u * u / 3.0 - v).abs() < 1e-3);
+        assert!((eps * (u + beta - gamma * v)).abs() < 1e-3);
+    }
+
+    #[test]
+    fn the_broken_wavefront_stays_alive() {
+        let mut p = PdeHall::new();
+        p.reset();
+        p.step_fhn(1500);
+        let excited = p.fhn_u.iter().filter(|&&u| u > 0.0).count();
+        assert!(excited > 50, "only {excited} excited cells remain");
+    }
+
+    #[test]
+    fn diffusivity_keeps_mattering_up_to_the_top_of_the_slider() {
+        let (lo, hi) = (1.5 * HEAT_R_PER_ALPHA, 2.0 * HEAT_R_PER_ALPHA);
+        assert!(lo < hi && hi <= 0.5, "stable and strictly increasing");
+    }
+
+    #[test]
+    fn burgers_covers_the_same_time_at_any_viscosity() {
+        let dx = 1.0 / NX1 as f64;
+        let time = |nu: f64| {
+            let (dt, n) = burgers_steps(dx, nu);
+            assert!(dt <= 0.30 * dx + 1e-12 && dt <= 0.35 * dx * dx / nu + 1e-12);
+            dt * n as f64
+        };
+        assert!((time(0.001) - time(0.05)).abs() < 1e-12);
     }
 }

@@ -47,8 +47,7 @@ pub struct OdeWorkshop {
     curves: Vec<Vec<Vec2>>,
     vdp: Vec<(Vec2, Vec<Vec2>)>,
     lv: Vec<(Vec2, Vec<Vec2>)>,
-    last_key: (usize, i64),
-    last_t: f64,
+    last_f: usize,
 }
 
 impl OdeWorkshop {
@@ -73,8 +72,7 @@ impl OdeWorkshop {
             curves: Vec::new(),
             vdp: Vec::new(),
             lv: Vec::new(),
-            last_key: (9, 0),
-            last_t: 0.0,
+            last_f: usize::MAX,
         }
     }
 
@@ -220,14 +218,19 @@ impl ConceptModule for OdeWorkshop {
         self.seed_defaults();
     }
 
-    fn update(&mut self, _gpu: &GpuContext, t: f64, dt: f64) {
-        let key = (self.params.c("f"), (self.params.f("mu") * 100.0) as i64);
-        if key != self.last_key || t < self.last_t - 0.5 {
-            self.last_key = key;
+    fn rewind(&mut self) {
+        self.seed_defaults();
+    }
+
+    fn update(&mut self, _gpu: &GpuContext, _t: f64, dt: f64) {
+        // A new right-hand side needs new solutions. A new mu does not: the same
+        // orbits carry on under it, and clicked curves and trails are kept.
+        let f = self.params.c("f");
+        if f != self.last_f {
+            self.last_f = f;
             self.seed_defaults();
         }
-        self.last_t = t;
-        let h = dt.clamp(0.0, 0.033);
+        let h = dt.abs().min(0.033);
         if h <= 0.0 {
             return;
         }
@@ -475,8 +478,13 @@ impl ConceptModule for OdeWorkshop {
 
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
+            0 => Some("RK4 for threaded curves; slope ticks exact."),
             1 => Some("Both integrators shown honestly at the SAME step h \u{2014} the drift is Euler's real global error."),
-            _ => Some("RK4 with dt \u{2264} 0.033 per frame; slope ticks exact."),
+            2 => Some("RK4, two steps of up to 0.033 per frame."),
+            3 => Some("RK4, two steps of up to 0.046 per frame."),
+            4 => Some("Closed-form steady-state response, with the time trace drawn from the same formula."),
+            5 => Some("SIR by RK4, integrated fresh each frame from t = 0 up to the time line."),
+            _ => None,
         }
     }
 }

@@ -59,7 +59,6 @@ pub struct ChaosObservatory {
     twin_b: Vec<Vec3>,
     rng: u64,
     last_sys: usize,
-    last_t: f64,
     logistic: Vec<Vec3>,
     /// Figure-eight choreography: (pos, vel) x3 + trails.
     tb: [[f64; 4]; 3],
@@ -93,7 +92,6 @@ impl ChaosObservatory {
             twin_b: Vec::new(),
             rng: 0x2545F4914F6CDD1D,
             last_sys: usize::MAX,
-            last_t: 0.0,
             logistic: Vec::new(),
             tb: TB_INIT,
             tb_trails: vec![Vec::new(); 3],
@@ -119,6 +117,43 @@ impl ChaosObservatory {
         self.twin_b = vec![Vec3::new(1.0, 1.0, 20.00002)];
     }
 
+    /// One integration step of the swarm and the twins.
+    fn advance_flow(&mut self, h: f32, sys: usize) {
+        // Midpoint advection for the swarm (cheap, stable enough at this h).
+        for i in 0..self.swarm.len() {
+            let p = self.swarm[i];
+            let k1 = self.deriv(p);
+            let k2 = self.deriv(p + k1 * (h * 0.5));
+            let np = p + k2 * h;
+            self.swarm[i] = if np.is_finite() && np.length() < 400.0 {
+                np
+            } else {
+                Vec3::new(self.rand() * 10.0, self.rand() * 10.0, 25.0)
+            };
+        }
+        // Twins: finer steps for the ribbons.
+        let rho = self.params.f("rho");
+        let is_lorenz = sys == 0;
+        let dv = move |p: Vec3| {
+            if is_lorenz {
+                lorenz(10.0, rho, 8.0 / 3.0, p)
+            } else {
+                rossler(0.2, 0.2, 5.7, p) * 3.0
+            }
+        };
+        for _ in 0..2 {
+            for tw in [&mut self.twin_a, &mut self.twin_b] {
+                let Some(&p) = tw.last() else { continue };
+                let k1 = dv(p);
+                let k2 = dv(p + k1 * (h * 0.25));
+                tw.push(p + k2 * (h * 0.5));
+                if tw.len() > 2600 {
+                    tw.remove(0);
+                }
+            }
+        }
+    }
+
     fn deriv(&self, p: Vec3) -> Vec3 {
         if self.params.c("system") == 0 {
             lorenz(10.0, self.params.f("rho"), 8.0 / 3.0, p)
@@ -135,6 +170,18 @@ impl ChaosObservatory {
             Vec3::new(p.x * 0.28, (p.z - 4.0) * 0.28, p.y * 0.28)
         }
     }
+}
+
+/// Split a frame's integration time into steps no longer than 0.03, capped at
+/// four steps. Returns (step size, number of steps).
+fn flow_steps(total: f64) -> (f64, usize) {
+    const LONGEST: f64 = 0.03;
+    let total = total.min(4.0 * LONGEST);
+    if total <= 0.0 {
+        return (0.0, 0);
+    }
+    let n = (total / LONGEST).ceil() as usize;
+    (total / n as f64, n)
 }
 
 impl ConceptModule for ChaosObservatory {
@@ -174,7 +221,7 @@ impl ConceptModule for ChaosObservatory {
                 "logistic",
                 "Logistic Bifurcation",
                 "x \u{2192} rx(1\u{2212}x): period doubling cascading into chaos",
-                0.62,
+                0.93,
             )
             .look_at(1.65, 0.55, 0.0),
             RenderMode::plane(
@@ -214,55 +261,24 @@ impl ConceptModule for ChaosObservatory {
         }
     }
 
-    fn update(&mut self, _gpu: &GpuContext, t: f64, dt: f64) {
+    fn rewind(&mut self) {
+        self.seed();
+    }
+
+    fn update(&mut self, _gpu: &GpuContext, _t: f64, dt: f64) {
         let sys = self.params.c("system");
         if sys != self.last_sys {
             self.last_sys = sys;
             self.seed();
         }
-        if t < self.last_t - 0.5 && self.params.c("system") == 9 {
-            // (attractors persist across loops by design)
-        }
-        self.last_t = t;
-        let h = (dt * self.params.f("speed") * 0.9).clamp(0.0, 0.03) as f32;
-        if h <= 0.0 {
-            return;
-        }
-        // Midpoint advection for the swarm (cheap, stable enough at this h).
-        for i in 0..self.swarm.len() {
-            let p = self.swarm[i];
-            let k1 = self.deriv(p);
-            let k2 = self.deriv(p + k1 * (h * 0.5));
-            let np = p + k2 * h;
-            self.swarm[i] = if np.is_finite() && np.length() < 400.0 {
-                np
-            } else {
-                Vec3::new(self.rand() * 10.0, self.rand() * 10.0, 25.0)
-            };
-        }
-        // Twins: finer steps for the ribbons.
-        let rho = self.params.f("rho");
-        let is_lorenz = sys == 0;
-        let dv = move |p: Vec3| {
-            if is_lorenz {
-                lorenz(10.0, rho, 8.0 / 3.0, p)
-            } else {
-                rossler(0.2, 0.2, 5.7, p) * 3.0
-            }
-        };
-        for _ in 0..2 {
-            for tw in [&mut self.twin_a, &mut self.twin_b] {
-                let p = *tw.last().unwrap();
-                let k1 = dv(p);
-                let k2 = dv(p + k1 * (h * 0.25));
-                tw.push(p + k2 * (h * 0.5));
-                if tw.len() > 2600 {
-                    tw.remove(0);
-                }
-            }
+        // Faster playback takes more steps, not longer ones, so every step stays
+        // at a size the integrator is stable at.
+        let (h, substeps) = flow_steps(dt.abs() * self.params.f("speed") * 0.9);
+        for _ in 0..substeps {
+            self.advance_flow(h as f32, sys);
         }
         // Figure-eight waltz: leapfrog keeps the choreography closed.
-        let hb = (dt * 0.6).clamp(0.0, 0.02);
+        let hb = (dt.abs() * 0.6).min(0.02);
         for _ in 0..6 {
             for i in 0..3 {
                 let (ax, ay) = tb_accel(&self.tb, i);
@@ -393,20 +409,83 @@ impl ConceptModule for ChaosObservatory {
             (Some(&a), Some(&b)) => (a - b).length(),
             _ => 0.0,
         };
-        vec![
-            title(if self.params.c("system") == 0 { "Lorenz system" } else { "R\u{00F6}ssler system" }),
-            ftex("chaos.lorenz", "x\u{0307} = \u{03C3}(y\u{2212}x),  y\u{0307} = x(\u{03C1}\u{2212}z)\u{2212}y,  z\u{0307} = xy \u{2212} \u{03B2}z"),
-            def("\u{03C3} = 10,  \u{03B2} = 8/3;  chaos onsets near \u{03C1} \u{2248} 24.74"),
-            value(format!("\u{03C1} = {rho:.1}")),
-            value(format!("twin separation |\u{03B4}| = {sep:.4}  (born at 2\u{00D7}10\u{207B}\u{2075})")),
-            note("The attractor has fractal dimension \u{2248} 2.06 at \u{03C1} = 28: more than a surface, less than a volume. No trajectory ever crosses itself \u{2014} determinism forbids it."),
-        ]
+        let separation = value(format!(
+            "twin separation |\u{03B4}| = {sep:.4}  (born at 2\u{00D7}10\u{207B}\u{2075})"
+        ));
+        if self.params.c("system") == 0 {
+            vec![
+                title("Lorenz system"),
+                ftex("chaos.lorenz", "x\u{0307} = \u{03C3}(y\u{2212}x),  y\u{0307} = x(\u{03C1}\u{2212}z)\u{2212}y,  z\u{0307} = xy \u{2212} \u{03B2}z"),
+                def("\u{03C3} = 10,  \u{03B2} = 8/3;  a strange attractor appears near \u{03C1} \u{2248} 24.06, and the fixed points lose stability at \u{03C1} \u{2248} 24.74"),
+                value(format!("\u{03C1} = {rho:.1}")),
+                separation,
+                note("The attractor has fractal dimension \u{2248} 2.06 at \u{03C1} = 28: more than a surface, less than a volume. No trajectory ever crosses itself \u{2014} determinism forbids it."),
+            ]
+        } else {
+            vec![
+                title("R\u{00F6}ssler system"),
+                formula("x\u{0307} = \u{2212}y \u{2212} z,  y\u{0307} = x + ay,  z\u{0307} = b + z(x \u{2212} c)"),
+                def("a = 0.2,  b = 0.2,  c = 5.7;  time scaled by 3 for display"),
+                separation,
+                note("No trajectory ever crosses itself \u{2014} determinism forbids it."),
+            ]
+        }
     }
 
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
             0 => Some("Midpoint advection, h \u{2264} 0.03; density is a live ensemble, not a precomputed texture."),
-            _ => Some("Both twins integrated identically; their parting is the Lyapunov exponent at work."),
+            1 => Some("Both twins integrated identically; their parting is the Lyapunov exponent at work."),
+            2 => Some("Each r iterated 350 times in f64; the first 220 are discarded and the last 130 plotted."),
+            3 => Some("Leapfrog, 6 substeps per frame, from figure-eight initial conditions; three equal masses."),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn flow_steps_stay_short_and_cover_the_time() {
+        assert_eq!(flow_steps(0.0).1, 0);
+        for total in [0.005, 0.03, 0.031, 0.07, 0.12] {
+            let (h, n) = flow_steps(total);
+            assert!(h <= 0.03 + 1e-12, "{h}");
+            assert!((h * n as f64 - total).abs() < 1e-12);
+        }
+        let (h, n) = flow_steps(5.0);
+        assert!(h <= 0.03 + 1e-12 && n == 4);
+    }
+
+    #[test]
+    fn the_figure_eight_returns_to_its_start_after_one_period() {
+        let mut m = ChaosObservatory::new();
+        let start = m.tb;
+        // The published period of the figure-eight choreography.
+        const PERIOD: f64 = 6.32591398;
+        let steps = 40_000;
+        let hb = PERIOD / steps as f64;
+        for _ in 0..steps {
+            for i in 0..3 {
+                let (ax, ay) = tb_accel(&m.tb, i);
+                m.tb[i][2] += ax * hb * 0.5;
+                m.tb[i][3] += ay * hb * 0.5;
+            }
+            for i in 0..3 {
+                m.tb[i][0] += m.tb[i][2] * hb;
+                m.tb[i][1] += m.tb[i][3] * hb;
+            }
+            for i in 0..3 {
+                let (ax, ay) = tb_accel(&m.tb, i);
+                m.tb[i][2] += ax * hb * 0.5;
+                m.tb[i][3] += ay * hb * 0.5;
+            }
+        }
+        for (i, (now, then)) in m.tb.iter().zip(&start).enumerate() {
+            let d = (now[0] - then[0]).hypot(now[1] - then[1]);
+            assert!(d < 1e-3, "body {i} ended {d} from its start");
         }
     }
 }

@@ -77,9 +77,9 @@ pub struct EnsembleGallery {
     gas_p: Vec<Vec2>,
     gas_v: Vec<Vec2>,
     walkers: Vec<Vec2>,
-    walk_t: f64,
+    /// Sum of each walker's squared steps so far, the same for every walker.
+    walk_square: f64,
     rng: u64,
-    last_t: f64,
     perc: Vec<f32>,
     last_pfill: i64,
     life: Vec<u8>,
@@ -109,9 +109,8 @@ impl EnsembleGallery {
             gas_p: Vec::new(),
             gas_v: Vec::new(),
             walkers: Vec::new(),
-            walk_t: 0.0,
+            walk_square: 0.0,
             rng: 0x9E3779B97F4A7C15,
-            last_t: 0.0,
             perc: Vec::new(),
             last_pfill: -1,
             life: Vec::new(),
@@ -210,7 +209,7 @@ impl EnsembleGallery {
             self.gas_v.push(Vec2::new(a.cos(), a.sin()) * 1.35);
         }
         self.walkers = vec![Vec2::ZERO; N_WALK];
-        self.walk_t = 0.0;
+        self.walk_square = 0.0;
     }
 
     fn ising_sweeps(&mut self, n_sweeps: usize) {
@@ -372,7 +371,7 @@ impl ConceptModule for EnsembleGallery {
             RenderMode::plane(
                 "perc",
                 "Percolation Threshold",
-                "At p \u{2248} 0.5927 a path suddenly spans the world (teal cluster)",
+                "At p \u{2248} 0.5927 a path suddenly spans the world (teal: connected to the top row)",
                 3.4,
             ),
             RenderMode::plane(
@@ -444,13 +443,13 @@ impl ConceptModule for EnsembleGallery {
         self.seed_life();
     }
 
-    fn update(&mut self, gpu: &GpuContext, t: f64, dt: f64) {
-        if t < self.last_t - 0.5 {
-            self.reset_all();
-            self.build_percolation();
-            self.seed_life();
-        }
-        self.last_t = t;
+    fn rewind(&mut self) {
+        self.reset_all();
+        self.build_percolation();
+        self.seed_life();
+    }
+
+    fn update(&mut self, _gpu: &GpuContext, _t: f64, dt: f64) {
         let pf = (self.params.f("pfill") * 10000.0) as i64;
         if pf != self.last_pfill {
             self.last_pfill = pf;
@@ -463,7 +462,6 @@ impl ConceptModule for EnsembleGallery {
         }
         if dt > 0.0 {
             self.ising_sweeps(self.params.f("sweeps") as usize);
-            self.upload_spins(gpu);
             let h = (dt as f32).clamp(0.0, 0.033);
             for _ in 0..2 {
                 self.gas_step(h * 0.5);
@@ -474,7 +472,7 @@ impl ConceptModule for EnsembleGallery {
                 let a = self.rand() as f32 * std::f32::consts::TAU;
                 self.walkers[i] += Vec2::new(a.cos(), a.sin()) * step;
             }
-            self.walk_t += dt;
+            self.walk_square += f64::from(step * step);
         }
     }
 
@@ -488,6 +486,9 @@ impl ConceptModule for EnsembleGallery {
     ) {
         match mode {
             0 => {
+                // The texture is shared by three views, so each uploads its own
+                // lattice before drawing. Paint made while paused shows at once.
+                self.upload_spins(_gpu);
                 scene.field = Some("sm.ising");
                 scene.field_tex = self.tex_view.clone();
             }
@@ -629,10 +630,9 @@ impl ConceptModule for EnsembleGallery {
                 for w in &self.walkers {
                     scene.point(Vec3::new(w.x, w.y, 0.0), 1.2, with_alpha(HEAT, 0.35), 0.8);
                 }
-                // sqrt(2Dt) rings: one and two sigma.
-                let step = self.params.f("dstep") * 3.0;
-                let d_eff = step * step / 2.0 * 60.0; // per-second at ~60 steps/s
-                let sigma = (2.0 * d_eff * self.walk_t.max(0.01)).sqrt() as f32;
+                // Rings at the root-mean-square radius and twice it. A walk's mean
+                // squared distance is the sum of its squared steps.
+                let sigma = self.walk_square.sqrt() as f32;
                 for (mult, alpha) in [(1.0f32, 0.5), (2.0, 0.25)] {
                     let ring: Vec<Vec3> = (0..=96)
                         .map(|i| {
@@ -670,7 +670,43 @@ impl ConceptModule for EnsembleGallery {
         match mode {
             0 => Some("Metropolis single-spin flips, periodic boundary; sweeps/frame set by the slider."),
             1 => Some("Equal-mass hard-disc collisions on a spatial hash; energy conserved to float precision."),
-            _ => Some("Isotropic fixed-step walk; \u{03C3}-rings from the diffusion limit of the same walk."),
+            2 => Some("Isotropic fixed-step walk, one step per frame; rings mark the exact root-mean-square radius of those steps, and twice it."),
+            3 => Some("Site percolation on a 128\u{00B2} lattice; teal marks sites joined to the top row by occupied neighbours."),
+            4 => Some("Conway's rules, exact, on a 128\u{00B2} periodic lattice."),
+            _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::params::PValue;
+
+    fn magnetization(g: &EnsembleGallery) -> f64 {
+        let sum: f64 = g.spins.iter().map(|&s| f64::from(s)).sum();
+        (sum / g.spins.len() as f64).abs()
+    }
+
+    fn after_sweeps_from_order(temp: f64) -> f64 {
+        let mut g = EnsembleGallery::new();
+        g.params.set("temp", PValue::F(temp));
+        g.spins = vec![1; NI * NI];
+        for _ in 0..200 {
+            g.ising_sweeps(5);
+        }
+        magnetization(&g)
+    }
+
+    #[test]
+    fn ising_orders_below_the_critical_temperature_and_melts_above_it() {
+        assert!(
+            after_sweeps_from_order(1.5) > 0.9,
+            "cold lattice lost its order"
+        );
+        assert!(
+            after_sweeps_from_order(4.0) < 0.2,
+            "hot lattice kept its order"
+        );
     }
 }
