@@ -85,6 +85,12 @@ const CYC_E: f32 = 0.22;
 /// forever, so once a whole orbit has passed below this it is moved to just above.
 const CYC_VIEW: f32 = 3.4;
 
+/// Where a charge may stand. Every way of placing one agrees, so what a click
+/// puts on screen is what a saved scene brings back.
+fn on_stage(w: Vec2) -> Vec2 {
+    w.clamp(Vec2::splat(-3.4), Vec2::splat(3.4))
+}
+
 /// One Boris step of dv/dt = q(E + v x B), unit mass. The magnetic part is an exact
 /// rotation, so B does no work. A plain Euler kick lengthens v at every step and
 /// the charges would slowly heat up.
@@ -245,12 +251,12 @@ impl ConceptModule for FieldForge {
                     .filter(|(_, c)| (c.0 - w).length() < 0.8)
                     .map(|(i, _)| i);
                 if let Some(i) = self.drag_idx {
-                    self.charges[i].0 = w;
+                    self.charges[i].0 = on_stage(w);
                 }
             }
             PointerEvent::Drag(w) => {
                 if let Some(i) = self.drag_idx {
-                    self.charges[i].0 = w.clamp(Vec2::splat(-3.4), Vec2::splat(3.4));
+                    self.charges[i].0 = on_stage(w);
                 }
             }
             PointerEvent::Up => self.drag_idx = None,
@@ -483,7 +489,7 @@ impl ConceptModule for FieldForge {
             };
             let at = Vec2::new(x as f32, y as f32);
             if at.is_finite() {
-                charge.0 = at.clamp(Vec2::splat(-3.4), Vec2::splat(3.4));
+                charge.0 = on_stage(at);
             }
         }
     }
@@ -517,6 +523,21 @@ impl ConceptModule for FieldForge {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_click_at_the_edge_saves_what_it_shows() {
+        let mut f = FieldForge::new();
+        f.pointer(0, PointerEvent::Down(Vec2::new(1.1, 0.0)));
+        f.pointer(0, PointerEvent::Drag(Vec2::new(9.0, 0.0)));
+        f.pointer(0, PointerEvent::Up);
+        // Within reach of the charge now at the edge, but outside the stage itself.
+        f.pointer(0, PointerEvent::Down(Vec2::new(3.9, 0.0)));
+        f.pointer(0, PointerEvent::Up);
+        let saved = f.placed().unwrap();
+        let mut restored = FieldForge::new();
+        restored.restore_placed(&saved);
+        assert_eq!(restored.placed().unwrap(), saved);
+    }
 
     /// The field-line function the dipole shader contours, as a Rust twin.
     fn psi(k: f64, wt: f64, r: f64, th: f64) -> f64 {

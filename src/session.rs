@@ -399,6 +399,46 @@ mod tests {
     }
 
     #[test]
+    fn saved_numbers_come_back_exactly() {
+        // Charges are f32, widened to f64 in the scene; sliders are f64. The saved-view
+        // star compares these with ==, so one unit in the last place turns it off.
+        let dir = TempDir::new("numbers");
+        let path = dir.0.join("session.json");
+        let mut state = 0x1234_5678u64;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state >> 11) as f64 / (1u64 << 53) as f64
+        };
+        let mut session = Session::default();
+        for _ in 0..1000 {
+            let charges: Vec<[f32; 2]> = (0..4)
+                .map(|_| {
+                    [
+                        (uniform() * 6.8 - 3.4) as f32,
+                        (uniform() * 6.8 - 3.4) as f32,
+                    ]
+                })
+                .collect();
+            session.bookmarks.push(Bookmark {
+                name: "b".into(),
+                chamber: "em.fields".into(),
+                scene: json!({
+                    "placed": { "em.fields": charges },
+                    "all_params": { "em.fields": { "k": uniform() * 7.0 + 2.0 } },
+                }),
+            });
+        }
+        session.save_to(&path).unwrap();
+        let (back, _) = Session::load_from(&path);
+        assert_eq!(back.bookmarks.len(), session.bookmarks.len());
+        for (a, b) in session.bookmarks.iter().zip(&back.bookmarks) {
+            assert_eq!(a.scene, b.scene);
+        }
+    }
+
+    #[test]
     fn an_absurd_interface_scale_is_not_believed() {
         let (session, _) = parse_tolerant(br#"{ "prefs": { "ui_scale": -3.0 } }"#);
         assert_eq!(session.prefs.ui_scale, 1.0);
