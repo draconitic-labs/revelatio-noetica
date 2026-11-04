@@ -677,6 +677,22 @@ Preset {
 },
 ];
 
+/// Sliders whose every new value restarts or re-rolls a simulation, so sweeping
+/// them shows only restarts. Their sweep button is not offered.
+pub const NO_SWEEP: &[(&str, &str)] = &[
+    ("gr.schwarzschild", "ll"),
+    ("gr.schwarzschild", "r0"),
+    ("quantum.hydrogen", "n"),
+    ("quantum.hydrogen", "l"),
+    ("quantum.hydrogen", "m"),
+    ("dynamics.phase", "spread"),
+    ("statmech.ensemble", "pfill"),
+];
+
+pub fn can_sweep(module: &str, key: &str) -> bool {
+    !NO_SWEEP.contains(&(module, key))
+}
+
 pub fn for_chamber(id: &str) -> impl Iterator<Item = (usize, &'static Preset)> + '_ {
     PRESETS
         .iter()
@@ -726,6 +742,16 @@ mod tests {
                 };
                 assert!(same, "{}: {key} is outside its range", p.name);
             }
+        }
+    }
+
+    #[test]
+    fn sweep_exclusions_name_real_sliders() {
+        let all = modules::all();
+        for &(module, key) in NO_SWEEP {
+            let m = all.iter().find(|m| m.info().id == module).unwrap();
+            let p = m.params_ref().param(key);
+            assert!(p.is_some(), "{module} has no parameter {key}");
         }
     }
 

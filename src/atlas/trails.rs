@@ -38,7 +38,7 @@ pub const TRAILS: &[Trail] = &[
             s("analysis.fourier", "stack", "The same sum, unstacked: each harmonic alone, then all of them together."),
             s("analysis.fourier", "gibbs", "Truncation has a price. At a jump the overshoot narrows but keeps its height."),
             s("diffeq.pdes", "string", "On a vibrating string those sines are the eigenmodes, each with its own frequency."),
-            s("waves.membrane", "chladni", "In two dimensions the modes of a plate have nodal lines, where sand settles."),
+            s("waves.membrane", "chladni", "In two dimensions a square membrane's modes have nodal lines, drawn here as Chladni's sand."),
             s("waves.harmonics", "breathe", "On a sphere the modes become spherical harmonics."),
             s("quantum.hydrogen", "cloud", "Those same harmonics are the angular part of every hydrogen orbital."),
         ],

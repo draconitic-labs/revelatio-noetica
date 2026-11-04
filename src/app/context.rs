@@ -252,11 +252,13 @@ impl AtlasApp {
             }
             let key = self.engine.modules[module].params_ref().items[i].key;
             let sweeping = self.engine.is_sweeping(module, key);
+            let can_sweep = presets::can_sweep(self.catalog[module].info.id, key);
             let toggle = param_row(
                 ui,
                 &mut self.engine.modules[module].params().items[i],
                 accent,
                 sweeping,
+                can_sweep,
             );
             if toggle {
                 self.act(Action::ToggleSweep(module, key));
@@ -507,7 +509,13 @@ fn link_row(ui: &mut egui::Ui, dot: Color32, title: &str, why: &str) -> bool {
 }
 
 /// One parameter. Returns true when its sweep button was pressed.
-fn param_row(ui: &mut egui::Ui, p: &mut Param, accent: Color32, sweeping: bool) -> bool {
+fn param_row(
+    ui: &mut egui::Ui,
+    p: &mut Param,
+    accent: Color32,
+    sweeping: bool,
+    can_sweep: bool,
+) -> bool {
     let mut toggle_sweep = false;
     let label = p.label;
     match (&p.kind, &mut p.value) {
@@ -517,7 +525,9 @@ fn param_row(ui: &mut egui::Ui, p: &mut Param, accent: Color32, sweeping: bool) 
                 ui.spacing_mut().item_spacing.x = 2.0;
                 ui.label(RichText::new(label).size(13.0).color(MOON));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    toggle_sweep = sweep_button(ui, accent, sweeping);
+                    if can_sweep {
+                        toggle_sweep = sweep_button(ui, accent, sweeping);
+                    }
                     quiet_field(ui);
                     let span = max - min;
                     let decimals = if span < 2.0 {
@@ -559,7 +569,9 @@ fn param_row(ui: &mut egui::Ui, p: &mut Param, accent: Color32, sweeping: bool) 
                 ui.spacing_mut().item_spacing.x = 2.0;
                 ui.label(RichText::new(label).size(13.0).color(MOON));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    toggle_sweep = sweep_button(ui, accent, sweeping);
+                    if can_sweep {
+                        toggle_sweep = sweep_button(ui, accent, sweeping);
+                    }
                     quiet_field(ui);
                     ui.add(egui::DragValue::new(v).range(min..=max).speed(0.1));
                 });

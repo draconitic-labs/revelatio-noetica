@@ -113,7 +113,7 @@ pub const LINKS: &[Link] = &[
     related(("dynamics.attractor", Some("logistic")), ("complex.domain", Some("mandel")),
         "The real line of the Mandelbrot set holds the same period-doubling cascade as the logistic map."),
     related(("waves.membrane", Some("chladni")), ("waves.harmonics", Some("nodal")),
-        "A vibrating plate and a vibrating sphere each have nodal lines, where the mode never moves."),
+        "A vibrating square and a vibrating sphere each have nodal lines, where the mode never moves."),
     related(("forms.stokes", None), ("geometry.manifolds", None),
         "Differential forms are the objects that integrate naturally over manifolds."),
     related(("topology.knots", None), ("geometry.manifolds", None),

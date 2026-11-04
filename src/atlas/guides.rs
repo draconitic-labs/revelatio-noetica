@@ -145,7 +145,7 @@ ViewGuide {
 ViewGuide {
     module: "analysis.fourier",
     view: "stack",
-    read: "Lower hued curves are single harmonics bₙ sin(nx), at most the first nine nonzero ones, with n increasing downward, over two periods. The orange curve on top is the sum of all N terms; the grey curve is the true waveform. All drift with time.",
+    read: "Lower hued curves are single terms of the series, at most the first nine nonzero ones, with n increasing downward, over two periods. The orange curve on top is the sum of all N terms; the grey curve is the true waveform. All drift with time.",
     try_this: "Set \"Waveform\" to Triangle: at N = 7 the orange sum nearly covers the grey curve, because bₙ falls as 1/n² rather than 1/n.",
     params: &["wave", "n", "ghost"],
 },
@@ -159,8 +159,8 @@ ViewGuide {
 ViewGuide {
     module: "analysis.fourier",
     view: "gibbs",
-    read: "Orange is the partial sum on x from −0.8 to 1.8, with N rising from 1 to 61 over 12 s, independent of the harmonics control. Grey is the true waveform. The red line, square wave only, is a fixed level at y ≈ 1.09.",
-    try_this: "On Square, drag the time scrubber to 12 s: ripples narrow toward the jump at x = 0, but the first peak settles near 1.18.",
+    read: "Orange is the partial sum on x from −0.8 to 1.8, with N rising from 1 to 61 over 12 s, independent of the harmonics control. Grey is the true waveform. The red line, square wave only, is the limit of the first peak, y ≈ 1.18.",
+    try_this: "On Square, drag the time scrubber to 12 s: ripples narrow toward the jump at x = 0, and the first peak settles onto the red line.",
     params: &["wave"],
 },
 ViewGuide {
@@ -210,7 +210,7 @@ ViewGuide {
 ViewGuide {
     module: "analysis.taylor",
     view: "chaosgame",
-    read: "Each dot is one iterate of randomly chosen contractions: gold for Sierpiński, green for the Barnsley fern. The cloud stops at 46000 dots and clears when time jumps back. The white point is the current iterate, before the fern's display scaling.",
+    read: "Each dot is one iterate of randomly chosen contractions: gold for Sierpiński, green for the Barnsley fern. The cloud stops at 46000 dots and clears when time jumps back. The white point is the current iterate.",
     try_this: "Set \"Chaos-game target\" to Barnsley fern: the gold cloud clears and green dots rebuild a fern at 600 iterates per frame.",
     params: &["fractal"],
 },
@@ -306,7 +306,7 @@ ViewGuide {
     module: "geometry.manifolds",
     view: "transport",
     read: "On the sphere, the glowing orange arc is the loop at angle θ₀ from the pole. Silver arrows are the transported vector, brighter toward the current position; the orange arrow is its starting value. On torus and saddle no transport is drawn.",
-    try_this: "Set \"Transport latitude θ₀\" to 1.05 and scrub time to 12: the silver arrow ends opposite the orange one, a holonomy near π.",
+    try_this: "Set \"Transport colatitude θ₀\" to 1.05 and scrub time to 12: the silver arrow ends opposite the orange one, a holonomy near π.",
     params: &["surf", "lat", "kheat"],
 },
 ViewGuide {
@@ -333,15 +333,15 @@ ViewGuide {
 ViewGuide {
     module: "topology.knots",
     view: "gallery",
-    read: "A solid tube follows the chosen knot or link, its hue set by position along the curve. Breathing varies its winding amplitude by up to 10% over 12 s without changing knot type; tumble spins it about the vertical axis. A violet glow sits below.",
+    read: "A solid tube follows the chosen knot or link, its hue set by position along the curve. Breathing varies its winding amplitude by up to 10% over 12 s without changing knot type; tumble spins it about the vertical axis.",
     try_this: "Set \"Knot / link\" to Hopf link and orbit: each ring passes once through the other, and breathing no longer changes the shape.",
     params: &["knot", "thick", "breathe", "spin"],
 },
 ViewGuide {
     module: "topology.knots",
     view: "diagram",
-    read: "Each curve is flattened to its (x, y) shadow, with z as depth and hue set by position along it. A strand is cut wherever a higher-z strand passes within about 0.11, so gaps mark undercrossings and also some near misses.",
-    try_this: "With Trefoil selected, turn off \"Isotopy breathing\": this side-on shadow has 10 crossings, though the trefoil's crossing number is 3.",
+    read: "Each curve is flattened to its (x, y) shadow, with z as depth and hue set by position along it. A strand is cut where a higher-z strand crosses it in the shadow, so every gap marks a real undercrossing.",
+    try_this: "With Trefoil selected, turn off \"Isotopy breathing\": this side-on shadow has more crossings than 3, the trefoil's crossing number.",
     params: &["knot", "breathe"],
 },
 ViewGuide {
@@ -369,7 +369,7 @@ ViewGuide {
     module: "number.rotunda",
     view: "zeta",
     read: "The coloured polyline joins successive partial sums of Σ n^(−½−it), n up to 700, recentred on its centroid, with t = start + 2 × time. The gold dot is the complex origin, the white dot the 700th sum, and a faint line joins them.",
-    try_this: "Set \"Critical-line start t\" to 14.13 and scrub time to 0: this is ζ's first zero, yet the white dot sits 1.6 units from gold.",
+    try_this: "Set \"Critical-line start t\" to 14.13 and scrub time to 0: this is ζ's first zero, yet the white dot stays well away from gold, because the series does not converge here.",
     params: &["zeta_t"],
 },
 ViewGuide {
@@ -460,7 +460,7 @@ ViewGuide {
 ViewGuide {
     module: "waves.membrane",
     view: "energy",
-    read: "Inferno colour map, black at zero rising through purple and orange to pale yellow, of log(1 + 6E), with E = 0.01uₜ² + |∇u|². The weights are fixed and do not involve c. In Double slit, a grey strip marks the barrier.",
+    read: "Inferno colour map, black at zero rising through purple and orange to pale yellow, of log(1 + 1.5E), with E = ½(uₜ² + c²|∇u|²), the energy density of the wave. In Double slit, a grey strip marks the barrier.",
     try_this: "With \"Scenario\" on Gaussian pluck, click the canvas to strike: a second bright ring spreads from the click and passes through the first.",
     params: &["preset", "c", "freq", "damp"],
 },
@@ -520,7 +520,7 @@ ViewGuide {
 ViewGuide {
     module: "quantum.hydrogen",
     view: "cloud",
-    read: "Fog density is |ψ|² ray-marched through a ball of radius 2n² + 8, with brightness scaled by n⁶. Hue is arg ψ, cycling m times around the vertical axis (faint grey line). Dark gaps are nodes; blue-white specks are backdrop stars, not data.",
+    read: "Fog density is |ψ|² ray-marched through a ball of radius 2n² + 8, with brightness scaled by n⁶. Hue is arg ψ, cycling m times around the vertical axis (faint grey line). Dark gaps are nodes.",
     try_this: "Flip \"Magnetic m\" from 1 to −1 and orbit overhead: the fog stays identical while hue runs the opposite way around the axis.",
     params: &["n", "l", "m", "dens", "cut"],
 },
@@ -608,7 +608,7 @@ ViewGuide {
 ViewGuide {
     module: "gr.schwarzschild",
     view: "funnel",
-    read: "The blue surface is the equatorial slice embedded with height −2√(2(r − 2)), so the horizon throat sits at the top as the glowing orange ring. Faint lines are meridians and circles of constant r. The amber line and dot are the orbit.",
+    read: "The blue surface is the equatorial slice embedded with height 2√(2(r − 2)), so the horizon throat sits at the bottom as the glowing orange ring. Faint lines are meridians and circles of constant r. The amber line and dot are the orbit.",
     try_this: "Set \"Orbit\" to Plunge and orbit the camera low: the amber trail winds along the surface to the orange throat.",
     params: &["preset", "ll", "r0", "rate"],
 },
@@ -785,15 +785,15 @@ ViewGuide {
 ViewGuide {
     module: "diffeq.pdes",
     view: "grayscott",
-    read: "Colour shows chemical v on a 128² periodic grid, dark bronze at v = 0 and teal near v ≈ 0.4. Chemical u is not drawn. Fourteen seeded squares grow under the F and k of the chosen regime.",
+    read: "Colour shows chemical v on a 128² periodic grid, black at v = 0 and teal near v ≈ 0.4. Chemical u is not drawn. Fourteen seeded squares grow under the F and k of the chosen regime.",
     try_this: "Switch \"Gray–Scott regime\" from Spots (mitosis) to Stripes (coral) mid-run: nothing resets, and the spots swell and join into stripes.",
     params: &["gs"],
 },
 ViewGuide {
     module: "diffeq.pdes",
     view: "fhn",
-    read: "Inferno colour shows the fast variable u, mapped by (u + 2)/4, on a 128² periodic grid. As coded, the initial excited band dies within about 40 steps and the field settles to uniform rest near u = −1.08, so the plate goes flat.",
-    try_this: "Scrub time back to restart: the excited band shows for about 0.1 s, then the plate fades to uniform rest.",
+    read: "Inferno colour shows the fast variable u, mapped by (u + 2)/4, on a 128² periodic grid. The sheet starts at rest, with one band excited and a refractory patch beside it, so the wavefront breaks and curls into rotating spirals.",
+    try_this: "Scrub time back to restart: the band sets off, its free end curls, and spirals fill the sheet.",
     params: &[],
 },
 ViewGuide {
@@ -813,7 +813,7 @@ ViewGuide {
 ViewGuide {
     module: "statmech.ensemble",
     view: "walk",
-    read: "Each orange dot is a walker that starts at the origin and takes one fixed-length step in a random direction per frame. The inner blue ring is the root-mean-square radius at 60 steps per second, and the outer ring is twice that.",
+    read: "Each orange dot is a walker that starts at the origin and takes one fixed-length step in a random direction per frame. The inner blue ring is the root-mean-square radius of those steps, and the outer ring is twice that.",
     try_this: "Set \"Walker step\" to 0.03 and scrub back to restart: cloud and rings spread 2.5 times wider than at 0.012 at equal t.",
     params: &["dstep"],
 },
