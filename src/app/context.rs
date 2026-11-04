@@ -60,16 +60,20 @@ impl AtlasApp {
     fn panel_handle(&mut self, ui: &mut egui::Ui, width: f32) {
         let panel = ui.max_rect();
         let x = panel.left() - 16.0;
-        let edge = Rect::from_min_max(
-            pos2(x - 3.0, panel.top() - 10.0),
-            pos2(x + 3.0, panel.bottom()),
-        );
+        // Inside the panel, because the canvas owns every pixel to its left.
+        let edge = Rect::from_min_max(pos2(x, panel.top() - 10.0), pos2(x + 7.0, panel.bottom()));
         let resp = ui
             .interact(edge, ui.id().with("panel-handle"), Sense::drag())
             .on_hover_cursor(egui::CursorIcon::ResizeHorizontal);
         if resp.dragged() {
             self.session.prefs.panel_width = Some(width - resp.drag_delta().x);
             self.dirty = true;
+        }
+        if resp.hovered() || resp.dragged() {
+            ui.painter().line_segment(
+                [pos2(x, edge.top()), pos2(x, edge.bottom())],
+                Stroke::new(1.0, EDGE),
+            );
         }
     }
 

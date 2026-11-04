@@ -83,7 +83,7 @@ fn run_cli(args: &[String]) -> anyhow::Result<()> {
                 let info = e.modules[i].info();
                 println!("{}  \u{2014}  {} ({})", info.id, info.name, info.tagline);
                 for (j, m) in e.modules[i].modes().iter().enumerate() {
-                    println!("    [{j}] {}: {}", m.id, m.desc);
+                    println!("    [{j}] {} ({}): {}", m.id, m.name, m.desc);
                 }
             }
             Ok(())

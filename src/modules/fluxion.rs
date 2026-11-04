@@ -423,7 +423,7 @@ impl ConceptModule for FluxionChamber {
 
         // Area fill vertices (fluent mode).
         if let Some(m) = &self.area_mesh {
-            let fill = with_alpha(GOLD, 0.16);
+            let fill = with_alpha(GOLD, 0.055);
             let mut verts = Vec::with_capacity((N_SAMPLES + 1) * 2);
             for i in 0..=N_SAMPLES {
                 let si = s * i as f64 / N_SAMPLES as f64;
@@ -451,9 +451,9 @@ impl ConceptModule for FluxionChamber {
                 let yv = (f.dy / f.dx.max(1e-6)) as f32; // dy/dx as the plotted fluxion
                 let yy = -2.6 + yv * 0.55;
                 let c = if yv >= 0.0 {
-                    with_alpha(GOLD, 0.20)
+                    with_alpha(GOLD, 0.07)
                 } else {
-                    with_alpha(LEIBNIZ_BLUE, 0.20)
+                    with_alpha(LEIBNIZ_BLUE, 0.07)
                 };
                 verts.push(MeshVertex {
                     pos: [f.x as f32, yy, -0.05],
@@ -478,7 +478,7 @@ impl ConceptModule for FluxionChamber {
                 let f1 = (sec + 1) as f64 / 12.0;
                 let vis = frac > f0;
                 let f_end = f1.min(frac.max(f0));
-                let alpha = if sec % 2 == 0 { 0.13 } else { 0.20 };
+                let alpha = if sec % 2 == 0 { 0.05 } else { 0.09 };
                 let c = if vis {
                     with_alpha(GOLD, alpha)
                 } else {

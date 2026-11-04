@@ -307,6 +307,9 @@ pub fn install_style(ctx: &egui::Context) {
     style.spacing.scroll.floating = true;
     style.spacing.scroll.bar_width = 6.0;
     style.spacing.scroll.foreground_color = false;
+    // Widgets answer only where they are drawn. The default slop lets a canvas
+    // take presses meant for the time line or panel edge right beside it.
+    style.interaction.interact_radius = 1.0;
 
     use egui::TextStyle::*;
     style.text_styles.insert(Heading, heading_font(30.0));
