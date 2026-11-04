@@ -37,8 +37,10 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
             }
         }
     }
-    // Stained glass on black: cells barely lit, frontiers luminous gold.
-    var color = phase_color(id * 0.55) * 0.055 * max(1.0 - d1 * 0.22, 0.15);
+    // Black cells with luminous gold frontiers; a little of each cell's own hue
+    // bleeds in from its edge and is gone well before the middle.
+    let bleed = max(1.0 - (d2 - d1) / 0.5, 0.0);
+    var color = phase_color(id * 0.55) * 0.09 * bleed * bleed;
     let edge = exp(-(d2 - d1) * (d2 - d1) * 260.0);
     color += vec3<f32>(0.92, 0.74, 0.36) * edge * 0.85;
     color += vec3<f32>(0.9, 0.95, 1.0) * exp(-d1 * d1 * 140.0) * 0.55;
@@ -113,7 +115,7 @@ impl ManifoldAtlas {
         p.choice("surf", "Manifold", "Symbolic", SURF_NAMES.to_vec(), 0);
         p.slider(
             "lat",
-            "Transport latitude \u{03B8}\u{2080}",
+            "Transport colatitude \u{03B8}\u{2080}",
             "Physics",
             0.15,
             1.35,
@@ -199,7 +201,7 @@ impl ConceptModule for ManifoldAtlas {
         vec![
             RenderMode::orbit("tangent", "Tangent Space", "The plane that best forgets the curvature at p(t)", 5.6, 0.35, 0.7),
             RenderMode::orbit("transport", "Parallel Transport", "Around the latitude loop; the holonomy angle is 2\u{03C0}(1\u{2212}cos\u{03B8}\u{2080})", 5.2, 0.5, 0.7),
-            RenderMode::orbit("curvature", "Gaussian Curvature", "K > 0 copper, K < 0 indigo \u{2014} the torus carries both", 5.6, 0.4, 0.7),
+            RenderMode::orbit("curvature", "Gaussian Curvature", "With curvature heat on, K > 0 is copper and K < 0 blue; the torus carries both", 5.6, 0.4, 0.7),
             RenderMode::plane("hyperbolic", "The Poincar\u{00E9} Disk", "Geodesics meet the rim at right angles; the boundary is infinitely far", 1.5),
             RenderMode::plane("voronoi", "Voronoi Bloom", "Twelve wandering seeds carve the plane into nearest-neighbour cells", 2.6),
         ]

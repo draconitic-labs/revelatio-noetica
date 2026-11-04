@@ -38,22 +38,77 @@ fn knot_pt(k: usize, comp: usize, s: f32, breathe: f32) -> Vec3 {
             )
         }
         3 => {
-            // Figure-eight knot standard parametrization.
+            // Figure-eight knot, standard parametrization: three turns about the
+            // axis. With a single turn this curve is an unknot.
             Vec3::new(
-                (2.0 + (2.0 * t).cos() * b) * t.cos() * 0.62,
+                (2.0 + (2.0 * t).cos() * b) * (3.0 * t).cos() * 0.62,
                 (4.0 * t).sin() * 0.42 * b,
-                (2.0 + (2.0 * t).cos() * b) * t.sin() * 0.62,
+                (2.0 + (2.0 * t).cos() * b) * (3.0 * t).sin() * 0.62,
             )
         }
         _ => {
-            // Hopf link: two unit circles in orthogonal planes.
+            // Hopf link: each circle passes once through the other. The second
+            // is tilted about the x axis so its shadow is an ellipse, not a line.
+            let (tilt_s, tilt_c) = 0.6f32.sin_cos();
             if comp == 0 {
                 Vec3::new(t.cos() * 0.9, t.sin() * 0.9, 0.0)
             } else {
-                Vec3::new(0.9 + t.cos() * 0.9, 0.0, t.sin() * 0.9)
+                let lift = t.sin() * 0.9;
+                Vec3::new(0.9 + t.cos() * 0.9, lift * tilt_s, lift * tilt_c)
             }
         }
     }
+}
+
+/// Samples cut on each side of an undercrossing in the diagram.
+const GAP_SAMPLES: usize = 6;
+
+/// Where two segments of the (x, y) shadow cross, as a fraction along each.
+fn shadow_crossing(a0: Vec3, a1: Vec3, b0: Vec3, b1: Vec3) -> Option<(f32, f32)> {
+    let (rx, ry) = (a1.x - a0.x, a1.y - a0.y);
+    let (sx, sy) = (b1.x - b0.x, b1.y - b0.y);
+    let denom = rx * sy - ry * sx;
+    if denom.abs() < 1e-9 {
+        return None;
+    }
+    let (qx, qy) = (b0.x - a0.x, b0.y - a0.y);
+    let u = (qx * sy - qy * sx) / denom;
+    let v = (qx * ry - qy * rx) / denom;
+    ((0.0..1.0).contains(&u) && (0.0..1.0).contains(&v)).then_some((u, v))
+}
+
+/// Segments of strand `comp`, sampled `n` times, that pass beneath another
+/// strand in the (x, y) shadow. Depth is compared where the two actually cross.
+fn under_crossings(k: usize, comp: usize, breathe: f32, n: usize) -> Vec<usize> {
+    let strand = |c: usize| -> Vec<Vec3> {
+        (0..=n)
+            .map(|i| knot_pt(k, c, i as f32 / n as f32, breathe))
+            .collect()
+    };
+    let mine = strand(comp);
+    let mut under = Vec::new();
+    for other in 0..components(k) {
+        let theirs = strand(other);
+        for i in 0..n {
+            for j in 0..n {
+                if other == comp {
+                    let apart = i.abs_diff(j);
+                    if apart <= 1 || apart >= n - 1 {
+                        continue;
+                    }
+                }
+                let crossing = shadow_crossing(mine[i], mine[i + 1], theirs[j], theirs[j + 1]);
+                if let Some((u, v)) = crossing {
+                    let mine_z = mine[i].z + (mine[i + 1].z - mine[i].z) * u;
+                    let their_z = theirs[j].z + (theirs[j + 1].z - theirs[j].z) * v;
+                    if mine_z < their_z {
+                        under.push(i);
+                    }
+                }
+            }
+        }
+    }
+    under
 }
 
 fn components(k: usize) -> usize {
@@ -229,13 +284,6 @@ impl ConceptModule for KnotReliquary {
                     );
                     scene.meshes.push(m.clone());
                 }
-                // A faint floor glow disc.
-                scene.point(
-                    Vec3::new(0.0, -2.4, 0.0),
-                    60.0,
-                    [0.10, 0.06, 0.16, 0.5],
-                    3.0,
-                );
             }
             2 => {
                 // The torus, as a ghost lattice.
@@ -290,30 +338,11 @@ impl ConceptModule for KnotReliquary {
                     let pts: Vec<Vec3> = (0..=n)
                         .map(|i| knot_pt(k, comp, i as f32 / n as f32, breathe))
                         .collect();
-                    // Find crossing neighborhoods: compare all segment pairs in 2D.
+                    // Cut this strand wherever another passes above it in the shadow.
                     let mut gap = vec![false; n + 1];
-                    for i in 0..n {
-                        for comp2 in 0..components(k) {
-                            let pts2: Vec<Vec3> = if comp2 == comp {
-                                pts.clone()
-                            } else {
-                                (0..=n)
-                                    .map(|j| knot_pt(k, comp2, j as f32 / n as f32, breathe))
-                                    .collect()
-                            };
-                            for (j, &b) in pts2.iter().enumerate().take(n) {
-                                if comp == comp2 && (i as i32 - j as i32).abs() < 22 {
-                                    continue;
-                                }
-                                if comp == comp2 && (i as i32 - j as i32).abs() > n as i32 - 22 {
-                                    continue;
-                                }
-                                let a = pts[i];
-                                let d2 = (a.x - b.x).powi(2) + (a.y - b.y).powi(2);
-                                if d2 < 0.012 && a.z < b.z - 0.05 {
-                                    gap[i] = true;
-                                }
-                            }
+                    for i in under_crossings(k, comp, breathe, n) {
+                        for offset in 0..=2 * GAP_SAMPLES {
+                            gap[(i + n + offset - GAP_SAMPLES) % n] = true;
                         }
                     }
                     for i in 0..n {
@@ -371,7 +400,7 @@ impl ConceptModule for KnotReliquary {
             }
         }
         out.push(def("Isotopy: deformation without tearing or crossing \u{2014} the breathing changes nothing that matters."));
-        out.push(note("Every over/under gap in the diagram is real data: swap one crossing of the trefoil and it unties."));
+        out.push(note("Every over/under gap is computed from real depth. This side-on shadow has more crossings than a trefoil's minimal diagram, the one where swapping a single crossing unties the knot."));
         out
     }
 
@@ -380,5 +409,61 @@ impl ConceptModule for KnotReliquary {
             1 => Some("Crossings detected on a 620-sample projection; gaps rendered on the strand that passes beneath."),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const HOPF: usize = 4;
+
+    #[test]
+    fn the_hopf_link_really_links() {
+        // Two crossings in the shadow, and each circle goes under exactly once.
+        // Unlinked circles would have one passing under at both.
+        assert_eq!(under_crossings(HOPF, 0, 0.0, 400).len(), 1);
+        assert_eq!(under_crossings(HOPF, 1, 0.0, 400).len(), 1);
+    }
+
+    #[test]
+    fn the_hopf_shadow_is_two_curves_not_a_line() {
+        let ys: Vec<f32> = (0..64)
+            .map(|i| knot_pt(HOPF, 1, i as f32 / 64.0, 0.0).y)
+            .collect();
+        assert!(ys.iter().fold(0.0f32, |m, y| m.max(y.abs())) > 0.3);
+    }
+
+    #[test]
+    fn a_crossing_has_exactly_one_strand_under_it() {
+        // A trefoil's shadow may show extra crossings, but never fewer than three.
+        let crossings = under_crossings(0, 0, 0.0, 620).len();
+        assert!(crossings >= 3, "{crossings}");
+    }
+
+    #[test]
+    fn the_figure_eight_winds_three_times_around_its_axis() {
+        const FIGURE_EIGHT: usize = 3;
+        let n = 2000;
+        let mut turning = 0.0f32;
+        let mut last = knot_pt(FIGURE_EIGHT, 0, 0.0, 0.0);
+        for i in 1..=n {
+            let p = knot_pt(FIGURE_EIGHT, 0, i as f32 / n as f32, 0.0);
+            let step = last.x * p.z - last.z * p.x;
+            let along = last.x * p.x + last.z * p.z;
+            turning += step.atan2(along);
+            last = p;
+        }
+        let turns = turning / std::f32::consts::TAU;
+        assert!((turns - 3.0).abs() < 1e-2, "{turns}");
+    }
+
+    #[test]
+    fn segments_cross_only_when_they_truly_meet() {
+        let p = |x, y| Vec3::new(x, y, 0.0);
+        let hit = shadow_crossing(p(-1.0, 0.0), p(1.0, 0.0), p(0.0, -1.0), p(0.0, 1.0));
+        assert_eq!(hit, Some((0.5, 0.5)));
+        let near_miss = shadow_crossing(p(-1.0, 0.0), p(1.0, 0.0), p(0.0, 0.01), p(0.0, 1.0));
+        assert_eq!(near_miss, None);
     }
 }

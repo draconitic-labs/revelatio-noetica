@@ -238,6 +238,6 @@ impl ConceptModule for SphericalChoir {
     }
 
     fn approx(&self, _mode: usize) -> Option<&'static str> {
-        Some("Exact Y\u{2113}\u{2098} on a 130\u{00B2} lattice, rebuilt each frame; shapes normalized to unit peak for display.")
+        Some("Exact Y\u{2113}\u{2098} on a 130\u{00B2} lattice, rebuilt each frame; the overall scale is set for display, so peak displacement differs by mode.")
     }
 }

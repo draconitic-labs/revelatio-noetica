@@ -101,7 +101,7 @@ impl ConceptModule for ArithmeticRotunda {
             name: "The Arithmetic Rotunda",
             tagline: "The integers, seen from far away",
             branch: Branch::NumberTheory,
-            description: "Individually the integers are trivial; collectively they conspire. Primes fall into diagonal constellations no one predicted; multiplication tables wound on a circle draw cardioids; and the partial sums of \u{03B6}(\u{00BD}+it) trace a drunken spiral whose returns to the origin are the zeros that guard the primes' secret.",
+            description: "Individually the integers are trivial; collectively they conspire. Primes fall into diagonal constellations no one predicted; multiplication tables wound on a circle draw cardioids; and the partial sums of \u{03B6}(\u{00BD}+it) trace a drunken spiral along the critical line, where the zeros that guard the primes' secret are found.",
             epigraph: Some((
                 "Mathematics is the queen of the sciences, and number theory is the queen of mathematics.",
                 "Carl Friedrich Gauss",
@@ -114,7 +114,7 @@ impl ConceptModule for ArithmeticRotunda {
             RenderMode::plane(
                 "ulam",
                 "Ulam Spiral",
-                "40,000 integers coiled; primes glow, diagonals emerge",
+                "40,000 integers coiled; primes glow, odd composites stay faint, even ones are left out",
                 105.0,
             ),
             RenderMode::plane(
@@ -153,7 +153,7 @@ impl ConceptModule for ArithmeticRotunda {
             RenderMode::plane(
                 "primepolar",
                 "The Prime Galaxy",
-                "Primes at (p, p) in polar coordinates: spirals, then rays",
+                "Each prime p at angle p radians and radius proportional to \u{221A}p: curved arms, then patches",
                 2.6,
             ),
         ]
@@ -372,7 +372,7 @@ impl ConceptModule for ArithmeticRotunda {
             value(format!("primes below {N_ULAM}: {n_primes}  (density ~ 1/ln n)")),
             value(format!("k = {k:.2}   \u{00B7}   critical line at t = {tt:.1}")),
             note("k = 2 draws the cardioid, k = 3 the nephroid: the same envelopes as light caustics in a teacup \u{2014} multiplication is a folding map."),
-            note("Riemann: every zero of \u{03B6} on the critical line is a moment the walk wanders back to the origin. A century and a half of checking; no exceptions yet."),
+            note("The series does not converge on the critical line, so these partial sums only hint at \u{03B6}: at a zero such as t \u{2248} 14.13 the walk need not return to the origin. The Riemann hypothesis, that all nontrivial zeros lie on this line, is unproved; no exception has been found."),
         ]
     }
 

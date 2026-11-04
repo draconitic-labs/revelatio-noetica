@@ -30,13 +30,16 @@ pub struct MonteCarloCasino {
     n_under: u64,
     exact_area: f64,
     rng: u64,
-    last_t: f64,
+    trial_debt: f64,
+    ball_debt: f64,
     /// Galton balls: (row-progress clock, path of L/R choices) + bins.
     balls: Vec<(f64, u32)>,
     bins: Vec<u32>,
 }
 
 const G_ROWS: usize = 13;
+/// Galton balls released per second of timeline.
+const GALTON_RATE: f64 = 120.0;
 
 impl MonteCarloCasino {
     pub fn new() -> Self {
@@ -76,7 +79,8 @@ impl MonteCarloCasino {
             n_under: 0,
             exact_area: exact,
             rng: 0xB5297A4D2C4979A3,
-            last_t: 0.0,
+            trial_debt: 0.0,
+            ball_debt: 0.0,
             balls: Vec::new(),
             bins: vec![0; G_ROWS + 1],
         }
@@ -88,6 +92,14 @@ impl MonteCarloCasino {
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
         (self.rng >> 11) as f64 / (1u64 << 53) as f64
+    }
+
+    /// How many trials this much timeline is worth, keeping the remainder.
+    fn trials_due(&mut self, dt: f64) -> usize {
+        self.trial_debt += self.params.f("rate") * dt.abs();
+        let whole = self.trial_debt.floor();
+        self.trial_debt -= whole;
+        (whole as usize).min(4000)
     }
 
     fn reset(&mut self) {
@@ -185,13 +197,15 @@ impl ConceptModule for MonteCarloCasino {
         self.reset();
     }
 
-    fn update(&mut self, _gpu: &GpuContext, t: f64, dt: f64) {
-        if t < self.last_t - 0.5 {
-            self.reset();
-        }
-        self.last_t = t;
-        let n = (self.params.f("rate") * dt).round() as usize;
-        for _ in 0..n.min(4000) {
+    fn rewind(&mut self) {
+        self.reset();
+    }
+
+    fn update(&mut self, _gpu: &GpuContext, _t: f64, dt: f64) {
+        // Trials and balls owed carry over between frames, so a low rate still
+        // advances at any frame rate, and nothing is added while paused.
+        let n = self.trials_due(dt);
+        for _ in 0..n {
             // Dartboard.
             let p = Vec2::new(
                 self.rand() as f32 * 2.0 - 1.0,
@@ -227,8 +241,11 @@ impl ConceptModule for MonteCarloCasino {
                 self.integ.push((q, under));
             }
         }
-        // Galton: spawn a few balls per frame, march their clocks.
-        for _ in 0..2 {
+        // Galton: release balls at a fixed rate, march their clocks.
+        self.ball_debt += GALTON_RATE * dt.abs();
+        let released = self.ball_debt.floor();
+        self.ball_debt -= released;
+        for _ in 0..(released as usize).min(16) {
             if self.balls.len() < 140 {
                 let path = (self.rand() * (1u64 << 31) as f64) as u32;
                 self.balls.push((0.0, path));
@@ -416,6 +433,52 @@ impl ConceptModule for MonteCarloCasino {
     }
 
     fn approx(&self, _mode: usize) -> Option<&'static str> {
-        Some("True pseudo-random trials (PCG-style LCG); estimates and errors update live in the inspector.")
+        Some("Pseudo-random trials from a 64-bit linear congruential generator; estimates and errors update live in the inspector.")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_low_rate_still_advances_at_a_high_frame_rate() {
+        let mut m = MonteCarloCasino::new();
+        m.params.set_f("rate", 20.0);
+        let total: usize = (0..240).map(|_| m.trials_due(1.0 / 240.0)).sum();
+        assert!((19..=21).contains(&total), "{total} trials in one second");
+    }
+
+    #[test]
+    fn nothing_accrues_while_paused() {
+        let mut m = MonteCarloCasino::new();
+        assert_eq!(m.trials_due(0.0), 0);
+    }
+
+    #[test]
+    fn estimates_reach_their_targets() {
+        let mut m = MonteCarloCasino::new();
+        let (mut hits, mut crosses) = (0u64, 0u64);
+        let n = 2_000_000u64;
+        for _ in 0..n {
+            let (x, y) = (m.rand() * 2.0 - 1.0, m.rand() * 2.0 - 1.0);
+            if x * x + y * y <= 1.0 {
+                hits += 1;
+            }
+            // Buffon as the module scores it: spacing 1, needle length 0.5.
+            let (y, a) = (m.rand() * 4.0 - 2.0, m.rand() * std::f64::consts::PI);
+            let half = 0.25 * a.sin();
+            if (y - half).floor() != (y + half).floor() {
+                crosses += 1;
+            }
+        }
+        let pi_darts = 4.0 * hits as f64 / n as f64;
+        assert!((pi_darts - std::f64::consts::PI).abs() < 0.01, "{pi_darts}");
+        // P(cross) = 2 L / (pi d) = 1 / pi for L = 0.5, d = 1.
+        let pi_buffon = n as f64 / crosses as f64;
+        assert!(
+            (pi_buffon - std::f64::consts::PI).abs() < 0.02,
+            "{pi_buffon}"
+        );
     }
 }
