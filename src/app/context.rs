@@ -26,12 +26,17 @@ const SAVED: &str = "Saved views";
 
 impl AtlasApp {
     pub(super) fn context_panel(&mut self, ctx: &egui::Context) {
-        let width = ctx.screen_rect().width();
-        let default = (width * 0.2).clamp(296.0, 400.0);
+        let window = ctx.screen_rect().width();
+        // A fixed width that only the handle changes: content can never push it.
+        let width = self
+            .session
+            .prefs
+            .panel_width
+            .unwrap_or((window * 0.2).clamp(296.0, 400.0));
+        let width = width.clamp(280.0, (window * 0.4).max(280.0));
         egui::SidePanel::right("context")
-            .default_width(default)
-            .min_width(280.0)
-            .max_width(520.0)
+            .exact_width(width)
+            .resizable(false)
             .frame(egui::Frame::new().fill(VOID).inner_margin(egui::Margin {
                 left: 16,
                 right: 12,
@@ -39,6 +44,7 @@ impl AtlasApp {
                 bottom: 0,
             }))
             .show(ctx, |ui| {
+                self.panel_handle(ui, width);
                 egui::ScrollArea::vertical()
                     .id_salt("context-scroll")
                     .auto_shrink([false, false])
@@ -48,6 +54,23 @@ impl AtlasApp {
                         ui.add_space(24.0);
                     });
             });
+    }
+
+    /// Drag the panel's left edge to resize it.
+    fn panel_handle(&mut self, ui: &mut egui::Ui, width: f32) {
+        let panel = ui.max_rect();
+        let x = panel.left() - 16.0;
+        let edge = Rect::from_min_max(
+            pos2(x - 3.0, panel.top() - 10.0),
+            pos2(x + 3.0, panel.bottom()),
+        );
+        let resp = ui
+            .interact(edge, ui.id().with("panel-handle"), Sense::drag())
+            .on_hover_cursor(egui::CursorIcon::ResizeHorizontal);
+        if resp.dragged() {
+            self.session.prefs.panel_width = Some(width - resp.drag_delta().x);
+            self.dirty = true;
+        }
     }
 
     fn section(
@@ -138,6 +161,12 @@ impl AtlasApp {
             .collect();
         let other: Vec<usize> = (0..total).filter(|i| !relevant.contains(i)).collect();
 
+        let can_randomize = relevant.iter().any(|&i| {
+            !matches!(
+                self.engine.modules[f.module].params_ref().items[i].kind,
+                ParamKind::Toggle
+            )
+        });
         if relevant.is_empty() {
             let line = if total == 0 {
                 "This chamber has no parameters. Move through time or around the view instead."
@@ -148,14 +177,15 @@ impl AtlasApp {
         } else {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
-                if widgets::text_button(
-                    ui,
-                    "Randomize",
-                    "New values for this view's parameters (R)",
-                    false,
-                )
-                .clicked()
-                {
+                let randomize = can_randomize
+                    && widgets::text_button(
+                        ui,
+                        "Randomize",
+                        "New values for this view's parameters (R)",
+                        false,
+                    )
+                    .clicked();
+                if randomize {
                     self.act(Action::Randomize);
                 }
                 if widgets::text_button(
@@ -420,8 +450,9 @@ impl AtlasApp {
                     (catalog[m].accent, catalog[m].info.name)
                 });
             ui.horizontal(|ui| {
+                let gap = ui.spacing().item_spacing.x;
                 let width = ui.available_width();
-                ui.allocate_ui(vec2(width - 28.0, 44.0), |ui| {
+                ui.allocate_ui(vec2(width - 28.0 - gap, 44.0), |ui| {
                     if link_row(ui, accent, &name, chamber_name) {
                         self.act(Action::OpenBookmark(i));
                     }

@@ -251,7 +251,7 @@ impl AtlasApp {
 
     /// Looks like a search field because that is what it opens.
     fn search_box(&mut self, ui: &mut egui::Ui) {
-        let wide = ui.available_width() > 360.0;
+        let wide = ui.max_rect().width() > 760.0;
         let size = vec2(if wide { 178.0 } else { 88.0 }, 26.0);
         let (rect, resp) = ui.allocate_exact_size(size, egui::Sense::click());
         let p = ui.painter();

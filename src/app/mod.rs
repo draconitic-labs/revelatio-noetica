@@ -820,26 +820,27 @@ impl AtlasApp {
     fn randomize(&mut self) {
         let f = self.engine.focused();
         let chamber = &self.catalog[f.module];
-        let keys: Vec<&str> =
-            match crate::atlas::guides::guide(chamber.info.id, chamber.view_id(f.mode)) {
-                Some(g) if !g.params.is_empty() => g.params.to_vec(),
-                Some(_) => {
-                    self.set_toast("Nothing to randomize: no parameter changes this view.");
-                    return;
-                }
-                None => self.engine.modules[f.module]
-                    .params_ref()
-                    .items
-                    .iter()
-                    .map(|p| p.key)
-                    .collect(),
-            };
+        let params = self.engine.modules[f.module].params_ref();
+        let guide = crate::atlas::guides::guide(chamber.info.id, chamber.view_id(f.mode));
+        let keys: Vec<&'static str> = params
+            .items
+            .iter()
+            .filter(|p| !matches!(p.kind, crate::engine::params::ParamKind::Toggle))
+            .filter(|p| guide.is_none_or(|g| g.params.contains(&p.key)))
+            .map(|p| p.key)
+            .collect();
+        if keys.is_empty() {
+            self.set_toast(
+                "No slider or choice changes this view, so there is nothing to randomize.",
+            );
+            return;
+        }
         self.engine.sweeps.retain(|s| s.module != f.module);
         let mut draws: Vec<f64> = (0..keys.len()).map(|_| self.uniform()).collect();
         self.engine.modules[f.module]
             .params()
             .randomize(&keys, || draws.pop().unwrap_or(0.5));
-        self.set_toast("Randomized this view's parameters. Press Reset to undo.");
+        self.set_toast("Randomized this view's parameters. Reset puts them back.");
     }
 
     fn scene_fingerprint(scene: &Value) -> Value {

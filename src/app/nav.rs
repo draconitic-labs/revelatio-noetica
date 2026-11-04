@@ -295,11 +295,11 @@ pub(super) fn star(
     current: bool,
 ) {
     if current {
-        p.circle_filled(c, 8.0, accent.gamma_multiply(0.22));
+        p.circle_filled(c, 8.5, accent.gamma_multiply(0.24));
     }
     if visited || current {
-        p.circle_filled(c, 3.2, accent);
+        p.circle_filled(c, 3.4, accent);
     } else {
-        p.circle_stroke(c, 2.8, Stroke::new(1.2, accent.gamma_multiply(0.85)));
+        p.circle_stroke(c, 3.0, Stroke::new(1.2, accent.gamma_multiply(0.85)));
     }
 }

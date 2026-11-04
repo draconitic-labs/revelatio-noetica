@@ -96,6 +96,11 @@ impl AtlasApp {
             Some(g) => format!("{}. Shift-drag to pan, scroll to zoom.", capitalized(g)),
             None => format!("{}.", capitalized(camera_hint)),
         };
+        let hint = if self.focus_mode {
+            format!("{hint} Esc brings the interface back.")
+        } else {
+            hint
+        };
         let label = self.engine.modules[view.module].approx(view.mode);
         (hint, gesture.is_some(), label)
     }

@@ -15,6 +15,7 @@ use serde_json::Value;
 pub struct Prefs {
     pub atlas_open: Option<bool>,
     pub panel_open: Option<bool>,
+    pub panel_width: Option<f32>,
     pub film_open: bool,
     pub ui_scale: f32,
     pub reduce_motion: bool,
@@ -26,6 +27,7 @@ impl Default for Prefs {
         Self {
             atlas_open: None,
             panel_open: None,
+            panel_width: None,
             film_open: true,
             ui_scale: 1.0,
             reduce_motion: false,

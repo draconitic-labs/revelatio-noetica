@@ -770,10 +770,10 @@ impl AtlasApp {
         if scrim.clicked() {
             self.act(Action::CloseLayer);
         }
-        let row_h = 25.0;
-        let size = vec2(460.0, KEYS.len() as f32 * row_h + 150.0);
-        let rect =
-            Rect::from_center_size(screen.center(), size.min(screen.size() - vec2(16.0, 16.0)));
+        // Sized so all of it fits in the smallest window the app allows.
+        let row_h = ((screen.height() - 150.0) / KEYS.len() as f32).clamp(20.0, 25.0);
+        let size = vec2(460.0, KEYS.len() as f32 * row_h + 110.0);
+        let rect = Rect::from_center_size(screen.center(), size);
         egui::Area::new(egui::Id::new("help"))
             .order(Order::Foreground)
             .fixed_pos(rect.min)
@@ -792,31 +792,25 @@ impl AtlasApp {
                         );
                         ui.add_space(6.0);
                         ui.spacing_mut().item_spacing.y = 0.0;
-                        egui::ScrollArea::vertical()
-                            .id_salt("help-list")
-                            .max_height(rect.height() - 96.0)
-                            .show(ui, |ui| {
-                                for (key, what) in KEYS {
-                                    let width = ui.available_width();
-                                    let (r, _) =
-                                        ui.allocate_exact_size(vec2(width, row_h), Sense::hover());
-                                    let p = ui.painter();
-                                    p.text(
-                                        r.left_center(),
-                                        Align2::LEFT_CENTER,
-                                        what,
-                                        theme::ui_font(13.5),
-                                        MOON,
-                                    );
-                                    p.text(
-                                        r.right_center(),
-                                        Align2::RIGHT_CENTER,
-                                        key,
-                                        theme::ui_font(13.0),
-                                        LIGHT,
-                                    );
-                                }
-                            });
+                        for (key, what) in KEYS {
+                            let width = ui.available_width();
+                            let (r, _) = ui.allocate_exact_size(vec2(width, row_h), Sense::hover());
+                            let p = ui.painter();
+                            p.text(
+                                r.left_center(),
+                                Align2::LEFT_CENTER,
+                                what,
+                                theme::ui_font(13.5),
+                                MOON,
+                            );
+                            p.text(
+                                r.right_center(),
+                                Align2::RIGHT_CENTER,
+                                key,
+                                theme::ui_font(13.0),
+                                LIGHT,
+                            );
+                        }
                     });
             });
     }
@@ -855,6 +849,10 @@ impl AtlasApp {
                             });
                         });
                 });
+        }
+        // Overlays have the window's attention; a toast would land on top of them.
+        if self.layer != super::Layer::None {
+            return;
         }
         let Some((message, when)) = &self.toast else {
             return;

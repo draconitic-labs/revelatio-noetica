@@ -13,16 +13,28 @@ use crate::atlas::trails::TRAILS;
 use crate::theme::{self, DUSK, HOVER, LIGHT, LINE, MOON, VOID};
 use crate::widgets::{self, icon};
 
-/// Where a chamber's name goes relative to its star, in the chart's own terms.
-fn label_rect(center: Pos2, size: egui::Vec2, chart: Rect) -> Rect {
-    let mut r = Rect::from_min_size(pos2(center.x - size.x * 0.5, center.y + 15.0), size);
-    if r.left() < chart.left() {
-        r = r.translate(vec2(chart.left() - r.left(), 0.0));
-    }
-    if r.right() > chart.right() {
-        r = r.translate(vec2(chart.right() - r.right(), 0.0));
-    }
-    r
+/// A chamber's name, centred under its star and wrapped to the column spacing
+/// so neighbours never collide. Returns the text and where to paint it.
+fn star_label(
+    p: &egui::Painter,
+    name: &str,
+    color: Color32,
+    star: Pos2,
+    chart: Rect,
+) -> (std::sync::Arc<egui::Galley>, Pos2, Rect) {
+    let mut job = egui::text::LayoutJob::simple(
+        name.to_string(),
+        theme::ui_font(12.5),
+        color,
+        (chart.width() * 0.17).clamp(110.0, 240.0),
+    );
+    job.halign = egui::Align::Center;
+    let galley = p.layout_job(job);
+    let half = galley.size().x * 0.5;
+    let x = star.x.clamp(chart.left() + half, chart.right() - half);
+    let top = star.y + 15.0;
+    let rect = Rect::from_min_size(pos2(x - half, top), galley.size());
+    (galley, pos2(x, top), rect)
 }
 
 /// Bend each line gently so lines between neighbours in a column don't overlap.
@@ -174,11 +186,11 @@ impl AtlasApp {
             let n = chamber.modes.len();
             for (i, mode) in chamber.modes.iter().enumerate() {
                 let a = -std::f32::consts::FRAC_PI_2 + i as f32 * std::f32::consts::TAU / n as f32;
-                let q = c + 11.0 * vec2(a.cos(), a.sin());
+                let q = c + 11.5 * vec2(a.cos(), a.sin());
                 if self.session.has_seen(id, mode.id) {
-                    p.circle_filled(q, 1.5, chamber.accent);
+                    p.circle_filled(q, 1.6, chamber.accent);
                 } else {
-                    p.circle_filled(q, 1.2, chamber.accent.gamma_multiply(0.42));
+                    p.circle_filled(q, 1.3, chamber.accent.gamma_multiply(0.5));
                 }
             }
             super::nav::star(&p, c, chamber.accent, has_visited, is_current);
@@ -188,9 +200,11 @@ impl AtlasApp {
             } else {
                 MOON
             };
-            let g = p.layout_no_wrap(chamber.info.name.to_string(), theme::ui_font(12.5), color);
-            let r = label_rect(c, g.size(), chart.expand(40.0));
-            p.galley(r.min, g, color);
+            let (label, at_label, r) =
+                star_label(&p, chamber.info.name, color, c, chart.expand(40.0));
+            // Lines run behind names, never through them.
+            p.rect_filled(r.expand2(vec2(3.0, 1.0)), 2, VOID);
+            p.galley(at_label, label, color);
             if is_hovered {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                 if ui.input(|i| i.pointer.primary_clicked()) {

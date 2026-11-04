@@ -23,7 +23,7 @@ In the repository but not embedded:
 
 The eframe dependency also embeds the egui default fonts (Hack, Ubuntu Light,
 Noto Emoji, and the emoji icon font) as fallbacks; their licences ship with the
-epaint crate.
+epaint_default_fonts crate.
 
 Formula images in assets/math are generated from assets/math/manifest.txt with
 LaTeX, using Computer Modern and AMS fonts, which are under the SIL Open Font

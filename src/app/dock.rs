@@ -272,12 +272,9 @@ impl AtlasApp {
         } else {
             DUSK
         };
-        let text = p.layout(name.to_string(), theme::ui_font(11.5), color, thumb.x);
-        p.with_clip_rect(cell.expand(1.0)).galley(
-            pos2(cell.left(), image.bottom() + 4.0),
-            text,
-            color,
-        );
+        // A long single word may use the gap, rather than break mid-word.
+        let text = p.layout(name.to_string(), theme::ui_font(11.5), color, thumb.x + 5.0);
+        p.galley(pos2(cell.left(), image.bottom() + 4.0), text, color);
 
         // The "open beside" mark appears on hover, top right.
         let plus_rect = Rect::from_min_size(
