@@ -76,6 +76,24 @@ fn burgers_steps(dx: f64, nu: f64) -> (f64, usize) {
     (per_frame / n as f64, n)
 }
 
+/// Viscosity spends the wave for good, and a timeline loop does not restart a
+/// simulation, so the profile starts over when its peak has decayed this far.
+const BURGERS_RESTART_PEAK: f64 = 0.2;
+
+/// A smooth sine that wants to break.
+fn burgers_start() -> Vec<f64> {
+    (0..NX1)
+        .map(|i| {
+            let x = i as f64 / NX1 as f64;
+            (std::f64::consts::TAU * x).sin() * 0.9
+        })
+        .collect()
+}
+
+fn peak_magnitude(u: &[f64]) -> f64 {
+    u.iter().fold(0.0, |peak, v| v.abs().max(peak))
+}
+
 pub struct PdeHall {
     params: Params,
     heat: Vec<f64>,
@@ -149,13 +167,7 @@ impl PdeHall {
             })
             .collect();
         self.heat_snaps.clear();
-        // Burgers: a smooth sine that wants to break.
-        self.burgers = (0..NX1)
-            .map(|i| {
-                let x = i as f64 / NX1 as f64;
-                (std::f64::consts::TAU * x).sin() * 0.9
-            })
-            .collect();
+        self.burgers = burgers_start();
         // Laplace: warm-start the interior by blending the boundaries so the
         // relaxation is visibly refining, not filling black.
         self.lap = (0..NG * NG)
@@ -252,6 +264,31 @@ impl PdeHall {
                 depth_or_array_layers: 1,
             },
         );
+    }
+
+    /// One frame of Burgers: upwind plus viscosity, dt capped by both stability limits.
+    fn step_burgers(&mut self) {
+        let nu = self.params.f("nu");
+        let dx = 1.0 / NX1 as f64;
+        let (dtb, burgers_steps) = burgers_steps(dx, nu);
+        for _ in 0..burgers_steps {
+            let u0 = self.burgers.clone();
+            for i in 0..NX1 {
+                let im = (i + NX1 - 1) % NX1;
+                let ip = (i + 1) % NX1;
+                let u = u0[i];
+                let dudx = if u >= 0.0 {
+                    (u - u0[im]) / dx
+                } else {
+                    (u0[ip] - u) / dx
+                };
+                let visc = nu * (u0[ip] - 2.0 * u + u0[im]) / (dx * dx);
+                self.burgers[i] = u + dtb * (-u * dudx + visc);
+            }
+        }
+        if peak_magnitude(&self.burgers) < BURGERS_RESTART_PEAK {
+            self.burgers = burgers_start();
+        }
     }
 
     fn step_gray_scott(&mut self, n_steps: usize) {
@@ -396,25 +433,7 @@ impl ConceptModule for PdeHall {
         if self.heat_snaps.len() < 9 && self.sim_t > 0.35 * (self.heat_snaps.len() + 1) as f64 {
             self.heat_snaps.push(self.heat.clone());
         }
-        // Burgers (upwind + viscosity; dt capped by BOTH stability limits).
-        let nu = self.params.f("nu");
-        let dx = 1.0 / NX1 as f64;
-        let (dtb, burgers_steps) = burgers_steps(dx, nu);
-        for _ in 0..burgers_steps {
-            let u0 = self.burgers.clone();
-            for i in 0..NX1 {
-                let im = (i + NX1 - 1) % NX1;
-                let ip = (i + 1) % NX1;
-                let u = u0[i];
-                let dudx = if u >= 0.0 {
-                    (u - u0[im]) / dx
-                } else {
-                    (u0[ip] - u) / dx
-                };
-                let visc = nu * (u0[ip] - 2.0 * u + u0[im]) / (dx * dx);
-                self.burgers[i] = u + dtb * (-u * dudx + visc);
-            }
-        }
+        self.step_burgers();
     }
 
     fn render(&mut self, gpu: &GpuContext, mode: usize, t: f64, _cam: &Camera, scene: &mut Scene) {
@@ -537,6 +556,7 @@ impl ConceptModule for PdeHall {
             formula("Laplace: \u{2207}\u{00B2}u = 0        Burgers: u\u{209C} + u u\u{2093} = \u{03BD}u\u{2093}\u{2093}"),
             formula("Gray\u{2013}Scott: u\u{209C} = D\u{1D64}\u{2207}\u{00B2}u \u{2212} uv\u{00B2} + F(1\u{2212}u),   v\u{209C} = D\u{1D65}\u{2207}\u{00B2}v + uv\u{00B2} \u{2212} (F+k)v"),
             value(format!("sim t = {:.1}   Gray\u{2013}Scott regime: {}", self.sim_t, ["spots", "stripes", "waves"][self.params.c("gs")])),
+            value(format!("Burgers peak |u| = {:.2}, restarts from the sine at {BURGERS_RESTART_PEAK:.2}", peak_magnitude(&self.burgers))),
             note("Parabolic (heat) smooths and forgets; hyperbolic (wave) remembers; viscous Burgers is parabolic too, but at small \u{03BD} steepens toward the shock its hyperbolic limit forms; elliptic (Laplace) has no time at all \u{2014} only agreement. The three temperaments of physics."),
             note("Turing 1952: two diffusing chemicals suffice for pattern. The spots dividing on screen are the same mathematics as leopard coats and fingertip ridges."),
         ]
@@ -546,7 +566,7 @@ impl ConceptModule for PdeHall {
         match mode {
             0 => Some("Explicit FTCS, r \u{2264} 0.45; ghost curves are true earlier states."),
             1 => Some("In-place Gauss\u{2013}Seidel relaxation, 26 sweeps/frame \u{2014} you are watching the solver converge."),
-            2 => Some("Upwind + viscosity \u{03BD}; at small \u{03BD} the front is a few cells wide, thickened by the scheme's own numerical diffusion."),
+            2 => Some("Upwind + viscosity \u{03BD}; at small \u{03BD} the front is a few cells wide, thickened by the scheme's own numerical diffusion. The sine restarts when peak |u| decays to 0.2."),
             3 => Some("Exact eigenmode superposition of the plucked string \u{2014} no discretization at all."),
             4 => Some("Gray\u{2013}Scott, periodic 128\u{00B2}, 9 Euler steps/frame."),
             5 => Some("FitzHugh\u{2013}Nagumo, periodic 128\u{00B2}, 6 Euler steps/frame."),
@@ -580,6 +600,52 @@ mod tests {
     fn diffusivity_keeps_mattering_up_to_the_top_of_the_slider() {
         let (lo, hi) = (1.5 * HEAT_R_PER_ALPHA, 2.0 * HEAT_R_PER_ALPHA);
         assert!(lo < hi && hi <= 0.5, "stable and strictly increasing");
+    }
+
+    /// Run Burgers at 60 frames a second, checking the peak on every frame.
+    fn run_burgers(p: &mut PdeHall, seconds: usize) {
+        for _ in 0..seconds * 60 {
+            p.step_burgers();
+            let peak = peak_magnitude(&p.burgers);
+            assert!(peak >= BURGERS_RESTART_PEAK, "peak fell to {peak}");
+        }
+    }
+
+    fn steepest(u: &[f64]) -> f64 {
+        let dx = 1.0 / NX1 as f64;
+        u.windows(2).fold(0.0, |s, w| ((w[1] - w[0]) / dx).abs().max(s))
+    }
+
+    #[test]
+    fn burgers_is_still_worth_watching_after_a_long_run() {
+        let mut p = PdeHall::new();
+        p.reset();
+        let mut lowest = f64::MAX;
+        let mut restarts = 0;
+        let mut last = peak_magnitude(&p.burgers);
+        for _ in 0..60 * 60 * 5 {
+            p.step_burgers();
+            let peak = peak_magnitude(&p.burgers);
+            lowest = lowest.min(peak);
+            restarts += usize::from(peak > last);
+            last = peak;
+        }
+        assert!(lowest >= BURGERS_RESTART_PEAK, "peak fell to {lowest}");
+        assert!(restarts > 10, "restarted only {restarts} times in 5 minutes");
+    }
+
+    #[test]
+    fn the_guides_viscosity_steps_show_a_ramp_and_a_step_after_a_long_run() {
+        let mut p = PdeHall::new();
+        p.reset();
+        run_burgers(&mut p, 60);
+        p.params.set_f("nu", 0.02);
+        run_burgers(&mut p, 5);
+        let ramp = steepest(&p.burgers);
+        p.params.set_f("nu", 0.001);
+        run_burgers(&mut p, 5);
+        let step = steepest(&p.burgers);
+        assert!(step > 5.0 * ramp, "ramp {ramp}, step {step}");
     }
 
     #[test]
