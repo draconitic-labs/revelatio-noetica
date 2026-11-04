@@ -24,10 +24,10 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
     let tex_uv = (w + vec2<f32>(3.2, 3.2)) / 6.4;
     if (tex_uv.x < 0.0 || tex_uv.x > 1.0 || tex_uv.y < 0.0 || tex_uv.y > 1.0) {
-        return vec4<f32>(vec3<f32>(0.008), 1.0);
+        return vec4<f32>(vec3<f32>(0.0), 1.0);
     }
     let s = textureSample(t_field, s_field, vec2<f32>(tex_uv.x, 1.0 - tex_uv.y)).r;
-    var color = vec3<f32>(0.010, 0.011, 0.015);
+    var color = vec3<f32>(0.0);
     if (s > 0.7) {
         color = vec3<f32>(0.22, 0.85, 0.72);
     } else if (s > 0.15) {
@@ -42,7 +42,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
     let tex_uv = (w + vec2<f32>(3.2, 3.2)) / 6.4;
     if (tex_uv.x < 0.0 || tex_uv.x > 1.0 || tex_uv.y < 0.0 || tex_uv.y > 1.0) {
-        return vec4<f32>(vec3<f32>(0.008), 1.0);
+        return vec4<f32>(vec3<f32>(0.0), 1.0);
     }
     let s = textureSample(t_field, s_field, vec2<f32>(tex_uv.x, 1.0 - tex_uv.y)).r;
     var color: vec3<f32>;

@@ -213,7 +213,6 @@ impl ConceptModule for KnotReliquary {
 
     fn render(&mut self, gpu: &GpuContext, mode: usize, t: f64, _cam: &Camera, scene: &mut Scene) {
         let k = self.params.c("knot");
-        scene.clear = [0.008, 0.006, 0.012, 1.0];
         match mode {
             0 => {
                 let spin = if self.params.b("spin") {

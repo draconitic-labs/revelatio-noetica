@@ -112,7 +112,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 const PAPER_T: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
-    var color = vec3<f32>(0.010, 0.012, 0.015);
+    var color = vec3<f32>(0.0);
     color += vec3<f32>(0.10, 0.18, 0.24) * grid_glow(w, 0.7) * 0.12;
     return vec4<f32>(color * (1.0 - 0.28 * dot(ndc, ndc)), 1.0);
 }

@@ -19,7 +19,7 @@ const PALE: [f32; 4] = [0.90, 0.94, 1.0, 1.0];
 const PAPER: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
-    var color = vec3<f32>(0.009, 0.013, 0.012);
+    var color = vec3<f32>(0.0);
     color += vec3<f32>(0.10, 0.22, 0.18) * grid_glow(w, 0.7) * 0.12;
     return vec4<f32>(color * (1.0 - 0.28 * dot(ndc, ndc)), 1.0);
 }
@@ -205,7 +205,6 @@ impl ConceptModule for FormsOratory {
     fn render(&mut self, _gpu: &GpuContext, mode: usize, t: f64, _cam: &Camera, scene: &mut Scene) {
         match mode {
             0 => {
-                scene.clear = [0.007, 0.009, 0.009, 1.0];
                 if let Some(m) = &self.cap {
                     scene.mesh(m);
                 }

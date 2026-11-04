@@ -167,7 +167,6 @@ impl ConceptModule for SphericalChoir {
         _cam: &Camera,
         scene: &mut Scene,
     ) {
-        scene.clear = [0.006, 0.008, 0.011, 1.0];
         if let Some(m) = &self.sphere {
             scene.mesh(m);
         }

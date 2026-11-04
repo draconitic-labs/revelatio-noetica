@@ -84,7 +84,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let b = dot(ro, rd);
     let cc = dot(ro, ro) - r_max * r_max;
     let disc = b * b - cc;
-    var color = vec3<f32>(0.006, 0.006, 0.010);
+    var color = vec3<f32>(0.0);
     // Backdrop stars.
     let hs = hash21(floor(ndc * U.res.xy * 0.5));
     color += vec3<f32>(0.6, 0.7, 1.0) * step(0.9993, hs) * (hs - 0.999) * 250.0 * 0.25;
@@ -376,7 +376,6 @@ impl ConceptModule for HydrogenSanctum {
         scene: &mut Scene,
     ) {
         let (n, l, m) = self.nlm();
-        scene.clear = [0.005, 0.005, 0.009, 1.0];
         scene.p(0, n as f32);
         scene.p(1, l as f32);
         scene.p(2, (m + 4) as f32);

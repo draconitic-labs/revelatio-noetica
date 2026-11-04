@@ -18,7 +18,7 @@ const SPACELIKE: [f32; 4] = [0.40, 0.50, 0.95, 1.0];
 const PAPER: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
-    var color = vec3<f32>(0.010, 0.011, 0.016);
+    var color = vec3<f32>(0.0);
     color += vec3<f32>(0.20, 0.16, 0.08) * grid_glow(w, 0.7) * 0.10;
     // The light cone glow: |x| = |ct| diagonals.
     let d1 = abs(w.x - w.y);
@@ -32,7 +32,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 const PLAIN_PAPER: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
-    var color = vec3<f32>(0.010, 0.011, 0.016);
+    var color = vec3<f32>(0.0);
     color += vec3<f32>(0.20, 0.16, 0.08) * grid_glow(w, 0.7) * 0.10;
     return vec4<f32>(color * (1.0 - 0.28 * dot(ndc, ndc)), 1.0);
 }
@@ -47,7 +47,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let sin2 = clamp(w.y * w.y / r2, 0.0, 1.0);
     // |E| = q(1-b^2) / (r^2 (1 - b^2 sin^2 psi)^{3/2}), field from present position.
     let e_mag = (1.0 - beta * beta) / (r2 * pow(1.0 - beta * beta * sin2, 1.5));
-    var color = vec3<f32>(0.008, 0.009, 0.014);
+    var color = vec3<f32>(0.0);
     color += aurum(clamp(log(1.0 + e_mag * 0.8) * 0.26, 0.0, 1.0)) * 0.72;
     // B = beta x E out of/into the page: tint magenta/cyan by sign of B_z ~ beta * E_y-ish.
     let bz = beta * w.y / (r2 * pow(1.0 - beta * beta * sin2, 1.5));

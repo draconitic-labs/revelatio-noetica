@@ -19,7 +19,7 @@ const RED_E: [f32; 4] = [0.95, 0.40, 0.35, 1.0];
 const PAPER_O: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
-    var color = vec3<f32>(0.009, 0.013, 0.012);
+    var color = vec3<f32>(0.0);
     color += vec3<f32>(0.10, 0.24, 0.20) * grid_glow(w, 0.7) * 0.12;
     return vec4<f32>(color * (1.0 - 0.26 * dot(ndc, ndc)), 1.0);
 }

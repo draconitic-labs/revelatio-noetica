@@ -22,7 +22,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
     let k = U.p[0].x;
     let h = 0.5 * w.y * w.y - k * cos(w.x);
-    var color = vec3<f32>(0.010, 0.009, 0.012);
+    var color = vec3<f32>(0.0);
     // Level bands of the Hamiltonian.
     let band = fract(h * 0.55);
     let shade = 0.55 + 0.45 * smoothstep(0.0, 0.25, band) * (1.0 - smoothstep(0.75, 1.0, band));
@@ -382,7 +382,6 @@ impl ConceptModule for DynamicsHall {
                 }
             }
             2 => {
-                scene.clear = [0.007, 0.007, 0.010, 1.0];
                 if let Some(m) = &self.surface {
                     scene.mesh(m);
                 }

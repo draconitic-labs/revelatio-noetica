@@ -182,7 +182,6 @@ impl ConceptModule for ArithmeticRotunda {
     fn update(&mut self, _gpu: &GpuContext, _t: f64, _dt: f64) {}
 
     fn render(&mut self, _gpu: &GpuContext, mode: usize, t: f64, _cam: &Camera, scene: &mut Scene) {
-        scene.clear = [0.006, 0.008, 0.006, 1.0];
         match mode {
             0 => {
                 // Reveal outward with time.

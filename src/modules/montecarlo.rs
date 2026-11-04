@@ -257,7 +257,6 @@ impl ConceptModule for MonteCarloCasino {
         _cam: &Camera,
         scene: &mut Scene,
     ) {
-        scene.clear = [0.008, 0.009, 0.012, 1.0];
         match mode {
             0 => {
                 // Square + inscribed circle.

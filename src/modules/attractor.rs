@@ -299,7 +299,6 @@ impl ConceptModule for ChaosObservatory {
         _cam: &Camera,
         scene: &mut Scene,
     ) {
-        scene.clear = [0.005, 0.005, 0.008, 1.0];
         match mode {
             0 => {
                 for (i, &p) in self.swarm.iter().enumerate() {
@@ -317,7 +316,6 @@ impl ConceptModule for ChaosObservatory {
                 }
             }
             2 => {
-                scene.clear = [0.006, 0.006, 0.009, 1.0];
                 for p in &self.logistic {
                     scene.point(*p, 0.55, [0.95, 0.70, 0.30, 0.30], 0.0);
                 }
@@ -334,7 +332,6 @@ impl ConceptModule for ChaosObservatory {
                 }
             }
             3 => {
-                scene.clear = [0.005, 0.005, 0.008, 1.0];
                 let cols = [
                     [0.95f32, 0.72, 0.30, 1.0],
                     [0.40, 0.75, 0.95, 1.0],

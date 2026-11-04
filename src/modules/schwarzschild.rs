@@ -282,7 +282,6 @@ impl ConceptModule for SchwarzschildCourt {
         _cam: &Camera,
         scene: &mut Scene,
     ) {
-        scene.clear = [0.004, 0.004, 0.007, 1.0];
         let (r_now, phi_now) = (self.state[0], self.state[2]);
         let pos = Vec3::new(
             (r_now * phi_now.cos()) as f32,

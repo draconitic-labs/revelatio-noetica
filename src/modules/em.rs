@@ -28,7 +28,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
         let r = max(length(w - vec2<f32>(cx, cy)), 0.045);
         phi += q / r;
     }
-    var color = vec3<f32>(0.008, 0.010, 0.015);
+    var color = vec3<f32>(0.0);
     let m = clamp(abs(phi) / (2.5 + abs(phi)), 0.0, 1.0);
     if (phi > 0.0) {
         color = mix(color, vec3<f32>(0.85, 0.30, 0.45), m * 0.75);
@@ -54,7 +54,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let s2 = w.x * w.x / max(dot(w, w), 1e-6);
     let ph = kk * r - 2.2 * t;
     let psi = s2 * (cos(ph) + sin(ph) / (kk * r));
-    var color = vec3<f32>(0.007, 0.009, 0.013);
+    var color = vec3<f32>(0.0);
     // Field lines: glowing near integer levels of psi.
     let lv = psi * 3.0;
     let d = abs(fract(lv) - 0.5) * 2.0;
@@ -331,7 +331,6 @@ impl ConceptModule for FieldForge {
                 );
             }
             3 => {
-                scene.clear = [0.005, 0.006, 0.010, 1.0];
                 // Uniform-B backdrop: faint symbols of field-out-of-plane.
                 for gx in -4..=4 {
                     for gy in -3..=3 {
@@ -362,7 +361,6 @@ impl ConceptModule for FieldForge {
                 }
             }
             4 => {
-                scene.clear = [0.006, 0.006, 0.009, 1.0];
                 // The cup.
                 let rim: Vec<Vec3> = (0..=180)
                     .map(|i| {
@@ -405,7 +403,6 @@ impl ConceptModule for FieldForge {
                 }
             }
             _ => {
-                scene.clear = [0.006, 0.007, 0.011, 1.0];
                 // Propagation axis.
                 scene.line(
                     LineLayer::World,

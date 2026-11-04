@@ -143,7 +143,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
         it += 1.0;
         if (dot(z, z) > 64.0) { escaped = true; break; }
     }
-    var color = vec3<f32>(0.006, 0.006, 0.010);
+    var color = vec3<f32>(0.0);
     if (escaped) {
         let smooth_i = it - log2(max(log2(dot(z, z)) * 0.5, 1e-6));
         let tt = clamp(smooth_i / 90.0, 0.0, 1.0);
@@ -167,7 +167,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
         it += 1.0;
         if (dot(z, z) > 64.0) { escaped = true; break; }
     }
-    var color = vec3<f32>(0.004, 0.004, 0.008);
+    var color = vec3<f32>(0.0);
     if (escaped) {
         let smooth_i = it - log2(max(log2(dot(z, z)) * 0.5, 1e-6));
         let tt = clamp(smooth_i / 110.0, 0.0, 1.0);
@@ -461,7 +461,6 @@ impl ConceptModule for DomainColoring {
                 );
             }
             1 => {
-                scene.clear = [0.008, 0.009, 0.015, 1.0];
                 if let Some(m) = &self.landscape {
                     scene.mesh(m);
                 }
@@ -483,7 +482,6 @@ impl ConceptModule for DomainColoring {
                 );
             }
             2 => {
-                scene.clear = [0.008, 0.010, 0.017, 1.0];
                 let k = self.params.c("fn");
                 let _ = k;
                 for pts in &self.grid_cache {
@@ -519,7 +517,6 @@ impl ConceptModule for DomainColoring {
             _ => {
                 // Moebius ballet on the Steiner net: the invariant grid of a
                 // transformation with fixed points +-1, plus tracer dancers.
-                scene.clear = [0.008, 0.010, 0.017, 1.0];
                 // Net, family one: circles through BOTH fixed points.
                 for k_c in -5i32..=5 {
                     if k_c == 0 {

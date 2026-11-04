@@ -17,7 +17,7 @@ const GHOST: [f32; 4] = [0.55, 0.60, 0.70, 0.35];
 const PAPER: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
-    var color = vec3<f32>(0.010, 0.013, 0.015);
+    var color = vec3<f32>(0.0);
     color += vec3<f32>(0.10, 0.22, 0.22) * grid_glow(w, 0.7) * 0.14;
     let vig = 1.0 - 0.30 * dot(ndc, ndc);
     return vec4<f32>(color * vig, 1.0);

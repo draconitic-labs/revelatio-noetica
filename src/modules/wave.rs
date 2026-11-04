@@ -28,14 +28,14 @@ const CHLADNI_SHADE: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
     if (abs(w.x) > 3.2 || abs(w.y) > 3.2) {
-        return vec4<f32>(vec3<f32>(0.008), 1.0);
+        return vec4<f32>(vec3<f32>(0.0), 1.0);
     }
     let p = (w + vec2<f32>(3.2)) / 6.4 * PI;
     let n = U.p[0].x;
     let m = U.p[0].y;
     let amp = sin(n * p.x) * sin(m * p.y) + sin(m * p.x) * sin(n * p.y);
     let osc = cos(U.res.z * 2.4);
-    var color = vec3<f32>(0.014, 0.014, 0.018);
+    var color = vec3<f32>(0.0);
     // The plate shimmer, deep indigo.
     let sh = abs(amp * osc);
     color += vec3<f32>(0.05, 0.09, 0.20) * sh * 0.55;
@@ -57,12 +57,12 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
     let tex_uv = (w + vec2<f32>(4.0, 4.0)) / 8.0;
     if (tex_uv.x < 0.0 || tex_uv.x > 1.0 || tex_uv.y < 0.0 || tex_uv.y > 1.0) {
-        return vec4<f32>(vec3<f32>(0.008), 1.0);
+        return vec4<f32>(vec3<f32>(0.0), 1.0);
     }
     let s = textureSample(t_field, s_field, vec2<f32>(tex_uv.x, 1.0 - tex_uv.y));
     let u = s.r;
     let mode = i32(U.p[0].x + 0.5);
-    var color = vec3<f32>(0.010, 0.012, 0.016);
+    var color = vec3<f32>(0.0);
     if (mode == 0) {
         // Amplitude: gold above, deep-water blue below.
         let a = clamp(abs(u) * 1.8, 0.0, 1.0);
@@ -440,7 +440,6 @@ impl ConceptModule for WaveTable {
                 scene.p(1, self.params.i("chl_m") as f32);
             }
             5 => {
-                scene.clear = [0.008, 0.009, 0.013, 1.0];
                 let mach = self.params.f("mach");
                 let c_wave = 1.1;
                 let src = doppler_src(_t, mach);
@@ -493,7 +492,6 @@ impl ConceptModule for WaveTable {
                 );
             }
             1 => {
-                scene.clear = [0.006, 0.007, 0.011, 1.0];
                 if let Some(m) = &self.relief {
                     scene.mesh(m);
                 }

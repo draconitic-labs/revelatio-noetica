@@ -88,7 +88,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let curl = (fx1.y - fx0.y - (fy1.x - fy0.x)) / (2.0 * e);
     let q = select(div, curl, show_curl) * 0.55;
     let m = clamp(abs(q) / (1.0 + abs(q)), 0.0, 1.0);
-    var color = vec3<f32>(0.012, 0.014, 0.018);
+    var color = vec3<f32>(0.0);
     if (q > 0.0) {
         color = mix(color, vec3<f32>(0.42, 0.19, 0.04), m * 0.34);
     } else {
@@ -109,7 +109,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 const PAPER: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
-    var color = vec3<f32>(0.008, 0.012, 0.011);
+    var color = vec3<f32>(0.0);
     color += vec3<f32>(0.10, 0.22, 0.16) * grid_glow(w, 0.7) * 0.13;
     return vec4<f32>(color * (1.0 - 0.28 * dot(ndc, ndc)), 1.0);
 }

@@ -24,7 +24,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);
     let tex_uv = (w + vec2<f32>(3.2, 3.2)) / 6.4;
     if (tex_uv.x < 0.0 || tex_uv.x > 1.0 || tex_uv.y < 0.0 || tex_uv.y > 1.0) {
-        return vec4<f32>(vec3<f32>(0.008), 1.0);
+        return vec4<f32>(vec3<f32>(0.0), 1.0);
     }
     let s = textureSample(t_field, s_field, vec2<f32>(tex_uv.x, 1.0 - tex_uv.y)).r;
     var color: vec3<f32>;
@@ -402,7 +402,6 @@ impl ConceptModule for PdeHall {
     fn render(&mut self, gpu: &GpuContext, mode: usize, t: f64, _cam: &Camera, scene: &mut Scene) {
         match mode {
             0 => {
-                scene.clear = [0.008, 0.009, 0.012, 1.0];
                 scene.line(
                     LineLayer::World,
                     Vec3::ZERO,
@@ -435,7 +434,6 @@ impl ConceptModule for PdeHall {
                 scene.p(0, 2.0);
             }
             2 => {
-                scene.clear = [0.008, 0.009, 0.012, 1.0];
                 scene.line(
                     LineLayer::World,
                     Vec3::new(0.0, 0.0, 0.0),
@@ -458,7 +456,6 @@ impl ConceptModule for PdeHall {
                 }
             }
             3 => {
-                scene.clear = [0.008, 0.009, 0.012, 1.0];
                 let n_modes = self.params.i("modes") as usize;
                 let l = 4.0f64;
                 // Plucked-triangle coefficients: b_n = 8/(pi^2 n^2) sin(n pi / 2)-like.

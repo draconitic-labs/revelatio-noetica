@@ -234,7 +234,6 @@ impl ConceptModule for ManifoldAtlas {
     }
 
     fn render(&mut self, _gpu: &GpuContext, mode: usize, t: f64, _cam: &Camera, scene: &mut Scene) {
-        scene.clear = [0.007, 0.008, 0.012, 1.0];
         let k = self.params.c("surf");
         if mode <= 2 {
             if let Some(m) = &self.surface {
