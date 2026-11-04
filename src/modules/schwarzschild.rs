@@ -182,6 +182,50 @@ impl SchwarzschildCourt {
         let l = self.l_now();
         ((1.0 - 2.0 / r) * (1.0 + l * l / (r * r))).sqrt()
     }
+
+    /// E from the first integral of the current state, to compare with the E the
+    /// orbit started with.
+    fn energy_now(&self) -> f64 {
+        let (r, pr, l) = (self.state[0], self.state[1], self.l_now());
+        ((1.0 - 2.0 / r) * (1.0 + l * l / (r * r)) + pr * pr)
+            .max(0.0)
+            .sqrt()
+    }
+
+    /// One frame of the orbit, h in proper time. Capture stops the orbit where it
+    /// is, values untouched, so the energy check still reports the integrator's
+    /// real error and not an artefact of stopping.
+    fn advance(&mut self, h: f64) {
+        if self.captured {
+            return;
+        }
+        let l = self.l_now();
+        // Geodesic ODE in proper time: r'' from the effective potential.
+        let f = move |_tau: f64, y: &[f64; 4]| -> [f64; 4] {
+            let r = y[0].max(2.05);
+            [
+                y[1],
+                -1.0 / (r * r) + l * l / (r * r * r) - 3.0 * l * l / (r * r * r * r),
+                l / (r * r),
+                1.0,
+            ]
+        };
+        let steps = 6;
+        for _ in 0..steps {
+            self.state = rk4(&f, 0.0, &self.state, h / steps as f64);
+        }
+        // This coordinate stops meaning anything at the horizon, so the orbit stops
+        // here until it is restarted.
+        self.captured = self.state[0] <= CAPTURE_R;
+        let (r, phi) = (self.state[0], self.state[2]);
+        let p = Vec3::new((r * phi.cos()) as f32, (r * phi.sin()) as f32, 0.0);
+        if self.trail.last().is_none_or(|q| (*q - p).length() > 0.03) {
+            self.trail.push(p);
+            if self.trail.len() > 5000 {
+                self.trail.remove(0);
+            }
+        }
+    }
 }
 
 impl ConceptModule for SchwarzschildCourt {
@@ -253,40 +297,8 @@ impl ConceptModule for SchwarzschildCourt {
             self.last_key = key;
             self.reset_orbit();
         }
-        let l = self.l_now();
-        // Geodesic ODE in proper time: r'' from the effective potential.
-        let f = move |_tau: f64, y: &[f64; 4]| -> [f64; 4] {
-            let r = y[0].max(2.05);
-            [
-                y[1],
-                -1.0 / (r * r) + l * l / (r * r * r) - 3.0 * l * l / (r * r * r * r),
-                l / (r * r),
-                1.0,
-            ]
-        };
         let h = (dt * self.params.f("rate")).clamp(0.0, 1.0);
-        if self.captured {
-            return;
-        }
-        let steps = 6;
-        for _ in 0..steps {
-            self.state = rk4(&f, 0.0, &self.state, h / steps as f64);
-        }
-        if self.state[0] <= CAPTURE_R {
-            // Captured: this coordinate stops meaning anything at the horizon, so
-            // the orbit stops here until it is restarted.
-            self.captured = true;
-            self.state[0] = CAPTURE_R;
-            self.state[1] = 0.0;
-        }
-        let (r, phi) = (self.state[0], self.state[2]);
-        let p = Vec3::new((r * phi.cos()) as f32, (r * phi.sin()) as f32, 0.0);
-        if self.trail.last().is_none_or(|q| (*q - p).length() > 0.03) {
-            self.trail.push(p);
-            if self.trail.len() > 5000 {
-                self.trail.remove(0);
-            }
-        }
+        self.advance(h);
     }
 
     fn render(
@@ -471,10 +483,10 @@ impl ConceptModule for SchwarzschildCourt {
 
     fn inspector(&self, _t: f64) -> Vec<InsLine> {
         let l = self.l_now();
-        let (r, pr, phi, tau) = (self.state[0], self.state[1], self.state[2], self.state[3]);
+        let (r, phi, tau) = (self.state[0], self.state[2], self.state[3]);
         // Conserved-energy drift as an honesty check.
-        let e_now = ((1.0 - 2.0 / r) * (1.0 + l * l / (r * r)) + pr * pr).sqrt();
-        vec![
+        let e_now = self.energy_now();
+        let mut lines = vec![
             title("Schwarzschild, M = 1"),
             ftex("gr.metric", "ds\u{00B2} = \u{2212}(1\u{2212}2M/r)dt\u{00B2} + dr\u{00B2}/(1\u{2212}2M/r) + r\u{00B2}d\u{03A9}\u{00B2}"),
             ftex("gr.veff", "(dr/d\u{03C4})\u{00B2} = E\u{00B2} \u{2212} (1\u{2212}2M/r)(1+L\u{00B2}/r\u{00B2})"),
@@ -482,13 +494,17 @@ impl ConceptModule for SchwarzschildCourt {
             value(format!("L = {l:.2}   E = {:.5}   r = {r:.2}   \u{03C6} = {:.1}\u{00B0}", self.energy, phi.to_degrees() % 360.0)),
             value(format!("proper time \u{03C4} = {tau:.1}   energy drift |\u{0394}E|/E = {:.1e}", ((e_now - self.energy) / self.energy).abs())),
             note("Perihelion advance per orbit \u{2248} 6\u{03C0}M/(a(1\u{2212}e\u{00B2})) \u{2014} the rosette never closes."),
-        ]
+        ];
+        if self.captured {
+            lines.push(note("Captured: the orbit stopped on crossing r = 2.15, just outside the horizon, and restarts with a new orbit or a rewind."));
+        }
+        lines
     }
 
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
             0 => Some("Null geodesics: up to 320 first-order kick-drift steps per pixel, so the capture edge falls near b = 2.53, against the exact 2.598; disk emission stylized."),
-            1 | 3 => Some("Timelike geodesic by RK4 in proper time, stopped at r = 2.15 once captured; energy drift shown in the inspector."),
+            1 | 3 => Some("Timelike geodesic by RK4 in proper time, stopped on crossing r = 2.15; energy drift shown in the side panel."),
             _ => None,
         }
     }
@@ -497,6 +513,35 @@ impl ConceptModule for SchwarzschildCourt {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_plunge_stops_at_capture_without_faking_an_energy_error() {
+        use crate::engine::params::PValue;
+        let mut c = SchwarzschildCourt::new();
+        c.params.set("preset", PValue::C(2));
+        c.reset_orbit();
+        for _ in 0..200_000 {
+            c.advance(0.02);
+            if c.captured {
+                break;
+            }
+        }
+        assert!(
+            c.captured,
+            "the plunge never reached the horizon: r = {}",
+            c.state[0]
+        );
+        let drift = ((c.energy_now() - c.energy) / c.energy).abs();
+        assert!(drift < 1e-4, "energy drift {drift}");
+        let frozen = c.state;
+        c.advance(0.02);
+        assert_eq!(c.state, frozen, "a captured orbit stays where it stopped");
+        assert!(
+            c.state[0] > 2.0,
+            "stopped outside the horizon: r = {}",
+            c.state[0]
+        );
+    }
 
     #[test]
     fn the_funnel_rises_from_its_throat_at_the_horizon() {
