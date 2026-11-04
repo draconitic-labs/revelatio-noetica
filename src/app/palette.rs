@@ -273,17 +273,18 @@ impl AtlasApp {
             items.push(item);
         }
         for (i, b) in self.session.bookmarks.iter().enumerate() {
+            let chamber = self
+                .index
+                .get(b.chamber.as_str())
+                .map(|&m| &self.catalog[m]);
             let mut item = Item::new(
                 b.name.clone(),
-                b.chamber.clone(),
+                chamber.map_or_else(|| b.chamber.clone(), |c| c.info.name.to_string()),
                 "Saved",
                 String::new(),
                 Action::OpenBookmark(i),
             );
-            item.dot = self
-                .index
-                .get(b.chamber.as_str())
-                .map(|&m| self.catalog[m].accent);
+            item.dot = chamber.map(|c| c.accent);
             items.push(item);
         }
         for (i, t) in TRAILS.iter().enumerate() {
@@ -482,6 +483,7 @@ impl AtlasApp {
         let direct = self.direct_open();
         let count = self.palette.results.len() + usize::from(direct.is_some());
         let mut chosen: Option<Action> = None;
+        let mut enter = false;
 
         // Keys the text box must not see.
         ctx.input_mut(|i| {
@@ -493,23 +495,7 @@ impl AtlasApp {
                 self.palette.selected = (self.palette.selected + count - 1) % count;
                 self.palette.scroll_to_selected = true;
             }
-            if i.consume_key(Modifiers::NONE, Key::Enter) {
-                chosen = Some(Action::CloseLayer);
-                if let Some((_, a)) = &direct {
-                    if self.palette.selected == 0 {
-                        chosen = Some(a.clone());
-                    }
-                }
-                let offset = usize::from(direct.is_some());
-                if let Some(&r) = self
-                    .palette
-                    .selected
-                    .checked_sub(offset)
-                    .and_then(|s| self.palette.results.get(s))
-                {
-                    chosen = Some(self.chosen_action(r));
-                }
-            }
+            enter = i.consume_key(Modifiers::NONE, Key::Enter);
         });
 
         let screen = ctx.screen_rect();
@@ -617,6 +603,27 @@ impl AtlasApp {
                     });
             });
 
+        // Enter acts on what the box holds now. On a slow frame the last letters
+        // typed arrive with it, so results must catch up before choosing.
+        if enter {
+            self.refresh_results();
+            let direct = self.direct_open();
+            chosen = Some(Action::CloseLayer);
+            if let Some((_, a)) = &direct {
+                if self.palette.selected == 0 {
+                    chosen = Some(a.clone());
+                }
+            }
+            let offset = usize::from(direct.is_some());
+            if let Some(&r) = self
+                .palette
+                .selected
+                .checked_sub(offset)
+                .and_then(|s| self.palette.results.get(s))
+            {
+                chosen = Some(self.chosen_action(r));
+            }
+        }
         if let Some(action) = chosen {
             self.act(action);
         }

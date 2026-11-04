@@ -246,12 +246,11 @@ pub fn section_header(ui: &mut Ui, title: &str, open: bool) -> Response {
     let width = ui.available_width();
     let (rect, resp) = ui.allocate_exact_size(vec2(width, 30.0), Sense::click());
     let p = ui.painter();
-    let color = if resp.hovered() { LIGHT } else { theme::LIGHT };
-    let galley = p.layout_no_wrap(title.to_string(), theme::heading_font(21.0), color);
+    let galley = p.layout_no_wrap(title.to_string(), theme::heading_font(21.0), LIGHT);
     p.galley(
         pos2(rect.left(), rect.center().y - galley.size().y * 0.5),
         galley,
-        color,
+        LIGHT,
     );
     let mark = Rect::from_center_size(pos2(rect.right() - 7.0, rect.center().y), Vec2::splat(9.0));
     if open {

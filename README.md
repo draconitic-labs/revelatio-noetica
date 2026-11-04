@@ -2,117 +2,162 @@
 
 *A Living Atlas of Mathematics and Natural Philosophy*
 
-A GPU-first desktop engine for visualizing advanced mathematics and theoretical
-physics with technical honesty: a native Rust + wgpu renderer, a plugin
-architecture of concept modules, synchronized multi-pane representations, and
-exact mathematics wherever exact mathematics is possible.
+A GPU-first desktop atlas of advanced mathematics and theoretical physics, built
+with technical honesty: a native Rust + wgpu renderer, 23 chambers holding 114 live
+views, and exact mathematics wherever exact mathematics is possible.
 
-Not a graphing calculator. Not an animation toy. Every representation states
-what it computes and how it approximates.
+Not a graphing calculator. Not an animation toy. Every view says what it computes
+and how it approximates.
 
-![Fluxion Cathedral](exports/gallery/newton_fluxions_cathedral.png)
+![The Field Forge at 1920×1080](docs/screenshot.png)
 
-## Build & run
+## Build and run on Linux
 
-Requires Rust (`x86_64-pc-windows-gnullvm` toolchain on this machine, with
-llvm-mingw on PATH):
+You need [Rust](https://rustup.rs), a Vulkan driver, and the usual windowing headers.
 
-```powershell
-$env:RUSTFLAGS = "-C target-feature=+crt-static"
-cargo +stable-x86_64-pc-windows-gnullvm build --release
-.\target\release\revelatio.exe            # launch the atlas
+```sh
+# Fedora
+sudo dnf install gtk3-devel vulkan-loader-devel libxkbcommon-devel wayland-devel \
+    libX11-devel libXcursor-devel libXi-devel libXrandr-devel
+
+# Debian, Ubuntu
+sudo apt install libgtk-3-dev libvulkan-dev libxkbcommon-dev libwayland-dev \
+    libx11-dev libxcursor-dev libxi-dev libxrandr-dev
+
+cargo build --release
+./target/release/revelatio
 ```
 
-Headless CLI (no window; used for export and CI):
+To add it to your application menu, run `scripts/install-desktop.sh`. It builds in
+release mode and installs the binary, icon, and menu entry under `~/.local`, and
+registers `revelatio:` scene links. `scripts/install-desktop.sh --uninstall` removes
+exactly those files and leaves your session and exports alone.
+
+The project was first built on Windows and still should be, with
+`cargo build --release`, though Linux is what is tested now.
+
+## Finding your way around
+
+The window is one black field, with the visual as the largest thing in it.
+
+- **Above the visual**: the view's name, the chamber it belongs to, and one line on
+  what it shows, with search, the map, compare, save, and export to the right.
+- **Below the visual**: how to work it, the honest label of how it is computed, the
+  time line, and a filmstrip of every view in the chamber as small live renders.
+- **Right panel**: what you are seeing and how to read it, a suggestion to try, the
+  parameters that change this view, and where to go next. Formulas and live values
+  and the chamber's background follow. Drag its edge to resize it.
+- **Left**: the atlas, by shelf. Folded, it is a rail of one lit point per chamber:
+  filled once visited, ringed until then.
+
+![The map of the atlas](docs/map.png)
+
+## Ways to explore
+
+- **Search** (`Ctrl K`): every chamber, view, preset, guided path, saved view, and
+  action, matched on names, explanations, control labels, and choices. Accents are
+  optional: `schrodinger` and `rossler` both work.
+- **Map** (`M`): the chambers as a chart, foundations on the left. Solid lines are
+  prerequisites, dashed lines parallels, each with its reason in the side panel. The
+  points around a star are its views, lit as you see them.
+- **Guided paths**: six walks across chambers, each step saying why it follows the
+  last. Start one from the map, the panel, or search; `N` and `P` step through.
+- **Compare** (`C`): any view beside any other, across chambers, on a shared clock. A
+  second view splits the stage evenly; with three or four, one is the hero. The `+` on
+  a thumbnail, or `Ctrl`-click, adds a view directly.
+- **Presets**: named settings per chamber, real ones where they exist, such as Lorenz's
+  1963 parameters or the critical Ising temperature.
+- **Randomize** (`R`) and **Reset**: new values for this view's sliders and choices.
+- **Sweep**: the wave button beside a slider runs it back and forth across its range.
+- **Direct manipulation**: views you can touch show a hand, in the filmstrip and
+  under the canvas, with the gesture spelled out. Strike the membrane, drag charges and
+  spacetime events, sculpt a matrix by its basis vectors, paint Ising spins, thread
+  solutions through a slope field, fire measurement bursts. Search for `drag` to list them.
+- **Saved views** (`B`) and **back and forward** (`Alt+Left`, `Alt+Right`). Your place,
+  saved views, and which views you have seen persist between runs.
+- **Scene links**: Export, then Copy link. Paste it into any window with `Ctrl V`, or
+  pass it on the command line. A scene holds the open views, cameras, time, parameters,
+  and dragged charges and events. It does not hold running simulation state, so painted
+  spins, struck waves, and threaded curves are not carried.
+
+Press `?` in the app for every shortcut. `F` hides everything but the visual, and its
+honesty label.
+
+Sessions live in `$XDG_CONFIG_HOME/revelatio-noetica/session.json`, by default under
+`~/.config`. Window exports go to `~/Pictures/Revelatio Noetica`, or to
+`$REVELATIO_EXPORT_DIR` if set.
+
+## Command line
+
+No window is needed for any of these except the first two, which is how CI checks exports.
 
 ```
-revelatio --list                                        # modules & representations
+revelatio                                               # open the atlas
+revelatio <file.scene.json | revelatio:scene?...>       # open at a scene
+revelatio --list                                        # chambers and views
 revelatio --export <id|all> [--mode N] [--size WxH] [--t sec] [--out dir]
 revelatio --frames <id> [--mode N] [--n 150] [--fps 30] [--out dir]
 revelatio --scene <file.scene.json> [--size WxH] [--out png]
 ```
 
-## The interface
-
-- **Concept Browser** (left): the atlas, grouped by branch, each with its own
-  luminous identity.
-- **GPU Canvas** (center): 1–4 synchronized panes, one per active
-  representation. Drag = orbit/pan · wheel = zoom · shift/right-drag = pan ·
-  double-click = reset camera.
-- **Symbolic Inspector** (right): the objects themselves — definitions,
-  formulas in engraved notation, and live numeric values.
-- **Representation Deck + Timeline** (bottom): toggle representations;
-  play/pause/scrub the generating time `t`, set speed, span, loop mode.
-- **Export**: 1080p / 4K stills, 240-frame video sequences (with an ffmpeg
-  one-liner written alongside), and interactive `.scene.json` files that
-  round-trip module, parameters, time, and open views.
+On a machine without a GPU, Mesa's lavapipe works: set
+`VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json WGPU_BACKEND=vulkan`.
 
 ## Typeset mathematics
 
-Inspector formulas are genuine LaTeX: `assets/math/manifest.txt` holds the
-sources, `tools/render_math.ps1` renders them through MiKTeX (latex + dvipng)
-into transparent PNGs and regenerates `src/mathimg_gen.rs`, which bakes them
-into the binary. Run the script after editing the manifest. Live numeric values
-stay as text; the typeset formulas carry the theory.
+Formulas in the panel are genuine LaTeX. `assets/math/manifest.txt` holds the sources,
+and `tools/render_math.sh` renders them with `pdflatex` and `pdftocairo` into
+white-on-transparent PNGs and regenerates `src/mathimg_gen.rs`, which bakes them into
+the binary. Run it after editing the manifest; its header lists the packages it needs.
+`tools/render_math.ps1` is the Windows equivalent, through MiKTeX, and has not been run
+since the Linux script was added. The app uses only each image's alpha, tinted to the
+text colour. Live numeric values stay as text.
 
-## Interactivity
+## The 23 chambers and 114 views
 
-Views marked with a ✦ hint accept the pointer directly (camera moves via
-shift-drag / right-drag there): strike the wave membrane, drag the Green's
-probe, sculpt the matrix by its basis vectors, drag spacetime events past each
-other, paint Ising spins, drop phase-space trajectories, drag the four charges
-of the Field Forge, fire measurement bursts.
-
-## The twenty-three chambers (91 representations)
-
-The largest wing is **Differential Equations**: the Integrator's Workshop
-(slope fields, Euler vs RK4, Van der Pol, Lotka–Volterra, resonance) and the
-Field Equations Hall (heat, Laplace relaxation, Burgers shock, string
-eigenmodes, Gray–Scott reaction–diffusion). Statistical mechanics carries the
-Monte Carlo Casino (dartboard π, Buffon's needle, integration by rain).
-
-| Module | Branch | Representations |
+| Shelf | Chamber | Views |
 |---|---|---|
-| **The Fluxion Chamber** | Newtonian fluxions | Fluent Generation · Fluxion Vectors · Moment Pulse · Inverse Fluxion · Newton·Leibniz split · Principia Motion · Generation of Solids · **Fluxion Cathedral** |
-| Chromatic Plane | Complex analysis | Domain coloring · Analytic landscape · Conformal grid flow · Riemann sphere |
-| The Harmonic Loom | Fourier | Epicycle loom · Harmonic stack · Spectrum · Gibbs lens |
-| The Field Chamber | Vector calculus | Field & flow · div/curl heat · Flux & circulation probe (live Green's theorem) |
-| The Boundary Oratory | Differential forms | Surface & boundary (live Stokes) · Telescoping cells · 1-form level stack |
-| The Atlas Room | Differential geometry | Tangent space · Parallel transport (holonomy) · Gaussian curvature |
-| The Knot Reliquary | Topology | Iridescent tube gallery · Crossing diagram with honest over/under gaps |
-| The Shear Atelier | Linear algebra | Grid deformation (det) · Eigen-directions · Staged SVD |
-| The Singing Membrane | Waves | Live 200² FDTD: amplitude · relief · energy density · wavefronts · double slit |
-| The Amplitude Hall | Quantum | Phase-colored ψ · probability river · phase clocks · measurement rain |
-| The Hydrogen Sanctum | Quantum | Volumetric \|ψ\|² cloud · nodal chambers · radial P(r) · Born sampling |
-| The Simultaneity Theatre | Special relativity | Minkowski diagram (draggable events) · light clock & rod · boosted Coulomb field |
-| The Schwarzschild Court | General relativity | Per-pixel geodesic lensing · precessing orbit · effective potential · Flamm funnel |
-| The Phase Portrait Hall | Dynamics | Pendulum portrait (click to seed) · the swing · energy landscape · 150-fold double-pendulum fan |
-| The Strange Attractor Observatory | Dynamics | 26,000-particle Lorenz/Rössler swarm · twin-trajectory divergence |
-| The Field Forge | Electromagnetism | Draggable charges & field lines · exact Hertzian dipole radiation · E⊥B plane wave |
-| The Ensemble Gallery | Statistical mechanics | Live Ising at criticality (paintable) · 900-disc gas → Maxwell–Boltzmann · drunkard's cloud |
-| The Arithmetic Rotunda | Number theory | Ulam spiral (40k sieved) · modular string cardioids · ζ(½+it) walk |
-| The Approximation Atelier | Analysis | Taylor stage with convergence walls · Newton fractal · the microscope |
-| The Spherical Choir | Waves | Breathing Y_ℓm modes · nodal atlas |
-
-The Hydrogen Sanctum additionally carries the **trembling electron cloud**:
-24,000 Metropolis–Hastings walkers jittering in place, whose stationary
-density is exactly \|ψ\|² — the honest pointillist orbital.
+| Calculus and analysis | **The Fluxion Chamber** | Fluent Generation, Fluxion Vectors, Moment Pulse, Inverse Fluxion, Newton · Leibniz, Principia Motion, Generation of Solids, Fluxion Cathedral, Brachistochrone Race, Tautochrone Chorus |
+| Calculus and analysis | **The Approximation Atelier** | Taylor Stage, Newton Fractal, The Microscope, The Euler Spiral, The Chaos Game, The Hilbert Curve |
+| Calculus and analysis | **The Harmonic Loom** | Epicycle Loom, Harmonic Stack, Amplitude Spectrum, Gibbs Lens, Lissajous Chamber, The Drawing Machine |
+| Calculus and analysis | **Chromatic Plane** | Domain Coloring, Analytic Landscape, Conformal Grid Flow, Riemann Sphere, Julia Frontier, Mandelbrot Atlas, Möbius Ballet |
+| Fields and forms | **The Field Chamber** | Field & Flow, Divergence · Curl Heat, Flux & Circulation Probe, Streamline Weave |
+| Fields and forms | **The Boundary Oratory** | Surface & Boundary, Telescoping Cells, 1-Form as Level Stack |
+| Space and shape | **The Shear Atelier** | Grid Deformation, Eigen-directions, SVD Stage |
+| Space and shape | **The Atlas Room** | Tangent Space, Parallel Transport, Gaussian Curvature, The Poincaré Disk, Voronoi Bloom |
+| Space and shape | **The Knot Reliquary** | Tube Gallery, Crossing Diagram, The Winding Loom |
+| Equations of change | **The Integrator's Workshop** | Slope Field, Euler vs Runge–Kutta, Van der Pol Cycle, Predator & Prey, Resonance, The SIR Epidemic |
+| Equations of change | **The Field Equations Hall** | The Cooling Rod, Laplace Equilibrium, Burgers Shock, String Eigenmodes, Gray–Scott Garden, Spiral Hearts |
+| Equations of change | **The Phase Portrait Hall** | Phase Portrait, The Swing, Energy Landscape, Double-Pendulum Fan, The Infinite Pendulum Wave |
+| Equations of change | **The Strange Attractor Observatory** | Particle Swarm, Twin Trajectories, Logistic Bifurcation, The Figure-Eight Waltz |
+| Waves and light | **The Singing Membrane** | Amplitude Field, Standing Relief, Energy Density, Wavefronts, Chladni Figure, Doppler Wake |
+| Waves and light | **The Spherical Choir** | Breathing Mode, Nodal Atlas |
+| Waves and light | **The Field Forge** | Charges & Field Lines, Hertzian Dipole, The Plane Wave, Cyclotron Dance, The Teacup Caustic |
+| Quantum | **The Amplitude Hall** | Wavefunction, Probability River, Phase Clocks, Measurement Rain |
+| Quantum | **The Hydrogen Sanctum** | Amplitude Cloud, Electron Cloud (Trembling), Nodal Chambers, Radial Distribution, Born Accumulation |
+| Spacetime | **The Simultaneity Theatre** | Minkowski Diagram, Light Clock & Rod, Boosted Coulomb Field, The Twin Wager |
+| Spacetime | **The Schwarzschild Court** | Gravitational Lensing, Precessing Geodesic, Effective Potential, Flamm's Paraboloid |
+| Chance and number | **The Monte Carlo Casino** | Dartboard π, Buffon's Needle, Integration by Rain, The Galton Board |
+| Chance and number | **The Ensemble Gallery** | Ising Lattice, Gas in a Box, The Drunkard's Cloud, Percolation Threshold, Conway's Colony |
+| Chance and number | **The Arithmetic Rotunda** | Ulam Spiral, Modular Strings, Zeta Walk, The Prime Staircase, Phyllotaxis, Collatz Coral, The Prime Galaxy |
 
 ## Architecture
 
 ```
 src/
-  main.rs        CLI + GUI dispatch
-  app.rs         the shell: panels, canvas grid, timeline, exports
-  theme.rs       visual identity: branch palettes, black glass, typography
+  main.rs        CLI and GUI dispatch
+  app/           the shell: panes, navigator, side panel, dock, palette, map
+  atlas/         the atlas as data: shelves, links, guided paths, guides, presets, search
+  session.rs     what persists between runs, and scene links
+  theme.rs       true black, three text brightnesses, one light per branch
+  widgets.rs     quiet buttons, chips, sliders, vector icons
   engine/
-    gpu.rs       GpuContext + offscreen ViewTargets (MSAA 4x, readback)
-    draw.rs      shared luminous renderers: lines, points, meshes,
-                 fullscreen "field" shader registry (WGSL)
+    gpu.rs       GpuContext and offscreen ViewTargets (MSAA 4x, readback)
+    draw.rs      shared luminous renderers: lines, points, meshes, field shaders
     mesh.rs      parametric surfaces, parallel-transport tubes
-    camera.rs    plane + orbit observer frames
-    module.rs    the ConceptModule plugin trait + Engine host
-    params.rs    typed, serializable parameter sets (auto UI)
+    camera.rs    plane and orbit observer frames
+    module.rs    the ConceptModule plugin trait and the Engine host
+    params.rs    typed, serializable parameter sets
     timeline.rs  the generating time
     export.rs    PNG stills, frame sequences, scene files
   modules/       one file per concept family (the plugins)
@@ -120,26 +165,33 @@ shaders/         shared WGSL: complex arithmetic, OKLab phase wheel,
                  viridis/inferno/aurum, camera rays, grid engraving
 ```
 
-A concept module implements one trait: metadata, parameter schema, render
-modes (each with its own camera kind), GPU init (register field shaders,
-build meshes), per-frame `update` (solvers live here), per-view `render`
-(fills a scene of luminous primitives), a symbolic inspector, honest
-approximation labels, and optional engraved canvas overlays. The engine owns
-the shared pipelines; modules describe, the engine draws. Both the interactive
-canvas and every export render through the identical path.
+A chamber implements one trait: metadata, parameter schema, views (each with its own
+camera kind), GPU init, per-frame `update` where solvers live, per-view `render` that
+fills a scene of luminous primitives, a symbolic inspector, honest approximation
+labels, and optional canvas annotations. The engine owns the shared pipelines; modules
+describe, the engine draws. The canvas and every export render through the same path,
+so what you see is what you export.
+
+`cargo test` checks the atlas against the real modules: every view has a guide, every
+link and path names real views, prerequisites run left to right on the map, every
+preset is in range. With any Vulkan driver, lavapipe included, it also renders all
+114 views and fails if a view has no `#000000` pixel, apart from three whose data
+fills the canvas. Physics tests check results against known values, such as the exact
+mean radius of hydrogen states and field lines of the Hertzian dipole.
 
 ## Technical honesty
 
 - Exact where possible: closed-form eigenstates, Kepler solutions, hydrogen
-  wavefunctions, 2×2 SVD, Fourier coefficients, Lorentz geometry, field-line
-  angles of the boosted charge.
-- Numerical where necessary — and labeled: every representation carries its
-  approximation note (FDTD lattice and Courant number, RK4 with displayed
-  energy drift, quadrature step counts, raymarch step counts).
-- No planetary electrons. Quantum states are amplitudes: density, phase,
-  nodes, and measurement statistics.
+  wavefunctions, 2×2 SVD, Fourier coefficients, Lorentz geometry, field-line angles of
+  the boosted charge.
+- Numerical where necessary, and labeled: each view states its method under the canvas,
+  such as the FDTD lattice, RK4 with displayed energy drift, quadrature step counts, and
+  the known error of the lensing integrator.
+- No planetary electrons. Quantum states are amplitudes: density, phase, nodes, and
+  measurement statistics.
 
-## Fonts
+## Fonts and licence
 
-Cormorant Garamond, Inter, and Noto Sans Math (all OFL) are embedded from
-`assets/fonts/`.
+The code is under the MIT License; see `LICENSE`. Cormorant Garamond, Inter, and Noto
+Sans Math are embedded from `assets/fonts/` under the SIL Open Font License 1.1; see
+`NOTICE` and `assets/fonts/OFL.txt`.

@@ -434,13 +434,18 @@ impl AtlasApp {
     // ---------- keyboard ----------
 
     fn keyboard(&mut self, ctx: &egui::Context) {
-        let typing = ctx.wants_keyboard_input();
+        // An open palette owns the keyboard even before its box has focus, so the
+        // first letters typed cannot fire shortcuts.
+        let typing = ctx.wants_keyboard_input() || self.layer == Layer::Palette;
         let widget_focused = ctx.memory(|m| m.focused().is_some());
         let layer = self.layer;
         let mut out: Vec<Action> = Vec::new();
         ctx.input_mut(|i| {
             if i.consume_key(Modifiers::COMMAND, Key::K) {
                 out.push(Action::OpenPalette(PaletteMode::Search));
+                // On a slow frame, letters typed next arrive in this same batch.
+                // They are meant for the palette, so they must not fire shortcuts.
+                return;
             }
             if i.consume_key(Modifiers::COMMAND, Key::Plus)
                 || i.consume_key(Modifiers::COMMAND, Key::Equals)
