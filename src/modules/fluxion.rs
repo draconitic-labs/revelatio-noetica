@@ -158,6 +158,12 @@ const CURVE_EQNS: [&str; 5] = [
 
 const N_SAMPLES: usize = 320;
 
+/// Fraction of the curve generated at time `t`. It grows over 12 s and then
+/// holds at 1, so the end of the span shows the finished curve.
+fn generated_fraction(t: f64) -> f64 {
+    (t / 12.0).clamp(0.0, 1.0)
+}
+
 pub struct FluxionChamber {
     params: Params,
     area_mesh: Option<GpuMesh>,
@@ -365,7 +371,7 @@ impl ConceptModule for FluxionChamber {
 
     fn update(&mut self, gpu: &GpuContext, t: f64, _dt: f64) {
         self.t_now = t;
-        self.s = (t / 12.0).clamp(0.0, 1.0) % 1.0;
+        self.s = generated_fraction(t);
         let k = self.k();
         let s = self.s.max(1e-4);
 
@@ -1351,6 +1357,25 @@ impl ConceptModule for FluxionChamber {
                 }
             }
             _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_curve_is_finished_at_the_end_of_the_span_and_stays_finished() {
+        assert_eq!(generated_fraction(0.0), 0.0);
+        assert_eq!(generated_fraction(6.0), 0.5);
+        for t in [12.0, 13.0, 120.0] {
+            let end = fluent(1, generated_fraction(t));
+            assert!(
+                (end.x - 8.0).abs() < 1e-12,
+                "at t = {t} the point is at x = {}",
+                end.x
+            );
         }
     }
 }
