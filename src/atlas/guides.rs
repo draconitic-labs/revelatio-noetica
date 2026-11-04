@@ -417,8 +417,8 @@ ViewGuide {
 ViewGuide {
     module: "statmech.montecarlo",
     view: "pi",
-    read: "Darts land uniformly in the grey square [−1, 1]². Gold dots fall inside the gold unit circle and blue dots outside, so 4 × gold ÷ all estimates π. All darts clear when time wraps.",
-    try_this: "Raise \"Samples per second\" to 2000: about 24,000 darts fill the square before the 12 s loop clears them.",
+    read: "Darts land uniformly in the grey square [−1, 1]². Gold dots fall inside the gold unit circle and blue dots outside, so 4 × gold ÷ all estimates π. Rewinding time clears them.",
+    try_this: "Raise \"Samples per second\" to 2000: the square fills toward the 26,000 darts drawn, while the estimate in the side panel keeps sharpening.",
     params: &["rate"],
 },
 ViewGuide {
@@ -730,7 +730,7 @@ ViewGuide {
     module: "diffeq.odes",
     view: "vdp",
     read: "Horizontal is x and vertical is ẋ. Each coloured trail is one solution of the Van der Pol equation from a different start, with a dot at its current state. The trails converge on one closed curve, the limit cycle.",
-    try_this: "Set \"Van der Pol μ\" to 0.2: trails restart and wind onto a near-circle of radius 2. At 4 the cycle stretches past the frame.",
+    try_this: "Set \"Van der Pol μ\" to 0.2: the orbits relax onto a near-circle of radius 2. At 4 the cycle stretches past the frame.",
     params: &["mu"],
 },
 ViewGuide {

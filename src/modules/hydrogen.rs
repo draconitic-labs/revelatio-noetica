@@ -111,7 +111,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
             else { hue = vec3<f32>(0.30, 0.35, 0.95); }
         }
         let a = 1.0 - exp(-dens * ds);
-        acc += trans * a * hue * 1.6;
+        acc += trans * a * hue * 1.1;
         trans *= 1.0 - a;
         if (trans < 0.02) { break; }
     }
@@ -395,7 +395,7 @@ impl ConceptModule for HydrogenSanctum {
         scene.p(1, l as f32);
         scene.p(2, (m + 4) as f32);
         // Density autoscale ~ n^6 to keep clouds visible across n.
-        scene.p(3, self.params.f("dens") as f32 * (n as f32).powi(6) * 2.2);
+        scene.p(3, self.params.f("dens") as f32 * (n as f32).powi(6) * 0.9);
         scene.p(4, if mode == 2 { 1.0 } else { 0.0 });
         scene.p(
             5,

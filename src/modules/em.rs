@@ -31,9 +31,9 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     var color = vec3<f32>(0.0);
     let m = clamp(abs(phi) / (2.5 + abs(phi)), 0.0, 1.0);
     if (phi > 0.0) {
-        color = mix(color, vec3<f32>(0.85, 0.30, 0.45), m * 0.75);
+        color = vec3<f32>(0.85, 0.30, 0.45) * m * m * 0.62;
     } else {
-        color = mix(color, vec3<f32>(0.15, 0.45, 0.90), m * 0.75);
+        color = vec3<f32>(0.15, 0.45, 0.90) * m * m * 0.62;
     }
     // Equipotential bands.
     let band = abs(fract(phi * 1.4) - 0.5) * 2.0;
