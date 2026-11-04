@@ -1,0 +1,34 @@
+[package]
+name = "revelatio-noetica"
+version = "0.1.0"
+edition = "2021"
+description = "Revelatio Noetica — A Living Atlas of Mathematics and Natural Philosophy"
+license = "MIT"
+
+[[bin]]
+name = "revelatio"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.32", default-features = false, features = ["wgpu", "default_fonts", "wayland", "x11"] }
+egui = "0.32"
+wgpu = "25"
+glam = { version = "0.30", features = ["bytemuck"] }
+bytemuck = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+image = { version = "0.25", default-features = false, features = ["png"] }
+anyhow = "1"
+pollster = "0.4"
+log = "0.4"
+env_logger = "0.11"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2

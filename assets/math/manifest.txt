@@ -1,0 +1,39 @@
+fluxion.def = \dot{x} = \frac{dx}{dt},\qquad \dot{y} = \frac{dy}{dt}
+fluxion.slope = \mathrm{slope} = \frac{\dot{y}}{\dot{x}},\qquad \dot{A} = y\,\dot{x}
+fluxion.cycloid = x = a(\tau - \sin\tau),\qquad y = a(1-\cos\tau)
+complex.cr = \frac{\partial u}{\partial x} = \frac{\partial v}{\partial y},\qquad \frac{\partial u}{\partial y} = -\frac{\partial v}{\partial x}
+complex.holo = f(z) = u(x,y) + i\,v(x,y),\qquad z = x + iy
+fourier.series = f(x) = \sum_{n=1}^{\infty} b_n \sin nx,\qquad b_n = \frac{1}{\pi}\!\int_{-\pi}^{\pi}\! f\,\sin nx\,dx
+vector.divcurl = \nabla\!\cdot\!\mathbf{F} = \partial_x F_x + \partial_y F_y,\qquad \nabla\!\times\!\mathbf{F} = \partial_x F_y - \partial_y F_x
+vector.green = \oint_{\partial D} \mathbf{F}\cdot\mathbf{n}\,ds = \iint_D \nabla\!\cdot\!\mathbf{F}\,dA
+forms.stokes = \int_M d\omega \;=\; \int_{\partial M} \omega
+forms.oneform = \int_\gamma dH = H(\gamma_1) - H(\gamma_0)
+geometry.metric = g_{ij} = \partial_i\mathbf{x}\cdot\partial_j\mathbf{x},\qquad T_p M = \mathrm{span}(\partial_u,\partial_v)
+geometry.holonomy = \alpha = \iint_S K\,dA = 2\pi(1-\cos\theta_0)
+linalg.svd = A = U\,\Sigma\,V^{\mathsf{T}},\qquad A\mathbf{v} = \lambda\mathbf{v}
+linalg.det = \det A = \lambda_1\lambda_2 = \pm\,\mathrm{area}
+waves.eq = \frac{\partial^2 u}{\partial t^2} = c^2\left(\frac{\partial^2 u}{\partial x^2} + \frac{\partial^2 u}{\partial y^2}\right)
+quantum.tdse = i\hbar\,\frac{\partial\psi}{\partial t} = \left(-\frac{\hbar^2}{2m}\frac{\partial^2}{\partial x^2} + \tfrac{1}{2}m\omega^2 x^2\right)\psi
+quantum.super = \psi(x,t) = \sum_n c_n\,\varphi_n(x)\,e^{-iE_n t/\hbar},\qquad E_n = \hbar\omega\left(n+\tfrac{1}{2}\right)
+quantum.born = P(x)\,dx = |\psi(x,t)|^2\,dx
+hydrogen.psi = \psi_{n\ell m} = R_{n\ell}(r)\,Y_{\ell}^{m}(\theta,\varphi),\qquad E_n = -\frac{1}{2n^2}
+hydrogen.radial = R_{n\ell}(r) \propto e^{-r/n}\left(\frac{2r}{n}\right)^{\!\ell} L_{n-\ell-1}^{2\ell+1}\!\left(\frac{2r}{n}\right)
+sr.lorentz = ct' = \gamma\,(ct - \beta x),\qquad x' = \gamma\,(x - \beta\,ct)
+sr.interval = s^2 = c^2t^2 - x^2 \quad\text{(invariant)}
+sr.fields = E_{\parallel}' = E_{\parallel},\qquad E_{\perp}' = \gamma E_{\perp},\qquad \mathbf{B}' = -\gamma\,\boldsymbol{\beta}\times\mathbf{E}
+gr.metric = ds^2 = -\!\left(1-\frac{2M}{r}\right)\!dt^2 + \frac{dr^2}{1-2M/r} + r^2\,d\Omega^2
+gr.veff = \left(\frac{dr}{d\tau}\right)^{\!2} = E^2 - \left(1-\frac{2M}{r}\right)\!\left(1+\frac{L^2}{r^2}\right)
+dynamics.hamilton = \dot{q} = \frac{\partial H}{\partial p},\qquad \dot{p} = -\frac{\partial H}{\partial q}
+dynamics.pendulum = H(\theta,\omega) = \tfrac{1}{2}\omega^2 - \frac{g}{\ell}\cos\theta
+dynamics.double = \text{two rods: } \delta(0) = 10^{-4} \;\Rightarrow\; \delta(t) \sim \delta(0)\,e^{\lambda t}
+chaos.lorenz = \dot{x} = \sigma(y{-}x),\quad \dot{y} = x(\rho{-}z)-y,\quad \dot{z} = xy - \beta z
+em.field = \mathbf{E}(\mathbf{r}) = \sum_i \frac{q_i\,\hat{\mathbf{r}}_i}{r_i^{\,2}},\qquad \nabla\times\mathbf{E} = 0
+em.dipole = \psi(r,\theta,t) = \sin^2\!\theta\left[\cos(kr-\omega t) + \frac{\sin(kr-\omega t)}{kr}\right]
+statmech.ising = E = -J\!\!\sum_{\langle i,j\rangle}\!\! s_i s_j,\qquad P(s) \propto e^{-E(s)/k_B T}
+statmech.maxwell = f(v) \propto v\,e^{-m v^2 / 2 k_B T}
+statmech.diffusion = \frac{\partial \rho}{\partial t} = D\,\nabla^2 \rho,\qquad \sigma(t) = \sqrt{2Dt}
+number.zeta = \zeta(s) = \sum_{n=1}^{\infty} \frac{1}{n^{s}},\qquad s = \tfrac{1}{2} + it
+number.cardioid = n \;\mapsto\; k\,n \bmod N
+taylor.series = f(x) \approx \sum_{k=0}^{N} \frac{f^{(k)}(a)}{k!}\,(x-a)^k
+taylor.newton = z_{n+1} = z_n - \frac{f(z_n)}{f'(z_n)}
+harmonics.ylm = \nabla^2_{S^2}\, Y_\ell^m = -\ell(\ell+1)\, Y_\ell^m
