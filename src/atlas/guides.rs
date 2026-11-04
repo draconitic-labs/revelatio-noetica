@@ -72,7 +72,7 @@ ViewGuide {
     module: "newton.fluxions",
     view: "brach",
     read: "Three tracks run from A to B, the white points: blue straight chute, burnt-orange chord with a sine-shaped sag, pale gold cycloid. Each bead's speed is √(2g × drop) with g = 1.4, and the race restarts every 6 s.",
-    try_this: "Drag the time scrubber to 2.4 s: the cycloid bead has reached B, while the blue bead on the shortest path has not.",
+    try_this: "Drag the time scrubber to 2.34 s: only the cycloid bead has reached B; the sagging track takes 2.38 s, the straight chute 2.73 s.",
     params: &[],
 },
 ViewGuide {

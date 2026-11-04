@@ -240,6 +240,42 @@ impl FluxionChamber {
     }
 }
 
+/// Gravity in the brachistochrone race, in scene units.
+const RACE_G: f64 = 1.4;
+
+/// The race tracks from A(0, 0) to B(pi a, -2a): straight chute, the chord with
+/// a sine-shaped sag, and the cycloid.
+fn race_tracks(a: f64) -> [Vec<glam::Vec2>; 3] {
+    use std::f64::consts::PI;
+    let (bx, by) = (PI * a, -2.0 * a);
+    let track = |f: &dyn Fn(f64) -> (f64, f64)| -> Vec<glam::Vec2> {
+        (0..=160)
+            .map(|i| {
+                let (x, y) = f(i as f64 / 160.0);
+                glam::Vec2::new(x as f32, y as f32)
+            })
+            .collect()
+    };
+    [
+        track(&|u| (u * bx, u * by)),
+        track(&|u| (u * bx, u * by - (u * PI).sin() * 0.62)),
+        track(&|u| {
+            let th = u * PI;
+            (a * (th - th.sin()), -a * (1.0 - th.cos()))
+        }),
+    ]
+}
+
+/// Time for a bead released from rest at y = 0 to run one straight segment.
+/// Acceleration is constant along it, so 2 ds / (v0 + v1) is exact. Taking the
+/// speed at one end instead is badly wrong near the start, where it changes
+/// fastest, and it let the sagging track beat the cycloid.
+fn segment_time(p0: glam::Vec2, p1: glam::Vec2) -> f64 {
+    let speed = |y: f32| (2.0 * RACE_G * f64::from(-y).max(0.0)).sqrt();
+    let ds = f64::from((p1 - p0).length());
+    2.0 * ds / (speed(p0.y) + speed(p1.y)).max(1e-9)
+}
+
 fn curve_points(k: usize, s0: f64, s1: f64, n: usize, lift: f32) -> Vec<Vec3> {
     (0..=n)
         .map(|i| {
@@ -282,7 +318,7 @@ impl ConceptModule for FluxionChamber {
                 .look_at(4.0, 0.6, 0.0),
             RenderMode::orbit("cathedral", "Fluxion Cathedral", "Presentation: the cycloid choir under god-rays", 14.0, 0.18, 1.35)
                 .look_at(4.0, 1.5, 0.0),
-            RenderMode::plane("brach", "Brachistochrone Race", "Straight, circular, cycloid: the Bernoulli challenge, run live", 1.7)
+            RenderMode::plane("brach", "Brachistochrone Race", "Straight chute, sagging curve, cycloid: the Bernoulli challenge, run live", 1.7)
                 .look_at(1.5, -0.9, 0.0),
             RenderMode::plane("tauto", "Tautochrone Chorus", "Released from any height on a cycloid, all beads arrive together", 1.6)
                 .look_at(0.0, 0.9, 0.0),
@@ -919,33 +955,7 @@ impl ConceptModule for FluxionChamber {
                 let a = 0.75f64;
                 let bx = std::f64::consts::PI * a;
                 let by = -2.0 * a;
-                let tracks: Vec<Vec<glam::Vec2>> = vec![
-                    // Straight chute.
-                    (0..=160)
-                        .map(|i| {
-                            let u = i as f64 / 160.0;
-                            glam::Vec2::new((u * bx) as f32, (u * by) as f32)
-                        })
-                        .collect(),
-                    // Circular arc sagging beneath the chord.
-                    (0..=160)
-                        .map(|i| {
-                            let u = i as f64 / 160.0;
-                            let sag = (u * std::f64::consts::PI).sin() * 0.62;
-                            glam::Vec2::new((u * bx) as f32, (u * by - sag) as f32)
-                        })
-                        .collect(),
-                    // The cycloid.
-                    (0..=160)
-                        .map(|i| {
-                            let th = i as f64 / 160.0 * std::f64::consts::PI;
-                            glam::Vec2::new(
-                                (a * (th - th.sin())) as f32,
-                                (-a * (1.0 - th.cos())) as f32,
-                            )
-                        })
-                        .collect(),
-                ];
+                let tracks = race_tracks(a);
                 let cols = [
                     with_alpha(LEIBNIZ_BLUE, 0.85),
                     with_alpha(EMBER, 0.9),
@@ -956,14 +966,11 @@ impl ConceptModule for FluxionChamber {
                 for (ti, track) in tracks.iter().enumerate() {
                     let pts: Vec<Vec3> = track.iter().map(|p| Vec3::new(p.x, p.y, 0.0)).collect();
                     scene.polyline(LineLayer::World, &pts, 1.8, cols[ti]);
-                    // Bead: advance arclength by v = sqrt(2 g drop), g = 1.4.
+                    // Bead: the last vertex it has reached by the race clock.
                     let mut s_pos = 0usize;
                     let mut clock = 0.0f64;
                     for i in 1..track.len() {
-                        let drop = (-track[i].y.min(track[i - 1].y)) as f64;
-                        let v = (2.0 * 1.4 * drop.max(1e-4)).sqrt();
-                        let ds = (track[i] - track[i - 1]).length() as f64;
-                        clock += ds / v;
+                        clock += segment_time(track[i - 1], track[i]);
                         if clock > race_t {
                             break;
                         }
@@ -1205,6 +1212,7 @@ impl ConceptModule for FluxionChamber {
             5 => Some("Orbit from the exact Kepler solution (Newton iteration, 12 steps); force arrow \u{221D} 1/r\u{00B2}."),
             6 => Some("Surface swept on a 96\u{00D7}64 lattice; profile exact analytic."),
             7 => Some("Presentation mode: geometry exact, vertical scale \u{00D7}2.2, lighting artistic."),
+            8 => Some("Bead times exact for straight 160-segment tracks under constant g; beads step from vertex to vertex."),
             _ => None,
         }
     }
@@ -1386,6 +1394,33 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn race_time(track: &[glam::Vec2]) -> f64 {
+        track.windows(2).map(|w| segment_time(w[0], w[1])).sum()
+    }
+
+    #[test]
+    fn the_cycloid_wins_the_race_at_its_exact_time() {
+        let a = 0.75;
+        let [chute, sag, cycloid] = race_tracks(a);
+        let (t_chute, t_sag, t_cycloid) =
+            (race_time(&chute), race_time(&sag), race_time(&cycloid));
+        let exact_cycloid = std::f64::consts::PI * (a / RACE_G).sqrt();
+        assert!(
+            (t_cycloid - exact_cycloid).abs() < 1e-3,
+            "cycloid took {t_cycloid}, exactly {exact_cycloid}"
+        );
+        let length = a * (std::f64::consts::PI.powi(2) + 4.0).sqrt();
+        let exact_chute = length / (RACE_G * a).sqrt();
+        assert!(
+            (t_chute - exact_chute).abs() < 1e-3,
+            "chute took {t_chute}, exactly {exact_chute}"
+        );
+        assert!(
+            t_cycloid < t_sag && t_sag < t_chute,
+            "order: cycloid {t_cycloid}, sag {t_sag}, chute {t_chute}"
+        );
     }
 
     #[test]
