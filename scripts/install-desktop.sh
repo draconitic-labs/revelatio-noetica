@@ -7,7 +7,8 @@
 #   scripts/install-desktop.sh --uninstall  remove what the install recorded
 #
 # Uninstall removes a file only if it still matches what was installed, so a
-# different ~/.local/bin/revelatio is safe. Your session file
+# different ~/.local/bin/revelatio is safe. A shared cache the install created is
+# rebuilt, and removed only if it no longer lists anything else. Your session file
 # (~/.config/revelatio-noetica) and exported images are yours and are left alone.
 set -euo pipefail
 
@@ -58,6 +59,18 @@ check_replaceable() {
     exit 1
 }
 
+# Whether a shared cache still has entries for anything but this app.
+cache_lists_others() {
+    if [[ "$1" == "$mime_cache" ]]; then
+        # Its lines read type=first.desktop;second.desktop;
+        awk -F= -v self="$app_id.desktop;" \
+            'NF > 1 && $2 != self { found = 1 } END { exit !found }' "$1"
+    else
+        # The icon cache is binary, so ask the folder it indexes.
+        [[ -n "$(find "$icons_dir" -type f ! -name "$(basename -- "$1")" -print -quit)" ]]
+    fi
+}
+
 # Create a folder, recording every level that did not exist.
 make_dir() {
     local dir="$1" missing=()
@@ -94,12 +107,16 @@ uninstall() {
         esac
     done <"$manifest"
 
-    # Rebuild shared caches so they no longer list this app, then drop the ones
-    # that did not exist before the install.
+    # Rebuild shared caches so they no longer list this app. Those that did not
+    # exist before the install go too, unless other apps have since come to use them.
     refresh_caches
     local item
     for item in ${caches[@]+"${caches[@]}"}; do
-        if [[ -e "$item" ]]; then
+        if [[ ! -e "$item" ]]; then
+            continue
+        elif cache_lists_others "$item"; then
+            echo "left in place, it lists other apps: $item"
+        else
             rm -- "$item"
             echo "removed $item"
         fi
@@ -116,7 +133,7 @@ uninstall() {
 }
 
 install_app() {
-    local force="$1" repo
+    local force="$1" repo built
     repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
     command -v cargo >/dev/null || {
         echo "install-desktop: cargo not found; install Rust from https://rustup.rs" >&2
@@ -129,7 +146,15 @@ install_app() {
     fi
 
     echo "building release binary (this takes a few minutes the first time)"
-    cargo build --release --manifest-path "$repo/Cargo.toml"
+    # Ask Cargo where the binary went: CARGO_TARGET_DIR and build settings can move it,
+    # and whatever sits in the repo's own target/ may be stale.
+    built="$(cargo build --release --manifest-path "$repo/Cargo.toml" \
+        --message-format=json-render-diagnostics |
+        sed -n 's/.*"executable":"\([^"]*\/revelatio\)".*/\1/p' | tail -n 1)"
+    if [[ ! -x "$built" ]]; then
+        echo "install-desktop: cargo did not report a revelatio binary" >&2
+        exit 1
+    fi
 
     new_manifest="$(mktemp)"
     # Keep what the first install recorded as created by it; a reinstall must not
@@ -149,7 +174,7 @@ install_app() {
         fi
     done
 
-    install -m 0755 "$repo/target/release/revelatio" "$bin_path"
+    install -m 0755 "$built" "$bin_path"
     install -m 0644 "$repo/assets/icon-256.png" "$icon_png"
     install -m 0644 "$repo/assets/icon.svg" "$icon_svg"
 
@@ -190,7 +215,7 @@ case "${1:-}" in
     "") install_app no ;;
     --force) install_app yes ;;
     --uninstall | -u) uninstall ;;
-    --help | -h) sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' ;;
+    --help | -h) awk 'NR > 1 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}" ;;
     *)
         echo "install-desktop: unknown option '$1' (use --uninstall, --force, or --help)" >&2
         exit 2

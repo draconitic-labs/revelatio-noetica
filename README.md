@@ -32,8 +32,9 @@ To add it to your application menu, run `scripts/install-desktop.sh`. It builds 
 release mode and installs the binary, icon, and menu entry under `~/.local`, and
 registers `revelatio:` scene links. It will not overwrite an existing
 `~/.local/bin/revelatio` it did not install. `scripts/install-desktop.sh --uninstall`
-removes only what the install recorded, and only if unchanged, and leaves your session
-and exports alone.
+removes only what the install recorded, and only if unchanged. It rebuilds the shared
+desktop caches and keeps any that still list other apps, and it leaves your session and
+exports alone.
 
 The project was first built on Windows and still should be, with
 `cargo build --release`, though Linux is what is tested now.
