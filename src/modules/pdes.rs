@@ -590,7 +590,10 @@ mod tests {
             p.params.set("gs", PValue::C(regime));
             p.step_gray_scott(400);
             let seeded = p.gs_v.iter().cloned().fold(0.0f32, f32::max);
-            assert!(seeded > 0.1, "regime {regime}: seeds died, max v = {seeded}");
+            assert!(
+                seeded > 0.1,
+                "regime {regime}: seeds died, max v = {seeded}"
+            );
 
             let mut state = 0x9E37u64;
             for i in 0..NG * NG {
@@ -647,7 +650,8 @@ mod tests {
 
     fn steepest(u: &[f64]) -> f64 {
         let dx = 1.0 / NX1 as f64;
-        u.windows(2).fold(0.0, |s, w| ((w[1] - w[0]) / dx).abs().max(s))
+        u.windows(2)
+            .fold(0.0, |s, w| ((w[1] - w[0]) / dx).abs().max(s))
     }
 
     #[test]
@@ -665,7 +669,10 @@ mod tests {
             last = peak;
         }
         assert!(lowest >= BURGERS_RESTART_PEAK, "peak fell to {lowest}");
-        assert!(restarts > 10, "restarted only {restarts} times in 5 minutes");
+        assert!(
+            restarts > 10,
+            "restarted only {restarts} times in 5 minutes"
+        );
     }
 
     #[test]
