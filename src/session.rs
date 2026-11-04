@@ -1,7 +1,8 @@
 //! What the atlas remembers between runs, and shareable scene links.
 //!
-//! Everything lives in one JSON file under the user's config directory. A bad
-//! or missing file means a fresh start, never a crash.
+//! Everything lives in one JSON file under the user's config directory, with a
+//! lock file beside it for windows saving at the same instant. A bad or missing
+//! file means a fresh start, never a crash.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};

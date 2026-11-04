@@ -771,7 +771,7 @@ ViewGuide {
 ViewGuide {
     module: "diffeq.pdes",
     view: "burgers",
-    read: "Horizontal is x on a periodic domain and vertical is u; the grey line is u = 0. Hue marks fixed position x, not a fluid parcel. Positive u moves right and negative u moves left, steepening the slope into a front at the centre. Viscosity then spends the wave, so when peak |u| has decayed to 0.2 the profile starts over from the sine.",
+    read: "Horizontal is x on a periodic domain and vertical is u; the grey line is u = 0. Hue marks fixed position x, not a fluid parcel. Positive u moves right and negative u moves left, steepening the slope into a front at the centre. When viscosity has worn peak |u| down to 0.2, the sine starts over.",
     try_this: "Set \"Burgers viscosity ν\" to 0.02, then 0.001: the central front changes from a soft ramp to a near-vertical step.",
     params: &["nu"],
 },
