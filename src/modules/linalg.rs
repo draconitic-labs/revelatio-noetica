@@ -58,7 +58,8 @@ fn eigvec(m: Mat2, l: f32) -> Option<Vec2> {
     (v.length_squared() > 1e-9).then(|| v.normalize())
 }
 
-/// SVD of 2x2: returns (angle_u, s1, s2, angle_v) with A = R(u) S R(v)^T.
+/// SVD of 2x2: returns (phi, s1, s2, theta) with A = R(phi) diag(s1, s2) R(theta).
+/// Both factors are proper rotations, so s2 is negative exactly when det A < 0.
 fn svd2(m: Mat2) -> (f32, f32, f32, f32) {
     let a = m.col(0).x;
     let b = m.col(1).x;
@@ -79,8 +80,23 @@ fn svd2(m: Mat2) -> (f32, f32, f32, f32) {
     (phi, s1, s2, theta)
 }
 
+/// The SVD staged in three acts: the identity at (0, 0, 0), A at (1, 1, 1).
+fn svd_stage(a: Mat2, w1: f32, w2: f32, w3: f32) -> Mat2 {
+    let (phi, s1, s2, theta) = svd2(a);
+    Mat2::from_angle(phi * w3)
+        * Mat2::from_cols(
+            Vec2::new(1.0 + (s1 - 1.0) * w2, 0.0),
+            Vec2::new(0.0, 1.0 + (s2 - 1.0) * w2),
+        )
+        * Mat2::from_angle(theta * w1)
+}
+
 pub struct LinearAtelier {
     params: Params,
+    /// Time of the latest update, so a press can find the tips as drawn.
+    t_now: f64,
+    /// Which column of A the current drag holds.
+    grabbed: Option<usize>,
 }
 
 impl LinearAtelier {
@@ -92,7 +108,11 @@ impl LinearAtelier {
         p.slider("d", "d  (col 2, y)", "Symbolic", -2.5, 2.5, 0.9, "");
         p.toggle("animate", "Animate I \u{2192} A", "Observer", true);
         p.slider("blend", "Interpolation s", "Observer", 0.0, 1.0, 1.0, "");
-        Self { params: p }
+        Self {
+            params: p,
+            t_now: 0.0,
+            grabbed: None,
+        }
     }
 
     fn matrix(&self) -> Mat2 {
@@ -110,6 +130,16 @@ impl LinearAtelier {
             self.params.f("blend") as f32
         }
     }
+
+    /// (1 - s)I + sA, the matrix every grid and eigen frame draws.
+    fn shown(&self, t: f64) -> Mat2 {
+        let a = self.matrix();
+        let s = self.blend(t);
+        Mat2::from_cols(
+            Vec2::new(1.0 + (a.col(0).x - 1.0) * s, a.col(0).y * s),
+            Vec2::new(a.col(1).x * s, 1.0 + (a.col(1).y - 1.0) * s),
+        )
+    }
 }
 
 impl ConceptModule for LinearAtelier {
@@ -119,7 +149,7 @@ impl ConceptModule for LinearAtelier {
             name: "The Shear Atelier",
             tagline: "Matrices as motions of the plane",
             branch: Branch::LinearAlgebra,
-            description: "A matrix is not a grid of numbers but a motion: it carries every vector to a new one, linearly. The unit square becomes a parallelogram whose signed area is the determinant; special directions \u{2014} eigenvectors \u{2014} are merely stretched; and every matrix whatsoever factors as rotation \u{00B7} stretch \u{00B7} rotation.",
+            description: "A matrix is not a grid of numbers but a motion: it carries every vector to a new one, linearly. The unit square becomes a parallelogram whose signed area is the determinant; special directions \u{2014} eigenvectors \u{2014} are merely stretched; and every matrix whatsoever factors as rotation \u{00B7} stretch \u{00B7} rotation, the stretch flipping one axis when the determinant is negative.",
             epigraph: None,
         }
     }
@@ -158,16 +188,14 @@ impl ConceptModule for LinearAtelier {
         rend.register_field(gpu, "linalg.paper", PAPER, false);
     }
 
-    fn update(&mut self, _gpu: &GpuContext, _t: f64, _dt: f64) {}
+    fn update(&mut self, _gpu: &GpuContext, t: f64, _dt: f64) {
+        self.t_now = t;
+    }
 
     fn render(&mut self, _gpu: &GpuContext, mode: usize, t: f64, _cam: &Camera, scene: &mut Scene) {
         scene.field = Some("linalg.paper");
         let a = self.matrix();
-        let s = self.blend(t);
-        let m = Mat2::from_cols(
-            Vec2::new(1.0 + (a.col(0).x - 1.0) * s, a.col(0).y * s),
-            Vec2::new(a.col(1).x * s, 1.0 + (a.col(1).y - 1.0) * s),
-        );
+        let m = self.shown(t);
         let det = m.determinant();
 
         let map = |p: Vec2| -> Vec3 {
@@ -287,7 +315,7 @@ impl ConceptModule for LinearAtelier {
             }
             _ => {
                 // SVD in three acts, staged over the loop.
-                let (phi, s1, s2, theta) = svd2(a);
+                let (phi, s1, s2, _) = svd2(a);
                 let stage = (t / 12.0).clamp(0.0, 0.9999) * 3.0;
                 let (w1, w2, w3) = (
                     (stage).clamp(0.0, 1.0) as f32,
@@ -295,12 +323,7 @@ impl ConceptModule for LinearAtelier {
                     (stage - 2.0).clamp(0.0, 1.0) as f32,
                 );
                 let rot = |ang: f32| Mat2::from_angle(ang);
-                let cur = rot(phi * w3.max(0.0))
-                    * Mat2::from_cols(
-                        Vec2::new(1.0 + (s1 - 1.0) * w2, 0.0),
-                        Vec2::new(0.0, 1.0 + (s2 - 1.0) * w2),
-                    )
-                    * rot(-theta * w1);
+                let cur = svd_stage(a, w1, w2, w3);
                 let mapc = |p: Vec2| -> Vec3 {
                     let q = cur * p;
                     Vec3::new(q.x, q.y, 0.0)
@@ -372,13 +395,25 @@ impl ConceptModule for LinearAtelier {
 
     fn pointer(&mut self, _mode: usize, ev: crate::engine::module::PointerEvent) {
         use crate::engine::module::PointerEvent as PE;
-        if let PE::Down(w) | PE::Drag(w) = ev {
-            // Grab whichever transformed basis tip is nearer; freeze the morph.
+        let w = match ev {
+            PE::Down(w) => {
+                // Grab whichever tip is nearer as drawn, and hold it for the drag.
+                let m = self.shown(self.t_now);
+                let d1 = (w - m.col(0)).length_squared();
+                let d2 = (w - m.col(1)).length_squared();
+                self.grabbed = Some(if d1 <= d2 { 0 } else { 1 });
+                w
+            }
+            PE::Drag(w) => w,
+            PE::Up => {
+                self.grabbed = None;
+                return;
+            }
+        };
+        if let Some(col) = self.grabbed {
+            // Freeze the morph: the frame now shows A itself.
             self.params.set_f("blend", 1.0);
-            let m = self.matrix();
-            let d1 = (Vec2::new(w.x, w.y) - m.col(0)).length_squared();
-            let d2 = (Vec2::new(w.x, w.y) - m.col(1)).length_squared();
-            let (ax, ay) = if d1 <= d2 { ("a", "c") } else { ("b", "d") };
+            let (ax, ay) = if col == 0 { ("a", "c") } else { ("b", "d") };
             self.params.set_f(ax, (w.x as f64).clamp(-2.5, 2.5));
             self.params.set_f(ay, (w.y as f64).clamp(-2.5, 2.5));
             if self.params.b("animate") {
@@ -394,6 +429,8 @@ impl ConceptModule for LinearAtelier {
         let det = a.determinant();
         let (r1, i1, r2, i2) = eigen2(a);
         let (_, s1, s2, _) = svd2(a);
+        // The rotations in svd2 leave a sign on s2; a singular value is its size.
+        let s2 = s2.abs();
         let eig_str = if i1.abs() < 1e-9 {
             format!("\u{03BB}\u{2081} = {r1:.3}    \u{03BB}\u{2082} = {r2:.3}")
         } else {
@@ -412,7 +449,7 @@ impl ConceptModule for LinearAtelier {
             ftex("linalg.svd", "Av = \u{03BB}v on eigen-directions;  A = U\u{03A3}V\u{1D40} always"),
             value(format!("det A = {det:.4}   tr A = {:.4}", a.col(0).x + a.col(1).y)),
             value(eig_str),
-            value(format!("\u{03C3}\u{2081} = {s1:.3}   \u{03C3}\u{2082} = {s2:.3}   \u{03BA} = {:.2}", (s1 / s2.max(1e-6)).abs())),
+            value(format!("\u{03C3}\u{2081} = {s1:.3}   \u{03C3}\u{2082} = {s2:.3}   \u{03BA} = {:.2}", s1 / s2.max(1e-6))),
             value(format!("s = {:.2}", self.blend(t))),
             note("Negative determinant flips orientation \u{2014} the parallelogram turns red. Complex eigenvalues mean no direction survives: everything rotates."),
         ]
@@ -421,8 +458,101 @@ impl ConceptModule for LinearAtelier {
     fn approx(&self, mode: usize) -> Option<&'static str> {
         match mode {
             0 => Some("Linear interpolation (1\u{2212}s)I + sA; not a rotation path \u{2014} intermediate frames may collapse."),
-            2 => Some("Exact closed-form 2\u{00D7}2 SVD; stages eased linearly in time."),
+            1 => Some("Eigenvalues in closed form. The spiral drawn for a complex pair iterates 0.999M, so a pure rotation visibly winds inward."),
+            2 => Some("Exact closed-form 2\u{00D7}2 SVD with U and V rotations, so \u{03A3} takes a negative entry when det A < 0; stages run linearly in time."),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::engine::module::PointerEvent as PE;
+
+    fn close(a: Mat2, b: Mat2) -> bool {
+        (a.col(0) - b.col(0)).length() < 1e-5 && (a.col(1) - b.col(1)).length() < 1e-5
+    }
+
+    fn cols(a: f32, c: f32, b: f32, d: f32) -> Mat2 {
+        Mat2::from_cols(Vec2::new(a, c), Vec2::new(b, d))
+    }
+
+    fn set_matrix(m: &mut LinearAtelier, a: Mat2) {
+        m.params.set_f("a", a.col(0).x as f64);
+        m.params.set_f("c", a.col(0).y as f64);
+        m.params.set_f("b", a.col(1).x as f64);
+        m.params.set_f("d", a.col(1).y as f64);
+    }
+
+    #[test]
+    fn svd_stage_runs_from_the_identity_to_a() {
+        for a in [
+            cols(1.2, 0.4, 0.6, 0.9),
+            cols(1.0, 0.0, 1.0, 1.0),
+            cols(1.0, 0.0, 0.0, -1.0),
+            cols(1.0, 0.5, 2.0, 1.0),
+            cols(0.866, 0.5, -0.5, 0.866),
+            cols(-1.3, 0.7, 2.1, 0.2),
+        ] {
+            assert!(close(svd_stage(a, 0.0, 0.0, 0.0), Mat2::IDENTITY));
+            assert!(close(svd_stage(a, 1.0, 1.0, 1.0), a), "{a:?}");
+        }
+    }
+
+    #[test]
+    fn svd_of_a_rank_one_matrix_has_a_zero_singular_value() {
+        let (_, s1, s2, _) = svd2(cols(1.0, 0.5, 2.0, 1.0));
+        assert!((s1 - 2.5).abs() < 1e-5);
+        assert!(s2.abs() < 1e-5);
+    }
+
+    #[test]
+    fn a_reflection_has_condition_number_one() {
+        let mut m = LinearAtelier::new();
+        set_matrix(&mut m, cols(1.0, 0.0, 0.0, -1.0));
+        let lines = m.inspector(0.0);
+        let line = lines.iter().find(|l| l.text.contains('\u{03BA}')).unwrap();
+        assert!(line.text.contains("\u{03BA} = 1.00"), "{}", line.text);
+        assert!(line.text.contains("\u{03C3}\u{2082} = 1.000"), "{}", line.text);
+    }
+
+    #[test]
+    fn eigenvalues_of_known_matrices() {
+        // A rotation by 30 degrees has the pair e^(+-i pi/6).
+        let (r1, i1, _, i2) = eigen2(cols(0.8660254, 0.5, -0.5, 0.8660254));
+        assert!((r1 - 0.8660254).abs() < 1e-6 && (i1 - 0.5).abs() < 1e-6 && i2 == -i1);
+        // A shear repeats the eigenvalue 1 and keeps only the x axis.
+        let shear = cols(1.0, 0.0, 1.0, 1.0);
+        let (r1, i1, r2, _) = eigen2(shear);
+        assert!(r1 == 1.0 && r2 == 1.0 && i1 == 0.0);
+        let v = eigvec(shear, 1.0).unwrap();
+        assert!(v.y.abs() < 1e-6 && v.x.abs() > 0.99);
+    }
+
+    #[test]
+    fn a_drag_keeps_the_vector_it_grabbed() {
+        let mut m = LinearAtelier::new();
+        m.params.load_json(&serde_json::json!({"animate": false}));
+        set_matrix(&mut m, cols(1.0, 0.0, 0.0, 1.0));
+        m.pointer(0, PE::Down(Vec2::new(1.0, 0.0)));
+        // Pass right over the other tip and beyond it.
+        m.pointer(0, PE::Drag(Vec2::new(0.1, 0.95)));
+        m.pointer(0, PE::Drag(Vec2::new(0.0, 1.0)));
+        m.pointer(0, PE::Drag(Vec2::new(-1.0, 2.0)));
+        m.pointer(0, PE::Up);
+        assert!(close(m.matrix(), cols(-1.0, 2.0, 0.0, 1.0)), "{:?}", m.matrix());
+    }
+
+    #[test]
+    fn a_press_picks_the_tip_as_drawn_during_the_morph() {
+        let mut m = LinearAtelier::new();
+        // A is a quarter turn; at t = 0 the morph still draws the identity.
+        set_matrix(&mut m, cols(0.0, 1.0, -1.0, 0.0));
+        m.pointer(0, PE::Down(Vec2::new(0.0, 1.0)));
+        m.pointer(0, PE::Up);
+        // The press landed on column 2 as drawn, so column 1 of A is untouched.
+        assert!(close(m.matrix(), cols(0.0, 1.0, 0.0, 1.0)), "{:?}", m.matrix());
+        assert!(!m.params.b("animate"));
     }
 }
