@@ -37,7 +37,7 @@ impl Default for Prefs {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Bookmark {
     pub name: String,
     pub chamber: String,
@@ -58,6 +58,13 @@ pub struct Session {
     /// The file on disk could not be backed up, so it must not be replaced.
     #[serde(skip)]
     pub hold_saves: bool,
+    /// The bookmarks on disk when this window last read or wrote them. Anything that
+    /// differs from this now was changed since, here or in another window.
+    #[serde(skip)]
+    synced: Vec<Bookmark>,
+    /// The damaged file found at load was already copied aside.
+    #[serde(skip)]
+    copied_at_load: bool,
 }
 
 const MAX_RECENT: usize = 12;
@@ -122,17 +129,21 @@ impl Session {
             }
         };
         let (mut session, dropped) = parse_tolerant(&bytes);
+        session.synced = session.bookmarks.clone();
         if dropped == 0 {
             return (session, None);
         }
         match keep_a_copy(path, &bytes) {
-            Ok(copy) => (
-                session,
-                Some(format!(
-                    "Part of your session could not be read. The original is saved at {}.",
-                    copy.display()
-                )),
-            ),
+            Ok(copy) => {
+                session.copied_at_load = true;
+                (
+                    session,
+                    Some(format!(
+                        "Part of your session could not be read. The original is saved at {}.",
+                        copy.display()
+                    )),
+                )
+            }
             Err(e) => {
                 session.hold_saves = true;
                 (
@@ -146,23 +157,65 @@ impl Session {
         }
     }
 
-    pub fn save(&self) -> Result<()> {
+    pub fn save(&mut self) -> Result<()> {
         let path = state_path().context("no config directory is known for this user")?;
         self.save_to(&path)
     }
 
-    /// Write atomically: a crash mid-save must not lose the old file.
-    fn save_to(&self, path: &Path) -> Result<()> {
+    /// Write atomically: a crash mid-save must not lose the old file. Another window
+    /// may have saved since this one last looked, so its changes are merged first,
+    /// with a lock so that two windows saving at once cannot miss each other.
+    fn save_to(&mut self, path: &Path) -> Result<()> {
         if self.hold_saves {
             return Ok(());
         }
         let dir = path.parent().context("state path has no parent")?;
         std::fs::create_dir_all(dir)
             .with_context(|| format!("creating folder {}", dir.display()))?;
-        let tmp = path.with_extension("json.tmp");
+        // Advisory, and released when this returns. A folder that cannot lock can still
+        // save; it only loses the protection against the same instant.
+        let lock = std::fs::File::create(path.with_extension("lock"));
+        if let Ok(lock) = &lock {
+            let _ = lock.lock();
+        }
+        self.merge_from(path)?;
+        let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
         std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)
             .with_context(|| format!("writing {}", tmp.display()))?;
         std::fs::rename(&tmp, path).with_context(|| format!("replacing {}", path.display()))?;
+        self.synced = self.bookmarks.clone();
+        Ok(())
+    }
+
+    /// Take in what another window saved since `synced`: bookmarks it added stay, and
+    /// bookmarks it removed go, while what this window removed stays removed.
+    fn merge_from(&mut self, path: &Path) -> Result<()> {
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(e).with_context(|| format!("reading {}", path.display())),
+        };
+        let (disk, dropped) = parse_tolerant(&bytes);
+        if dropped > 0 && !self.copied_at_load {
+            keep_a_copy(path, &bytes)
+                .with_context(|| format!("keeping a copy of damaged {}", path.display()))?;
+        }
+        self.copied_at_load = false;
+        // In a damaged file, a missing bookmark says nothing about anyone removing it.
+        if dropped == 0 {
+            self.bookmarks
+                .retain(|b| !self.synced.contains(b) || disk.bookmarks.contains(b));
+        }
+        for b in disk.bookmarks {
+            if !self.synced.contains(&b) && !self.bookmarks.contains(&b) {
+                self.bookmarks.push(b);
+            }
+        }
+        for key in disk.seen {
+            if !self.seen.contains(&key) {
+                self.seen.push(key);
+            }
+        }
         Ok(())
     }
 }
@@ -365,7 +418,7 @@ mod tests {
             let dir = TempDir::new(&format!("damaged-{}", original.len()));
             let path = dir.0.join("session.json");
             std::fs::write(&path, original).unwrap();
-            let (session, message) = Session::load_from(&path);
+            let (mut session, message) = Session::load_from(&path);
             assert!(message.is_some(), "the user must be told");
             assert!(!session.hold_saves);
             session.save_to(&path).unwrap();
@@ -390,12 +443,114 @@ mod tests {
         let dir = TempDir::new("nocopy");
         let path = dir.0.join("session.json");
         std::fs::write(&path, b"damaged").unwrap();
-        let held = Session {
+        let mut held = Session {
             hold_saves: true,
             ..Session::default()
         };
         held.save_to(&path).unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"damaged");
+    }
+
+    fn bookmark(name: &str) -> Bookmark {
+        Bookmark {
+            name: name.into(),
+            chamber: "c".into(),
+            scene: json!({ "t": 1.5 }),
+        }
+    }
+
+    fn names_on_disk(path: &Path) -> Vec<String> {
+        let (session, _) = Session::load_from(path);
+        session.bookmarks.into_iter().map(|b| b.name).collect()
+    }
+
+    /// Two windows that have both read a file holding these bookmarks.
+    fn two_windows(path: &Path, names: &[&str]) -> (Session, Session) {
+        let mut first = Session {
+            bookmarks: names.iter().map(|n| bookmark(n)).collect(),
+            ..Session::default()
+        };
+        first.save_to(path).unwrap();
+        (Session::load_from(path).0, Session::load_from(path).0)
+    }
+
+    #[test]
+    fn a_bookmark_from_a_second_window_survives_the_first_window_closing() {
+        let dir = TempDir::new("two-windows");
+        let path = dir.0.join("session.json");
+        let (mut first, mut second) = two_windows(&path, &["old"]);
+        second.bookmarks.push(bookmark("from the link window"));
+        second.save_to(&path).unwrap();
+        first.save_to(&path).unwrap();
+        assert_eq!(names_on_disk(&path), ["old", "from the link window"]);
+        assert_eq!(first.bookmarks.len(), 2, "this window now shows it too");
+    }
+
+    #[test]
+    fn a_bookmark_removed_in_either_window_stays_removed() {
+        let dir = TempDir::new("removed");
+        let path = dir.0.join("session.json");
+        let (mut first, mut second) = two_windows(&path, &["a", "b"]);
+        // Removed here, while the other window still holds it and saves first.
+        first.bookmarks.retain(|b| b.name != "a");
+        second.save_to(&path).unwrap();
+        first.save_to(&path).unwrap();
+        assert_eq!(names_on_disk(&path), ["b"]);
+        // Removed elsewhere: this window, still holding it, must not bring it back.
+        second.save_to(&path).unwrap();
+        assert_eq!(names_on_disk(&path), ["b"]);
+        assert_eq!(second.bookmarks.len(), 1);
+    }
+
+    #[test]
+    fn both_windows_keep_what_they_added_and_saw() {
+        let dir = TempDir::new("both");
+        let path = dir.0.join("session.json");
+        let (mut first, mut second) = two_windows(&path, &[]);
+        first.bookmarks.push(bookmark("mine"));
+        first.mark_seen("c", "here");
+        second.bookmarks.push(bookmark("theirs"));
+        second.mark_seen("c", "there");
+        first.save_to(&path).unwrap();
+        second.save_to(&path).unwrap();
+        first.save_to(&path).unwrap();
+        let (on_disk, _) = Session::load_from(&path);
+        assert_eq!(on_disk.bookmarks.len(), 2);
+        assert!(on_disk.has_seen("c", "here") && on_disk.has_seen("c", "there"));
+    }
+
+    #[test]
+    fn saving_twice_does_not_duplicate_a_bookmark() {
+        let dir = TempDir::new("twice");
+        let path = dir.0.join("session.json");
+        let mut session = Session::default();
+        session.bookmarks.push(bookmark("once"));
+        session.save_to(&path).unwrap();
+        session.save_to(&path).unwrap();
+        assert_eq!(names_on_disk(&path), ["once"]);
+    }
+
+    #[test]
+    fn a_file_damaged_while_running_is_copied_and_costs_this_window_nothing() {
+        let dir = TempDir::new("damaged-later");
+        let path = dir.0.join("session.json");
+        let (mut window, _) = two_windows(&path, &["keep"]);
+        std::fs::write(&path, b"{ damaged").unwrap();
+        window.save_to(&path).unwrap();
+        assert_eq!(names_on_disk(&path), ["keep"]);
+        let copies = copies_in(&dir.0);
+        assert_eq!(copies.len(), 1);
+        assert_eq!(std::fs::read(&copies[0]).unwrap(), b"{ damaged");
+    }
+
+    #[test]
+    fn a_deleted_file_is_simply_written_again() {
+        let dir = TempDir::new("deleted");
+        let path = dir.0.join("session.json");
+        let (mut window, _) = two_windows(&path, &["keep"]);
+        std::fs::remove_file(&path).unwrap();
+        window.save_to(&path).unwrap();
+        assert_eq!(names_on_disk(&path), ["keep"]);
     }
 
     #[test]
