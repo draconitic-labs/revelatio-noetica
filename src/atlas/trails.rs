@@ -25,7 +25,7 @@ pub const TRAILS: &[Trail] = &[
         steps: &[
             s("newton.fluxions", "fluent", "A moving point generates the curve, and the ordinate sweeps out the area beneath it."),
             s("newton.fluxions", "fluxion", "The fluxions are the velocities of that motion, composed into the tangent."),
-            s("newton.fluxions", "principia", "Under an inverse-square force the same language gives Kepler's law of equal areas."),
+            s("newton.fluxions", "principia", "Under any central force the radius sweeps equal areas in equal times; an inverse-square force makes the orbit an ellipse."),
             s("dynamics.attractor", "threebody", "Add a third body and no general closed form remains. This figure-eight is a special periodic solution."),
             s("gr.schwarzschild", "orbit", "General relativity corrects the two-body problem too: the bound orbit no longer closes, and precesses."),
         ],
@@ -75,7 +75,7 @@ pub const TRAILS: &[Trail] = &[
             s("geometry.manifolds", "transport", "Carry a vector around a loop on a curved surface and it returns turned."),
             s("geometry.manifolds", "curvature", "That turning measures Gaussian curvature, positive on some of a torus and negative on the rest."),
             s("gr.schwarzschild", "funnel", "Curvature can belong to space itself: a slice of Schwarzschild geometry, embedded as a funnel."),
-            s("gr.schwarzschild", "lensing", "Light follows geodesics of that geometry, so the image of the disk bends around the hole."),
+            s("gr.schwarzschild", "lensing", "Light follows null geodesics of the full spacetime, so the image of the disk bends around the hole."),
         ],
     },
     Trail {

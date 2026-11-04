@@ -198,7 +198,7 @@ impl ConceptModule for ApproximationAtelier {
         vec![
             RenderMode::plane("taylor", "Taylor Stage", "Partial sums reaching out from a = 0; the radius of convergence bites", 2.6)
                 .look_at(0.0, 0.3, 0.0),
-            RenderMode::plane("newton", "Newton Fractal", "Basins of z\u{00B3} = 1 under Newton iteration; boundaries are Julia dust", 1.9),
+            RenderMode::plane("newton", "Newton Fractal", "Basins of z\u{00B3} = 1 under Newton iteration; the boundary is the Julia set of the Newton map", 1.9),
             RenderMode::plane("linear", "The Microscope", "Zoom into any smooth curve and find its tangent line waiting", 2.2)
                 .look_at(0.0, 0.3, 0.0),
             RenderMode::plane("fresnel", "The Euler Spiral", "\u{222B}cos(t\u{00B2}), \u{222B}sin(t\u{00B2}): curvature growing linearly, coiling to a point", 1.15)

@@ -44,7 +44,7 @@ fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
 "#;
 
 /// Hertzian dipole radiation: level bands of the exact field-line function
-/// psi = sin^2(theta) [cos(kr - wt) + sin(kr - wt)/(kr)].
+/// psi = sin^2(theta) [cos(kr - wt) - sin(kr - wt)/(kr)].
 const DIPOLE_SHADE: &str = r#"
 fn shade(ndc: vec2<f32>, uv: vec2<f32>) -> vec4<f32> {
     let w = plane_pos(ndc);

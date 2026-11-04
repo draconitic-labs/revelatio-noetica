@@ -758,7 +758,7 @@ ViewGuide {
     module: "diffeq.pdes",
     view: "heat",
     read: "Horizontal is position on a rod whose ends stay at zero, vertical is temperature u. The glowing apricot curve is the current profile, and the faint grey curves are up to nine earlier snapshots, later ones brighter. The grey line is u = 0.",
-    try_this: "Lower \"Diffusivity α\" to 0.2: the wide block keeps its flat top for seconds while the narrow block's peak is already falling.",
+    try_this: "Lower \"Diffusivity α\" to 0.2, then scrub back to restart: the wide block keeps its flat top for seconds while the narrow block's peak is already falling.",
     params: &["alpha"],
 },
 ViewGuide {

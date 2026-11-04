@@ -99,7 +99,7 @@ pub const LINKS: &[Link] = &[
     builds("em.fields", "relativity.special", Some("charge"),
         "Special relativity began as the electrodynamics of moving bodies, and a moving charge's field shows why."),
     related(("number.rotunda", Some("zeta")), ("complex.domain", Some("dc")),
-        "The Riemann zeta function is a complex function, and the walk follows it along the critical line."),
+        "The Riemann zeta function is a complex function. Its series does not converge on the critical line, so the walk there only hints at it."),
     related(("analysis.taylor", Some("newton")), ("complex.domain", Some("julia")),
         "Newton's method on the complex plane and the map z\u{00B2}+c both draw Julia sets as their boundaries."),
     related(("analysis.taylor", Some("taylor")), ("analysis.fourier", Some("gibbs")),

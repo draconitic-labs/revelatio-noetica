@@ -537,7 +537,7 @@ impl ConceptModule for PdeHall {
             formula("Laplace: \u{2207}\u{00B2}u = 0        Burgers: u\u{209C} + u u\u{2093} = \u{03BD}u\u{2093}\u{2093}"),
             formula("Gray\u{2013}Scott: u\u{209C} = D\u{1D64}\u{2207}\u{00B2}u \u{2212} uv\u{00B2} + F(1\u{2212}u),   v\u{209C} = D\u{1D65}\u{2207}\u{00B2}v + uv\u{00B2} \u{2212} (F+k)v"),
             value(format!("sim t = {:.1}   Gray\u{2013}Scott regime: {}", self.sim_t, ["spots", "stripes", "waves"][self.params.c("gs")])),
-            note("Parabolic (heat) smooths and forgets; hyperbolic (wave, Burgers) remembers and breaks; elliptic (Laplace) has no time at all \u{2014} only agreement. The three temperaments of physics."),
+            note("Parabolic (heat) smooths and forgets; hyperbolic (wave) remembers; viscous Burgers is parabolic too, but at small \u{03BD} steepens toward the shock its hyperbolic limit forms; elliptic (Laplace) has no time at all \u{2014} only agreement. The three temperaments of physics."),
             note("Turing 1952: two diffusing chemicals suffice for pattern. The spots dividing on screen are the same mathematics as leopard coats and fingertip ridges."),
         ]
     }

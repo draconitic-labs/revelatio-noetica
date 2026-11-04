@@ -290,7 +290,7 @@ Preset {
     module: "topology.knots",
     name: "Hopf link",
     view: Some("gallery"),
-    note: "Two circles in orthogonal planes with linking number ±1.",
+    note: "Two circles in tilted planes, each through the other: linking number ±1.",
     values: &[("knot", V::C(4))],
 },
 Preset {
