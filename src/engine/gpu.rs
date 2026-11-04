@@ -16,7 +16,12 @@ pub struct GpuContext {
 impl GpuContext {
     /// Headless context for export mode and tests.
     pub fn headless() -> Result<Self> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        // WGPU_BACKEND is honoured. Otherwise only the primary backends, because a
+        // machine with just a software Vulkan driver would pick OpenGL and fail.
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::from_env().unwrap_or(wgpu::Backends::PRIMARY),
+            ..wgpu::InstanceDescriptor::from_env_or_default()
+        });
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: None,
