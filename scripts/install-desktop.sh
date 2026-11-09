@@ -137,7 +137,7 @@ uninstall() {
 install_app() {
     local force="$1" here repo assets built=""
     here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    if [[ -x "$here/revelatio" ]]; then
+    if [[ -f "$here/revelatio" ]]; then
         # An extracted release archive: the binary, icons, and menu entry sit here.
         assets="$here"
         built="$here/revelatio"

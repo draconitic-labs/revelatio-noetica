@@ -226,8 +226,9 @@ fn installs_the_prebuilt_binary_from_a_release_archive() {
     for name in ["icon-256.png", "icon.svg", "revelatio-noetica.desktop"] {
         fs::copy(repo.join("assets").join(name), archive.join(name)).unwrap();
     }
+    // Without its executable bit, as after a copy that drops modes: still the archive.
     const PREBUILT: &[u8] = b"#!/bin/sh\necho prebuilt\n";
-    s.write_executable("revelatio-noetica-linux/revelatio", PREBUILT);
+    fs::write(archive.join("revelatio"), PREBUILT).unwrap();
 
     // The stand-in cargo fails if anything calls it.
     let out = s

@@ -93,7 +93,8 @@ jobs:
           PATH="$tmp/$name:$PATH" cargo about generate --locked --fail \
             --config packaging/about.toml --target ${{ matrix.target }} \
             --output-file THIRD-PARTY-LICENSES.html packaging/about.hbs
-          test -s THIRD-PARTY-LICENSES.html
+          # The Hack font's licence is fixed text in about.hbs; cargo-about cannot read it.
+          grep -q 'BITSTREAM VERA LICENSE' THIRD-PARTY-LICENSES.html
 
       - name: Package the Linux tarball
         if: runner.os == 'Linux'
