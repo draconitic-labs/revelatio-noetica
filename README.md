@@ -11,6 +11,21 @@ and how it approximates.
 
 ![The Field Forge at 1600×900, running at 238 fps on an RTX 4060](docs/screenshot.png)
 
+## Download
+
+Prebuilt archives for 64-bit Linux and Windows are on the
+[Releases page](https://github.com/draconitic-labs/revelatio-noetica/releases). The
+binary holds everything it needs, so it runs from wherever you extract it.
+
+- **Linux**: extract `revelatio-noetica-<version>-x86_64-linux.tar.gz` and run
+  `./revelatio` in the folder it creates. It needs a Vulkan driver and glibc 2.35 or
+  newer (Ubuntu 22.04, Fedora 36, Debian 12 and later). To add it to your application
+  menu, run `./install-desktop.sh` from the same folder: it copies the binary, icon,
+  and menu entry under `~/.local` without building anything, and
+  `./install-desktop.sh --uninstall` removes them.
+- **Windows**: extract `revelatio-noetica-<version>-x86_64-windows.zip` and run
+  `revelatio.exe`.
+
 ## Build and run on Linux
 
 You need [Rust](https://rustup.rs), a Vulkan driver, and the usual windowing headers.
@@ -36,8 +51,8 @@ removes only what the install recorded, and only if unchanged. It rebuilds the s
 desktop caches and keeps any that still list other apps, and it leaves your session and
 exports alone.
 
-The project was first built on Windows and still should be, with
-`cargo build --release`, though Linux is what is tested now.
+The project was first built on Windows, and `cargo build --release` still builds it
+there: the release workflow makes the Windows zip that way. The tests run on Linux.
 
 ## Finding your way around
 
@@ -197,4 +212,5 @@ mean radius of hydrogen states and field lines of the Hertzian dipole.
 
 The code is under the MIT License; see `LICENSE`. Cormorant Garamond, Inter, and Noto
 Sans Math are embedded from `assets/fonts/` under the SIL Open Font License 1.1; see
-`NOTICE` and `assets/fonts/OFL.txt`.
+`NOTICE` and `assets/fonts/OFL.txt`. The release archives also carry
+`THIRD-PARTY-LICENSES.html`, the licences of the Rust crates compiled into the binary.

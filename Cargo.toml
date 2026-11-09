@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Revelatio Noetica — A Living Atlas of Mathematics and Natural Philosophy"
 license = "MIT"
+publish = false
 
 [[bin]]
 name = "revelatio"

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Install Revelatio Noetica for this user: builds in release mode, then puts the
 # binary, icon, and application-menu entry under ~/.local. Nothing needs root.
+# Run from an extracted release archive, it installs the binary that came with it
+# and builds nothing.
 #
 #   scripts/install-desktop.sh              build and install
 #   scripts/install-desktop.sh --force      also replace files it did not install
@@ -133,27 +135,37 @@ uninstall() {
 }
 
 install_app() {
-    local force="$1" repo built
-    repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-    command -v cargo >/dev/null || {
-        echo "install-desktop: cargo not found; install Rust from https://rustup.rs" >&2
-        exit 1
-    }
+    local force="$1" here repo assets built=""
+    here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [[ -x "$here/revelatio" ]]; then
+        # An extracted release archive: the binary, icons, and menu entry sit here.
+        assets="$here"
+        built="$here/revelatio"
+    else
+        repo="$(dirname -- "$here")"
+        assets="$repo/assets"
+        command -v cargo >/dev/null || {
+            echo "install-desktop: cargo not found; install Rust from https://rustup.rs" >&2
+            exit 1
+        }
+    fi
     if [[ "$force" != yes ]]; then
         for path in "$bin_path" "$desktop_path" "$icon_png" "$icon_svg"; do
             check_replaceable "$path"
         done
     fi
 
-    echo "building release binary (this takes a few minutes the first time)"
-    # Ask Cargo where the binary went: CARGO_TARGET_DIR and build settings can move it,
-    # and whatever sits in the repo's own target/ may be stale.
-    built="$(cargo build --release --manifest-path "$repo/Cargo.toml" \
-        --message-format=json-render-diagnostics |
-        sed -n 's/.*"executable":"\([^"]*\/revelatio\)".*/\1/p' | tail -n 1)"
-    if [[ ! -x "$built" ]]; then
-        echo "install-desktop: cargo did not report a revelatio binary" >&2
-        exit 1
+    if [[ -z "$built" ]]; then
+        echo "building release binary (this takes a few minutes the first time)"
+        # Ask Cargo where the binary went: CARGO_TARGET_DIR and build settings can move
+        # it, and whatever sits in the repo's own target/ may be stale.
+        built="$(cargo build --release --manifest-path "$repo/Cargo.toml" \
+            --message-format=json-render-diagnostics |
+            sed -n 's/.*"executable":"\([^"]*\/revelatio\)".*/\1/p' | tail -n 1)"
+        if [[ ! -x "$built" ]]; then
+            echo "install-desktop: cargo did not report a revelatio binary" >&2
+            exit 1
+        fi
     fi
 
     new_manifest="$(mktemp)"
@@ -175,26 +187,18 @@ install_app() {
     done
 
     install -m 0755 "$built" "$bin_path"
-    install -m 0644 "$repo/assets/icon-256.png" "$icon_png"
-    install -m 0644 "$repo/assets/icon.svg" "$icon_svg"
+    install -m 0644 "$assets/icon-256.png" "$icon_png"
+    install -m 0644 "$assets/icon.svg" "$icon_svg"
 
-    # Exec uses the absolute path because ~/.local/bin is not always on PATH for
+    # Exec gets the absolute path because ~/.local/bin is not always on PATH for
     # the session that starts launchers. %u passes scene links through.
-    cat >"$desktop_path" <<DESKTOP
-[Desktop Entry]
-Type=Application
-Version=1.5
-Name=Revelatio Noetica
-GenericName=Atlas of mathematics and physics
-Comment=Explore mathematics and physics as live GPU visualizations
-Exec="$bin_path" %u
-Icon=$app_id
-Terminal=false
-Categories=Science;Math;Physics;
-Keywords=mathematics;physics;calculus;visualization;simulation;
-MimeType=x-scheme-handler/revelatio;
-StartupWMClass=$app_id
-DESKTOP
+    local line
+    while IFS= read -r line; do
+        if [[ "$line" == Exec=* ]]; then
+            line="Exec=\"$bin_path\" %u"
+        fi
+        printf '%s\n' "$line"
+    done <"$assets/$app_id.desktop" >"$desktop_path"
     chmod 0644 "$desktop_path"
 
     for path in "$bin_path" "$desktop_path" "$icon_png" "$icon_svg"; do

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=Revelatio Noetica
+GenericName=Atlas of mathematics and physics
+Comment=Explore mathematics and physics as live GPU visualizations
+Exec=revelatio %u
+Icon=revelatio-noetica
+Terminal=false
+Categories=Science;Math;Physics;
+Keywords=mathematics;physics;calculus;visualization;simulation;
+MimeType=x-scheme-handler/revelatio;
+StartupWMClass=revelatio-noetica

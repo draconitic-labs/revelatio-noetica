@@ -1,0 +1,26 @@
+# cargo-about settings for THIRD-PARTY-LICENSES.html, the licence file that ships in
+# the release archives. `cargo about generate --fail` stops the release on any
+# dependency licence that is not listed here.
+
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    # epaint_default_fonts embeds egui's fallback fonts (Hack, Ubuntu Light, Noto Emoji).
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+]
+
+# Build and dev dependencies are not in the binary.
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+
+# Revelatio Noetica itself is covered by LICENSE, not by this file.
+[private]
+ignore = true

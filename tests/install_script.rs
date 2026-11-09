@@ -55,13 +55,17 @@ impl Sandbox {
     }
 
     fn command(&self, args: &[&str]) -> Command {
+        self.command_at(Path::new(SCRIPT), args)
+    }
+
+    fn command_at(&self, script: &Path, args: &[&str]) -> Command {
         let path = format!(
             "{}:{}",
             self.root.join("tools").display(),
             std::env::var("PATH").unwrap_or_default()
         );
         let mut c = Command::new("bash");
-        c.arg(SCRIPT)
+        c.arg(script)
             .args(args)
             .env("HOME", self.root.join("home"))
             .env("PATH", path)
@@ -208,4 +212,44 @@ fn install_refuses_a_file_it_did_not_put_there_unless_forced() {
     );
     s.run_ok(&["--force"]);
     assert_eq!(fs::read(s.home(".local/bin/revelatio")).unwrap(), BUILT);
+}
+
+/// The Linux release archive ships the script beside a built binary, the icons, and
+/// the menu entry. Run from there, it installs those and never calls cargo.
+#[test]
+fn installs_the_prebuilt_binary_from_a_release_archive() {
+    let s = Sandbox::new("archive");
+    let archive = s.root.join("revelatio-noetica-linux");
+    fs::create_dir_all(&archive).unwrap();
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR"));
+    fs::copy(SCRIPT, archive.join("install-desktop.sh")).unwrap();
+    for name in ["icon-256.png", "icon.svg", "revelatio-noetica.desktop"] {
+        fs::copy(repo.join("assets").join(name), archive.join(name)).unwrap();
+    }
+    const PREBUILT: &[u8] = b"#!/bin/sh\necho prebuilt\n";
+    s.write_executable("revelatio-noetica-linux/revelatio", PREBUILT);
+
+    // The stand-in cargo fails if anything calls it.
+    let out = s
+        .command_at(&archive.join("install-desktop.sh"), &[])
+        .env("FAIL_THE_BUILD", "1")
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(fs::read(s.home(".local/bin/revelatio")).unwrap(), PREBUILT);
+    assert_eq!(
+        fs::read(s.icons("256x256/apps/revelatio-noetica.png")).unwrap(),
+        fs::read(repo.join("assets/icon-256.png")).unwrap()
+    );
+    let entry = fs::read_to_string(s.apps("revelatio-noetica.desktop")).unwrap();
+    let exec = format!("Exec=\"{}\" %u", s.home(".local/bin/revelatio").display());
+    assert!(entry.lines().any(|l| l == exec), "{entry}");
+    assert!(entry.contains("Icon=revelatio-noetica\n"), "{entry}");
+
+    s.run_ok(&["--uninstall"]);
+    assert_eq!(s.files_left(), Vec::<PathBuf>::new());
 }
